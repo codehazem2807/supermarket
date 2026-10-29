@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>تسجيل الدخول — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+
+<style>
+:root {
+  --primary: #0B2C4D; --primary-light: #1e4a73; --primary-dark: #061a2e;
+  --accent: #14B8A6; --accent-dark: #0d9488;
+  --accent-soft: rgba(20,184,166,0.1);
+  --gold: #F59E0B; --gold-soft: rgba(245,158,11,0.1);
+  --danger: #ef4444; --danger-soft: rgba(239,68,68,0.1);
+  --success: #10b981; --success-soft: rgba(16,185,129,0.1);
+  --bg: #F1F5F9; --bg-soft: #f8fafc; --card: #ffffff;
+  --text: #0f172a; --text-muted: #64748b;
+  --border: #e2e8f0;
+  --radius: 14px;
+  --shadow: 0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg: 0 10px 40px rgba(11,44,77,0.12);
+  --font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+[data-theme="dark"] {
+  --bg: #0f172a; --bg-soft: #1e293b; --card: #1e293b;
+  --text: #f1f5f9; --text-muted: #94a3b8;
+  --border: #334155;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  font-family: var(--font-family);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 10% 10%, var(--accent-soft), transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(11,44,77,0.08), transparent 40%),
+    var(--bg);
+}
+.login-wrap {
+  width: 100%;
+  max-width: 440px;
+  background: var(--card);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  padding: 40px 32px;
+  position: relative;
+  overflow: hidden;
+}
+.login-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--accent), var(--gold));
+}
+.brand { text-align: center; margin-bottom: 32px; }
+.brand-logo {
+  width: 92px; height: 92px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(11,44,77,0.25);
+}
+.brand-logo img { width: 60px; height: 60px; object-fit: contain; }
+.brand-logo svg { width: 44px; height: 44px; color: white; stroke-width: 2; }
+.brand h1 {
+  font-size: 24px; font-weight: 800;
+  color: var(--primary); margin-bottom: 6px;
+}
+.brand p { font-size: 14px; color: var(--text-muted); }
+.form-group { margin-bottom: 18px; }
+.form-label {
+  display: block; font-size: 13px; font-weight: 700;
+  color: var(--text); margin-bottom: 8px;
+}
+.input-wrap { position: relative; }
+.input-wrap .icon {
+  position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  color: var(--text-muted); pointer-events: none;
+}
+.input-wrap .toggle {
+  position: absolute; left: 14px; top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer; color: var(--text-muted);
+  background: none; border: none; padding: 4px;
+}
+.input-wrap .toggle:hover { color: var(--primary); }
+.form-input {
+  width: 100%; padding: 14px 44px 14px 44px;
+  border: 1.5px solid var(--border); border-radius: 12px;
+  font-size: 15px; font-family: inherit;
+  background: var(--bg-soft); color: var(--text);
+  transition: all 0.2s;
+}
+.form-input:focus {
+  outline: none; border-color: var(--accent);
+  background: var(--card); box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.form-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+.btn-primary {
+  width: 100%; padding: 14px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light, var(--primary)));
+  color: white; border: none; border-radius: 12px;
+  font-size: 16px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(11,44,77,0.25);
+}
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+.btn-primary .spinner {
+  width: 18px; height: 18px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: white; border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-box {
+  background: var(--danger-soft); color: var(--danger);
+  padding: 12px 14px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; margin-bottom: 16px;
+  display: none; align-items: center; gap: 8px;
+}
+.error-box.show { display: flex; }
+.hint {
+  text-align: center; margin-top: 22px;
+  font-size: 12px; color: var(--text-muted);
+}
+.hint kbd {
+  background: var(--bg-soft); padding: 2px 8px;
+  border-radius: 6px; border: 1px solid var(--border);
+  font-family: monospace; font-size: 11px;
+  color: var(--primary); font-weight: 700;
+}
+.footer {
+  text-align: center; margin-top: 26px;
+  font-size: 11px; color: var(--text-muted);
+}
+.footer strong { color: var(--primary); }
+@media (max-width: 480px) {
+  .login-wrap { padding: 32px 22px; border-radius: 20px; }
+  .brand-logo { width: 76px; height: 76px; }
+  .brand h1 { font-size: 21px; }
+}
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="brand">
+    <div class="brand-logo">
+      <img src="logo.png" alt="رفاد" onerror="this.style.display='none'; this.parentElement.innerHTML='<i data-lucide=\'shopping-cart\'></i>'; if(window.lucide)lucide.createIcons();">
+    </div>
+    <h1>رفاد سوبرماركت</h1>
+    <p>نظام إدارة متكامل — الإصدار 3.6</p>
+  </div>
+
+  <div class="error-box" id="errorBox">
+    <i data-lucide="alert-circle" style="width:18px;height:18px"></i>
+    <span id="errorMsg"></span>
+  </div>
+
+  <form id="loginForm" autocomplete="on">
+    <div class="form-group">
+      <label class="form-label">اسم المستخدم أو البريد الإلكتروني</label>
+      <div class="input-wrap">
+        <i class="icon" data-lucide="user"></i>
+        <input type="text" id="username" class="form-input" placeholder="admin أو you@example.com" autocomplete="username" required autofocus>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">كلمة المرور</label>
+      <div class="input-wrap">
+        <i class="icon" data-lucide="lock"></i>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" autocomplete="current-password" required>
+        <button type="button" class="toggle" id="togglePass" title="إظهار / إخفاء">
+          <i data-lucide="eye" style="width:18px;height:18px"></i>
+        </button>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-primary" id="submitBtn">
+      <span id="submitText">تسجيل الدخول</span>
+    </button>
+  </form>
+
+  <div class="hint">
+    للدخول كمدير المنصة: <kbd>admin</kbd> / <kbd>22446688</kbd>
+  </div>
+
+  <div class="footer">
+    <strong>رفاد</strong> © 2026 — جميع الحقوق محفوظة
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const cfg = window.REFAD_CONFIG;
+  const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  const $form = document.getElementById('loginForm');
+  const $username = document.getElementById('username');
+  const $password = document.getElementById('password');
+  const $submitBtn = document.getElementById('submitBtn');
+  const $errorBox = document.getElementById('errorBox');
+  const $errorMsg = document.getElementById('errorMsg');
+  const $togglePass = document.getElementById('togglePass');
+
+  // ═══════════════════════════════════════════════════════════
+  // تطبيق الثيم من الكاش
+  // ═══════════════════════════════════════════════════════════
+  (function applyCachedTheme() {
+    try {
+      if (window.RefadTheme && typeof window.RefadTheme.applyCached === 'function') {
+        window.RefadTheme.applyCached();
+        return;
+      }
+      const cached = localStorage.getItem('refad_cached_theme');
+      if (cached) {
+        const theme = JSON.parse(cached);
+        const root = document.documentElement;
+        Object.entries(theme).forEach(([k, v]) => {
+          if (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) {
+            const cssKey = '--' + k.replace(/([A-Z])/g, '-$1').toLowerCase();
+            root.style.setProperty(cssKey, v);
+          }
+        });
+        if (theme.mode === 'dark') root.setAttribute('data-theme', 'dark');
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta && theme.primary) meta.content = theme.primary;
+      } else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark) document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (e) {
+      console.warn('[Login] Cached theme apply failed:', e);
+    }
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // TOGGLE PASSWORD
+  // ═══════════════════════════════════════════════════════════
+  $togglePass.addEventListener('click', () => {
+    const isPass = $password.type === 'password';
+    $password.type = isPass ? 'text' : 'password';
+    $togglePass.innerHTML = isPass
+      ? '<i data-lucide="eye-off" style="width:18px;height:18px"></i>'
+      : '<i data-lucide="eye" style="width:18px;height:18px"></i>';
+    if (window.lucide) lucide.createIcons();
+  });
+
+  function showError(msg) {
+    $errorMsg.textContent = msg;
+    $errorBox.classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+  function hideError() { $errorBox.classList.remove('show'); }
+
+  function setLoading(loading) {
+    $submitBtn.disabled = loading;
+    if (loading) {
+      $submitBtn.innerHTML = '<div class="spinner"></div><span>جاري الدخول...</span>';
+    } else {
+      $submitBtn.innerHTML = '<span>تسجيل الدخول</span>';
+    }
+  }
+
+  function normalizeUsername(raw) {
+    const v = String(raw || '').trim();
+    if (!v) return '';
+    if (v.includes('@')) return v.toLowerCase();
+    if (cfg.PLATFORM_ADMIN_USERNAME && v.toLowerCase() === cfg.PLATFORM_ADMIN_USERNAME.toLowerCase()) {
+      return cfg.PLATFORM_ADMIN_EMAIL;
+    }
+    return v.toLowerCase() + '@refad.app';
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CACHE THEME
+  // ═══════════════════════════════════════════════════════════
+  async function cacheCompanyTheme(companyId) {
+    try {
+      if (!companyId) return;
+      const { data: company } = await sb.from('companies')
+        .select('active_theme_slug, active_custom_theme_id, theme_overrides')
+        .eq('id', companyId).single();
+      if (!company) return;
+
+      let themeConfig = null;
+      if (company.active_custom_theme_id) {
+        const { data: custom } = await sb.from('company_themes')
+          .select('config').eq('id', company.active_custom_theme_id).single();
+        themeConfig = custom?.config;
+      } else if (company.active_theme_slug) {
+        const { data: builtin } = await sb.from('themes')
+          .select('config').eq('slug', company.active_theme_slug).single();
+        themeConfig = builtin?.config;
+      }
+      if (!themeConfig) return;
+
+      const finalTheme = Object.assign({}, themeConfig, company.theme_overrides || {});
+      const cache = {
+        primary: finalTheme.primary,
+        primaryLight: finalTheme.primaryLight,
+        primaryDark: finalTheme.primaryDark,
+        accent: finalTheme.accent,
+        accentDark: finalTheme.accentDark,
+        bg: finalTheme.bg,
+        bgCard: finalTheme.bgCard,
+        text: finalTheme.text,
+        textMuted: finalTheme.textMuted,
+        border: finalTheme.border,
+        gold: finalTheme.gold,
+        success: finalTheme.success,
+        danger: finalTheme.danger,
+        info: finalTheme.info,
+        mode: finalTheme.mode || 'light',
+        fontFamily: finalTheme.fontFamily
+      };
+      localStorage.setItem('refad_cached_theme', JSON.stringify(cache));
+
+      const { data: companyData } = await sb.from('companies')
+        .select('name, logo_url').eq('id', companyId).single();
+      if (companyData) {
+        localStorage.setItem('refad_cached_brand', JSON.stringify({
+          name: companyData.name,
+          logo_url: companyData.logo_url
+        }));
+      }
+    } catch (e) {
+      console.warn('[Login] Cache theme failed:', e);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ⭐⭐⭐ LOGIN — بدون joins في users
+  // ═══════════════════════════════════════════════════════════
+  async function login(email, password) {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || 'فشل تسجيل الدخول');
+    if (!data.session) throw new Error('لم يتم إنشاء جلسة، حاول مرة أخرى');
+
+    localStorage.setItem(cfg.SESSION_KEY, data.session.access_token);
+
+    // ⭐ تأكيد الجلسة
+    let verified = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: sessData, error: sessErr } = await sb.auth.getSession();
+      if (!sessErr && sessData && sessData.session) {
+        verified = true;
+        console.log('[Login] Session verified on attempt ' + (attempt + 1));
+        break;
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+    if (!verified) console.warn('[Login] Session not verified after retries');
+
+    // ⭐ جلب profile بدون joins (roles, companies)
+    const { data: profile, error: profErr } = await sb
+      .from('users')
+      .select('id, company_id, branch_id, role_id, full_name, email, is_owner, is_active, deleted_at, permissions')
+      .eq('id', data.session.user.id)
+      .maybeSingle();
+
+    if (profErr) {
+      console.error('[Login] Profile fetch error:', profErr);
+    }
+
+    if (!profile || profile.is_active === false || profile.deleted_at) {
+      await sb.auth.signOut();
+      localStorage.removeItem(cfg.SESSION_KEY);
+      throw new Error('الحساب غير مُفعّل أو محذوف. تواصل مع الإدارة.');
+    }
+
+    // ⭐ جلب role منفصل (لو role_id موجود)
+    let roleData = null;
+    if (profile.role_id) {
+      try {
+        const { data: r } = await sb.from('roles')
+          .select('is_owner, permissions')
+          .eq('id', profile.role_id)
+          .maybeSingle();
+        roleData = r;
+      } catch (e) { console.warn('[Login] Role fetch failed:', e); }
+    }
+
+    // ⭐ هل المستخدم platform admin؟
+    const { data: pa } = await sb
+      .from('platform_admins')
+      .select('id')
+      .eq('id', data.session.user.id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (pa) {
+      localStorage.removeItem('refad_cached_theme');
+      localStorage.removeItem('refad_cached_brand');
+      console.log('[Login] Platform admin — redirecting to admin.html');
+      await new Promise(r => setTimeout(r, 300));
+      location.href = 'admin.html';
+      return;
+    }
+
+    // ⭐ مستخدم عادي (مالك شركة أو موظف) → dashboard
+    await cacheCompanyTheme(profile.company_id);
+    localStorage.setItem(cfg.BRANCH_KEY, profile.branch_id || '');
+
+    await new Promise(r => setTimeout(r, 400));
+    location.href = 'dashboard.html';
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SUBMIT
+  // ═══════════════════════════════════════════════════════════
+  $form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    setLoading(true);
+    try {
+      const email = normalizeUsername($username.value);
+      const password = $password.value;
+      if (!email || !password) throw new Error('أدخل اسم المستخدم وكلمة المرور');
+      await login(email, password);
+    } catch (err) {
+      setLoading(false);
+      const msg = err.message || 'حدث خطأ غير متوقع';
+      if (msg.includes('Invalid login')) showError('اسم المستخدم أو كلمة المرور غير صحيحة');
+      else if (msg.includes('Email not confirmed')) showError('البريد الإلكتروني لم يتم تأكيده');
+      else showError(msg);
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // AUTO-REDIRECT — بدون joins
+  // ═══════════════════════════════════════════════════════════
+  (async () => {
+    try {
+      const { data: { session }, error } = await sb.auth.getSession();
+      if (error || !session) {
+        localStorage.removeItem(cfg.SESSION_KEY);
+        return;
+      }
+
+      // ⭐ هل platform admin؟
+      const { data: pa } = await sb
+        .from('platform_admins')
+        .select('id')
+        .eq('id', session.user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      console.log('[Login] Auto-redirect: ' + (pa ? 'admin.html' : 'dashboard.html'));
+      location.href = pa ? 'admin.html' : 'dashboard.html';
+    } catch (e) {
+      console.warn('[Login] Auto-redirect failed:', e);
+      try { localStorage.removeItem(cfg.SESSION_KEY); } catch (_) {}
+    }
+  })();
+
+  if (window.lucide) lucide.createIcons();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>

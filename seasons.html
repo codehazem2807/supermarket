@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>المواسم — رفاد</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root {
+  --primary:#0B2C4D; --primary-light:#1e4a73; --primary-dark:#061a2e;
+  --accent:#14B8A6; --accent-dark:#0d9488; --accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B; --gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981; --success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6; --info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6; --purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9; --bg-soft:#f8fafc; --bg-card:#ffffff;
+  --card:#ffffff; --text:#0f172a; --text-muted:#64748b;
+  --border:#e2e8f0; --border-soft:#f1f5f9;
+  --radius:14px; --radius-sm:10px; --radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI','Cairo',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px;flex-wrap:wrap}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1200px;margin:0 auto}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-body{padding:20px}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.purple::before{background:var(--purple)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-card.success::before{background:var(--success)}
+.stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.stat-icon svg{width:18px;height:18px}
+.stat-icon.purple{background:var(--purple-soft);color:var(--purple)}
+.stat-icon.gold{background:var(--gold-soft);color:var(--gold)}
+.stat-icon.green{background:var(--success-soft);color:var(--success)}
+.stat-icon.blue{background:var(--info-soft);color:var(--info)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600}
+
+/* Seasons Grid */
+.seasons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.season-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:all .2s}
+.season-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--accent)}
+.season-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.season-card.ramadan::before{background:var(--purple)}
+.season-card.eid::before{background:var(--gold)}
+.season-card.school::before{background:var(--info)}
+.season-card.weather::before{background:var(--accent)}
+.season-card.custom::before{background:var(--text-muted)}
+.season-card.inactive{opacity:0.6}
+.season-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:8px}
+.season-name{font-size:16px;font-weight:800;line-height:1.3}
+.season-multiplier{background:var(--accent-soft);color:var(--accent);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:800;white-space:nowrap}
+.season-meta{font-size:12px;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.season-meta svg{width:13px;height:13px}
+.season-status{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px}
+.season-status.active{background:var(--success-soft);color:var(--success)}
+.season-status.upcoming{background:var(--gold-soft);color:var(--gold)}
+.season-status.past{background:var(--bg-soft);color:var(--text-muted)}
+.season-status.inactive{background:var(--danger-soft);color:var(--danger)}
+.season-actions{display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.season-actions button{flex:1;padding:7px 10px;font-size:11.5px;font-weight:700;border-radius:6px;border:none;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:4px}
+.season-actions button svg{width:12px;height:12px}
+.season-actions .edit-btn{background:var(--info-soft);color:var(--info)}
+.season-actions .edit-btn:hover{background:var(--info);color:#fff}
+.season-actions .toggle-btn{background:var(--gold-soft);color:var(--gold)}
+.season-actions .toggle-btn:hover{background:var(--gold);color:#fff}
+.season-actions .delete-btn{background:var(--danger-soft);color:var(--danger)}
+.season-actions .delete-btn:hover{background:var(--danger);color:#fff}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(6px)}
+.modal-overlay.show{display:flex;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--card);border-radius:20px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:modalIn .3s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes modalIn{from{opacity:0;transform:scale(0.9) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px}
+.modal-header h3 svg{width:22px;height:22px;color:var(--accent)}
+.modal-close{background:var(--bg-soft);border:none;color:var(--text-muted);padding:8px;border-radius:8px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--danger);color:white;transform:rotate(90deg)}
+.modal-close svg{width:18px;height:18px}
+.modal-body{padding:22px 24px}
+.modal-footer{padding:18px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.form-label .req{color:var(--danger)}
+.form-input,.form-select,.form-textarea{width:100%;padding:12px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;font-weight:600;transition:all .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-input[type="number"]{font-variant-numeric:tabular-nums;text-align:center;font-weight:800}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Type chips */
+.type-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.type-chip{padding:8px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;color:var(--text)}
+.type-chip:hover{border-color:var(--accent);transform:translateY(-1px)}
+.type-chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.type-chip svg{width:14px;height:14px}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:56px;height:56px;margin-bottom:14px;opacity:.4}
+.empty-state h3{font-size:16px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:13px;max-width:500px;margin:0 auto 20px;line-height:1.6}
+
+.loading-state{padding:60px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+.spinner.sm{width:16px;height:16px;border-width:2px;margin:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast .3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .form-row{grid-template-columns:1fr}
+  .seasons-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <h1>المواسم</h1>
+        <div class="topbar-subtitle" id="branchName">—</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-primary" id="addSeasonBtn"><i data-lucide="plus"></i>موسم جديد</button>
+    </div>
+  </div>
+
+  <div class="content" id="mainContent">
+    <div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>
+  </div>
+</main>
+
+<!-- Modal: Add/Edit Season -->
+<div class="modal-overlay" id="seasonModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i data-lucide="calendar-days"></i><span id="modalTitle">موسم جديد</span></h3>
+      <button class="modal-close" id="closeModalBtn"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">نوع الموسم <span class="req">*</span></label>
+        <div class="type-chips" id="typeChips">
+          <button class="type-chip active" data-type="religious"><i data-lucide="moon"></i>ديني</button>
+          <button class="type-chip" data-type="national"><i data-lucide="flag"></i>وطني</button>
+          <button class="type-chip" data-type="school"><i data-lucide="graduation-cap"></i>دراسي</button>
+          <button class="type-chip" data-type="weather"><i data-lucide="cloud-sun"></i>مناخي</button>
+          <button class="type-chip" data-type="custom"><i data-lucide="settings"></i>مخصص</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">اسم الموسم <span class="req">*</span></label>
+        <input type="text" class="form-input" id="seasonName" placeholder="مثال: رمضان، عيد الفطر...">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">من شهر <span class="req">*</span></label>
+          <select class="form-select" id="startMonth">
+            <option value="1">يناير</option>
+            <option value="2">فبراير</option>
+            <option value="3">مارس</option>
+            <option value="4">أبريل</option>
+            <option value="5">مايو</option>
+            <option value="6">يونيو</option>
+            <option value="7">يوليو</option>
+            <option value="8">أغسطس</option>
+            <option value="9">سبتمبر</option>
+            <option value="10">أكتوبر</option>
+            <option value="11">نوفمبر</option>
+            <option value="12">ديسمبر</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">إلى شهر <span class="req">*</span></label>
+          <select class="form-select" id="endMonth">
+            <option value="1">يناير</option>
+            <option value="2">فبراير</option>
+            <option value="3">مارس</option>
+            <option value="4">أبريل</option>
+            <option value="5">مايو</option>
+            <option value="6">يونيو</option>
+            <option value="7">يوليو</option>
+            <option value="8">أغسطس</option>
+            <option value="9">سبتمبر</option>
+            <option value="10">أكتوبر</option>
+            <option value="11">نوفمبر</option>
+            <option value="12">ديسمبر</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">معامل الطلب (Multiplier)</label>
+        <input type="number" class="form-input" id="demandMultiplier" value="1.0" step="0.1" min="0.1">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;text-align:center">
+          1.0 = طلب عادي · 1.5 = +50% · 2.0 = ضعف الطلب
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ملاحظات</label>
+        <textarea class="form-textarea" id="seasonNotes" placeholder="أي تفاصيل إضافية..."></textarea>
+      </div>
+
+      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="seasonActive" checked style="width:18px;height:18px;cursor:pointer">
+        <label for="seasonActive" style="font-size:13px;font-weight:600;cursor:pointer">نشط</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cancelModalBtn">إلغاء</button>
+      <button class="btn btn-primary" id="saveSeasonBtn"><i data-lucide="check"></i>حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let seasons = [];
+  let editingId = null;
+  let selectedType = 'religious';
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:1})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  const MONTHS = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  const TYPE_INFO = {
+    religious: { label: 'ديني', icon: 'moon', class: 'ramadan' },
+    national: { label: 'وطني', icon: 'flag', class: 'eid' },
+    school: { label: 'دراسي', icon: 'graduation-cap', class: 'school' },
+    weather: { label: 'مناخي', icon: 'cloud-sun', class: 'weather' },
+    custom: { label: 'مخصص', icon: 'settings', class: 'custom' }
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // LOAD
+  // ═══════════════════════════════════════════════════════════
+  async function loadSeasons() {
+    try {
+      const { data, error } = await sb.from('seasonal_patterns')
+        .select('*')
+        .eq('company_id', session.company_id)
+        .order('start_month').order('name');
+      if (error) throw error;
+      seasons = data || [];
+      console.log('[Seasons] Loaded', seasons.length, 'seasons');
+    } catch (e) {
+      console.error('[Seasons] loadSeasons:', e);
+      toast('error', 'فشل تحميل المواسم');
+      seasons = [];
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════
+  function getSeasonStatus(s) {
+    const now = new Date();
+    const m = now.getMonth() + 1;
+    if (!s.is_active) return { label: 'معطل', class: 'inactive', icon: 'x-circle' };
+    if (s.start_month === s.end_month) {
+      return m === s.start_month ? { label: 'نشط الآن', class: 'active', icon: 'check-circle' } : { label: 'قادم', class: 'upcoming', icon: 'calendar' };
+    }
+    if (s.start_month <= s.end_month) {
+      if (m >= s.start_month && m <= s.end_month) return { label: 'نشط الآن', class: 'active', icon: 'check-circle' };
+      if (m > s.end_month) return { label: 'انتهى', class: 'past', icon: 'clock' };
+      return { label: 'قادم', class: 'upcoming', icon: 'calendar' };
+    }
+    if (m >= s.start_month || m <= s.end_month) return { label: 'نشط الآن', class: 'active', icon: 'check-circle' };
+    return { label: 'قادم', class: 'upcoming', icon: 'calendar' };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATS
+  // ═══════════════════════════════════════════════════════════
+  function computeStats() {
+    const now = new Date();
+    const m = now.getMonth() + 1;
+    let active = 0, upcoming = 0, inactive = 0;
+    seasons.forEach(s => {
+      const st = getSeasonStatus(s);
+      if (st.class === 'active') active++;
+      else if (st.class === 'upcoming') upcoming++;
+      else if (st.class === 'inactive') inactive++;
+    });
+    const avgMultiplier = seasons.length > 0 ? seasons.reduce((sum, s) => sum + Number(s.demand_multiplier || 1), 0) / seasons.length : 1;
+    return { total: seasons.length, active, upcoming, inactive, avgMultiplier };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  async function render() {
+    const container = document.getElementById('mainContent');
+    await loadSeasons();
+    const stats = computeStats();
+
+    const statsHtml = `
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue"><i data-lucide="calendar-days"></i></div>
+          <div class="stat-label">إجمالي المواسم</div>
+          <div class="stat-value">${num(stats.total)}</div>
+          <div class="stat-sub">موسم معرّف</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-icon green"><i data-lucide="check-circle"></i></div>
+          <div class="stat-label">نشط الآن</div>
+          <div class="stat-value" style="color:var(--success)">${num(stats.active)}</div>
+          <div class="stat-sub">موسم جاري</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon gold"><i data-lucide="calendar"></i></div>
+          <div class="stat-label">قادم</div>
+          <div class="stat-value" style="color:var(--gold)">${num(stats.upcoming)}</div>
+          <div class="stat-sub">موسم في الطريق</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon purple"><i data-lucide="trending-up"></i></div>
+          <div class="stat-label">متوسط الطلب</div>
+          <div class="stat-value" style="color:var(--purple)">${num(stats.avgMultiplier)}×</div>
+          <div class="stat-sub">متوسط المعامل</div>
+        </div>
+      </div>
+    `;
+
+    if (seasons.length === 0) {
+      container.innerHTML = statsHtml + `
+        <div class="card">
+          <div class="empty-state">
+            <i data-lucide="calendar-days"></i>
+            <h3>لا توجد مواسم معرّفة</h3>
+            <p>المواسم بتحدد فترات زيادة الطلب (رمضان، العيد، المدارس، إلخ). النظام بيستخدمها في حساب التنبؤات.</p>
+            <button class="btn btn-primary" id="seedDefaultsBtn" style="margin-bottom:10px">
+              <i data-lucide="sparkles"></i>
+              إضافة المواسم الافتراضية (6 مواسم)
+            </button>
+            <button class="btn btn-ghost" id="addFirstBtn">
+              <i data-lucide="plus"></i>
+              إضافة موسم مخصص
+            </button>
+          </div>
+        </div>
+      `;
+      const seedBtn = document.getElementById('seedDefaultsBtn');
+      if (seedBtn) seedBtn.onclick = seedDefaults;
+      const addFirstBtn = document.getElementById('addFirstBtn');
+      if (addFirstBtn) addFirstBtn.onclick = () => openAddModal();
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const cardsHtml = seasons.map(s => {
+      const status = getSeasonStatus(s);
+      const typeInfo = TYPE_INFO[s.season_type] || TYPE_INFO.custom;
+      const monthRange = s.start_month === s.end_month
+        ? MONTHS[s.start_month]
+        : MONTHS[s.start_month] + ' — ' + MONTHS[s.end_month];
+
+      return `<div class="season-card ${typeInfo.class} ${!s.is_active ? 'inactive' : ''}">
+        <div class="season-header">
+          <div class="season-name">${esc(s.name)}</div>
+          <div class="season-multiplier">×${num(s.demand_multiplier)}</div>
+        </div>
+        <div class="season-meta">
+          <i data-lucide="${typeInfo.icon}"></i>
+          <span>${typeInfo.label}</span>
+          <span style="opacity:0.5">·</span>
+          <span>${monthRange}</span>
+        </div>
+        <div>
+          <span class="season-status ${status.class}">
+            <i data-lucide="${status.icon}" style="width:11px;height:11px"></i>
+            ${status.label}
+          </span>
+        </div>
+        <div class="season-actions">
+          <button class="edit-btn" data-edit="${s.id}">
+            <i data-lucide="edit-2"></i>تعديل
+          </button>
+          <button class="toggle-btn" data-toggle="${s.id}">
+            <i data-lucide="${s.is_active ? 'toggle-right' : 'toggle-left'}"></i>
+            ${s.is_active ? 'تعطيل' : 'تفعيل'}
+          </button>
+          <button class="delete-btn" data-delete="${s.id}">
+            <i data-lucide="trash-2"></i>حذف
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+
+    container.innerHTML = statsHtml + `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="calendar-days"></i><span>المواسم المعرّفة</span></div>
+          <span class="badge" style="background:var(--accent-soft);color:var(--accent);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:800">${seasons.length} موسم</span>
+        </div>
+        <div class="card-body">
+          <div class="seasons-grid">${cardsHtml}</div>
+        </div>
+      </div>
+    `;
+
+    bindEvents();
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // EVENTS
+  // ═══════════════════════════════════════════════════════════
+  function bindEvents() {
+    document.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.onclick = () => {
+        const s = seasons.find(x => x.id === btn.dataset.edit);
+        if (s) openEditModal(s);
+      };
+    });
+    document.querySelectorAll('[data-toggle]').forEach(btn => {
+      btn.onclick = () => toggleSeason(btn.dataset.toggle);
+    });
+    document.querySelectorAll('[data-delete]').forEach(btn => {
+      btn.onclick = () => deleteSeason(btn.dataset.delete);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MODAL
+  // ═══════════════════════════════════════════════════════════
+  function openModal() {
+    document.getElementById('seasonModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+  function closeModal() {
+    document.getElementById('seasonModal').classList.remove('show');
+  }
+
+  function resetForm() {
+    editingId = null;
+    selectedType = 'religious';
+    document.getElementById('modalTitle').textContent = 'موسم جديد';
+    document.getElementById('seasonName').value = '';
+    document.getElementById('startMonth').value = '1';
+    document.getElementById('endMonth').value = '1';
+    document.getElementById('demandMultiplier').value = '1.0';
+    document.getElementById('seasonNotes').value = '';
+    document.getElementById('seasonActive').checked = true;
+    document.querySelectorAll('#typeChips .type-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.type === 'religious');
+    });
+  }
+
+  function openAddModal() {
+    resetForm();
+    openModal();
+  }
+
+  function openEditModal(s) {
+    editingId = s.id;
+    selectedType = s.season_type || 'custom';
+    document.getElementById('modalTitle').textContent = 'تعديل الموسم';
+    document.getElementById('seasonName').value = s.name || '';
+    document.getElementById('startMonth').value = String(s.start_month || 1);
+    document.getElementById('endMonth').value = String(s.end_month || 1);
+    document.getElementById('demandMultiplier').value = String(s.demand_multiplier || 1);
+    document.getElementById('seasonNotes').value = s.notes || '';
+    document.getElementById('seasonActive').checked = s.is_active !== false;
+    document.querySelectorAll('#typeChips .type-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.type === selectedType);
+    });
+    openModal();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SAVE
+  // ═══════════════════════════════════════════════════════════
+  async function saveSeason() {
+    const name = document.getElementById('seasonName').value.trim();
+    const startMonth = Number(document.getElementById('startMonth').value) || 1;
+    const endMonth = Number(document.getElementById('endMonth').value) || 1;
+    const multiplier = Number(document.getElementById('demandMultiplier').value) || 1;
+    const notes = document.getElementById('seasonNotes').value.trim();
+    const isActive = document.getElementById('seasonActive').checked;
+
+    if (!name) { toast('warning', 'الاسم مطلوب'); return; }
+    if (multiplier <= 0) { toast('warning', 'معامل الطلب يجب أن يكون أكبر من 0'); return; }
+
+    const btn = document.getElementById('saveSeasonBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner sm"></div><span>جاري...</span>';
+
+    try {
+      const payload = {
+        company_id: session.company_id,
+        name: name,
+        season_type: selectedType,
+        start_month: startMonth,
+        end_month: endMonth,
+        demand_multiplier: multiplier,
+        notes: notes || null,
+        is_active: isActive
+      };
+
+      let result;
+      if (editingId) {
+        result = await sb.from('seasonal_patterns').update(payload).eq('id', editingId).select().single();
+      } else {
+        result = await sb.from('seasonal_patterns').insert(payload).select().single();
+      }
+
+      if (result.error) throw result.error;
+
+      toast('success', editingId ? 'تم تعديل الموسم' : 'تم إضافة الموسم');
+      closeModal();
+      await render();
+    } catch (e) {
+      console.error('[Seasons] saveSeason:', e);
+      toast('error', 'فشل: ' + (e.message || ''));
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TOGGLE / DELETE
+  // ═══════════════════════════════════════════════════════════
+  async function toggleSeason(id) {
+    const s = seasons.find(x => x.id === id);
+    if (!s) return;
+    try {
+      const { error } = await sb.from('seasonal_patterns')
+        .update({ is_active: !s.is_active })
+        .eq('id', id);
+      if (error) throw error;
+      toast('success', s.is_active ? 'تم تعطيل الموسم' : 'تم تفعيل الموسم');
+      await render();
+    } catch (e) {
+      toast('error', 'فشل: ' + (e.message || ''));
+    }
+  }
+
+  async function deleteSeason(id) {
+    if (!confirm('حذف هذا الموسم؟')) return;
+    try {
+      const { error } = await sb.from('seasonal_patterns').delete().eq('id', id);
+      if (error) throw error;
+      toast('success', 'تم حذف الموسم');
+      await render();
+    } catch (e) {
+      toast('error', 'فشل: ' + (e.message || ''));
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SEED DEFAULTS
+  // ═══════════════════════════════════════════════════════════
+  async function seedDefaults() {
+    const builtin = (cfg.SEASONS && cfg.SEASONS.BUILTIN) || [];
+    if (builtin.length === 0) { toast('error', 'لا توجد مواسم افتراضية في الـ config'); return; }
+
+    const btn = document.getElementById('seedDefaultsBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner sm"></div><span>جاري...</span>';
+    }
+
+    try {
+      const rows = builtin.map(s => ({
+        company_id: session.company_id,
+        name: s.name,
+        season_type: s.type,
+        start_month: s.start_month,
+        end_month: s.end_month,
+        demand_multiplier: s.multiplier || 1,
+        is_active: true,
+        notes: s.slug || null
+      }));
+      const { error } = await sb.from('seasonal_patterns').insert(rows);
+      if (error) throw error;
+      toast('success', 'تم إضافة ' + rows.length + ' مواسم افتراضية');
+      await render();
+    } catch (e) {
+      console.error('[Seasons] seedDefaults:', e);
+      toast('error', 'فشل: ' + (e.message || ''));
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="sparkles"></i>إضافة المواسم الافتراضية';
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    session = await (window.Refad && Refad.requireSession ? Refad.requireSession() : Promise.resolve(null));
+    if (!session || !session.company_id) {
+      setTimeout(() => location.href = 'index.html', 1200);
+      return;
+    }
+
+    if (window.Refad && Refad.hasPermission) {
+      if (!Refad.hasPermission('seasons.view') && !Refad.hasPermission('forecast.view') && !Refad.hasPermission('inventory.view')) {
+        toast('error', 'غير مصرح — صلاحية seasons.view مطلوبة');
+        setTimeout(() => location.href = 'dashboard.html', 1500);
+        return;
+      }
+    }
+
+    const branchNameEl = document.getElementById('branchName');
+    if (branchNameEl) {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+      branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+
+    await render();
+
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await render();
+      toast('success', 'تم التحديث');
+    };
+
+    document.getElementById('addSeasonBtn').onclick = () => openAddModal();
+
+    document.getElementById('closeModalBtn').onclick = closeModal;
+    document.getElementById('cancelModalBtn').onclick = closeModal;
+    document.getElementById('seasonModal').onclick = (e) => {
+      if (e.target.id === 'seasonModal') closeModal();
+    };
+
+    document.querySelectorAll('#typeChips .type-chip').forEach(chip => {
+      chip.onclick = () => {
+        document.querySelectorAll('#typeChips .type-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        selectedType = chip.dataset.type;
+      };
+    });
+
+    document.getElementById('saveSeasonBtn').onclick = saveSeason;
+
+    if (window.lucide) lucide.createIcons();
+    console.log('[Seasons v1.0] Ready');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Test Auth — تشخيص</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:Arial;padding:20px;direction:rtl;background:#f5f5f5}
+.box{background:white;padding:20px;border-radius:10px;margin-bottom:15px;border:2px solid #ddd}
+.ok{border-color:#10b981;background:#f0fdf4}
+.fail{border-color:#ef4444;background:#fef2f2}
+h2{margin:0 0 10px;font-size:16px}
+pre{background:#1e293b;color:#fff;padding:12px;border-radius:6px;overflow:auto;font-size:12px;direction:ltr;text-align:left;max-height:300px}
+button{padding:12px 24px;background:#0B2C4D;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:bold;margin:5px}
+button:hover{opacity:0.9}
+input{padding:10px;border:1px solid #ddd;border-radius:6px;width:250px;margin:5px;direction:ltr}
+</style>
+</head>
+<body>
+
+<h1>🔍 اختبار Supabase Auth</h1>
+<p>هذه الصفحة تختبر الاتصال بـ Supabase مباشرة بدون أي ملفات من المشروع</p>
+
+<div class="box">
+  <h2>Step 1: اختبار الاتصال</h2>
+  <button onclick="testConnection()">اختبر الاتصال</button>
+  <pre id="log1">اضغط الزر...</pre>
+</div>
+
+<div class="box">
+  <h2>Step 2: تسجيل الدخول</h2>
+  <input type="text" id="email" placeholder="admin@refad.app" value="admin@refad.app">
+  <input type="password" id="password" placeholder="22446688" value="22446688">
+  <br>
+  <button onclick="testLogin()">تسجيل الدخول</button>
+  <pre id="log2">اضغط الزر...</pre>
+</div>
+
+<div class="box">
+  <h2>Step 3: اختبار getSession بعد الدخول</h2>
+  <button onclick="testSession()">اختبر getSession</button>
+  <pre id="log3">اضغط الزر...</pre>
+</div>
+
+<div class="box">
+  <h2>Step 4: اختبار users table</h2>
+  <button onclick="testUsers()">اختبر users table</button>
+  <pre id="log4">اضغط الزر...</pre>
+</div>
+
+<div class="box">
+  <h2>Step 5: عرض كل localStorage</h2>
+  <button onclick="showStorage()">اعرض LocalStorage</button>
+  <pre id="log5">اضغط الزر...</pre>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://caxjllazjhzlgmvtktjh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNheGpsbGF6amh6bGdtdnRrdGpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxOTM5MDcsImV4cCI6MjEwODc2OTkwN30.zTon6I41V7bV1xN3ky9hT02O_R2koHv6cWI3NcBGWSo';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function write(id, msg, ok) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.parentElement.className = ok === true ? 'box ok' : ok === false ? 'box fail' : 'box';
+}
+
+async function testConnection() {
+  write('log1', 'جاري الاختبار...');
+  try {
+    const { data, error } = await sb.from('companies').select('count', { count: 'exact', head: true });
+    if (error) {
+      write('log1', '❌ خطأ في الاتصال:\n' + JSON.stringify(error, null, 2), false);
+    } else {
+      write('log1', '✅ الاتصال ناجح!\nعدد الشركات: ' + data, true);
+    }
+  } catch (e) {
+    write('log1', '❌ فشل الاتصال:\n' + e.message, false);
+  }
+}
+
+async function testLogin() {
+  write('log2', 'جاري تسجيل الدخول...');
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    
+    if (error) {
+      write('log2', '❌ فشل الدخول:\n' + JSON.stringify(error, null, 2), false);
+      return;
+    }
+
+    if (!data || !data.session) {
+      write('log2', '⚠️ نجح لكن مفيش session!\n' + JSON.stringify(data, null, 2), false);
+      return;
+    }
+
+    const out = [
+      '✅ تسجيل الدخول نجح!',
+      '',
+      'User ID: ' + data.session.user.id,
+      'Email: ' + data.session.user.email,
+      'Access Token (first 50 chars): ' + data.session.access_token.substring(0, 50) + '...',
+      'Expires At: ' + new Date(data.session.expires_at * 1000).toLocaleString('ar-EG'),
+      '',
+      '=== LocalStorage الآن ===',
+      JSON.stringify(Object.keys(localStorage), null, 2)
+    ];
+    write('log2', out.join('\n'), true);
+  } catch (e) {
+    write('log2', '❌ Exception:\n' + e.message + '\n' + e.stack, false);
+  }
+}
+
+async function testSession() {
+  write('log3', 'جاري اختبار getSession...');
+  try {
+    const { data, error } = await sb.auth.getSession();
+    const out = [
+      'Error: ' + (error ? error.message : 'none'),
+      'Has session: ' + (data && data.session ? '✅ YES' : '❌ NO'),
+      ''
+    ];
+    if (data && data.session) {
+      out.push('User ID: ' + data.session.user.id);
+      out.push('Email: ' + data.session.user.email);
+      out.push('Expires At: ' + new Date(data.session.expires_at * 1000).toLocaleString('ar-EG'));
+    }
+    write('log3', out.join('\n'), !!(data && data.session));
+  } catch (e) {
+    write('log3', '❌ Exception:\n' + e.message, false);
+  }
+}
+
+async function testUsers() {
+  write('log4', 'جاري اختبار users table...');
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) {
+      write('log4', '❌ مفيش user مسجل دخول', false);
+      return;
+    }
+    
+    const out = [
+      'Auth user ID: ' + user.id,
+      'Auth user email: ' + user.email,
+      ''
+    ];
+    
+    const { data: userRow, error: userErr } = await sb
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+    
+    if (userErr) {
+      out.push('❌ Error: ' + userErr.message);
+      write('log4', out.join('\n'), false);
+      return;
+    }
+    
+    if (!userRow) {
+      out.push('❌ المستخدم مش موجود في public.users!');
+      out.push('');
+      out.push('ده السبب! المشكلة إن auth.users فيه row لكن public.users مفيهوش.');
+      write('log4', out.join('\n'), false);
+      return;
+    }
+    
+    out.push('✅ public.users row:');
+    out.push(JSON.stringify(userRow, null, 2));
+    
+    const allOk = userRow.company_id && userRow.is_active !== false && !userRow.deleted_at;
+    write('log4', out.join('\n'), allOk);
+  } catch (e) {
+    write('log4', '❌ Exception:\n' + e.message, false);
+  }
+}
+
+function showStorage() {
+  const out = [
+    '=== LocalStorage (' + Object.keys(localStorage).length + ' keys) ===',
+    ''
+  ];
+  
+  Object.keys(localStorage).forEach(k => {
+    const v = localStorage.getItem(k);
+    if (k.includes('sb-') || k.includes('refad')) {
+      out.push('[' + k + ']');
+      out.push('  Length: ' + (v ? v.length : 0) + ' chars');
+      if (v && v.length < 200) out.push('  Value: ' + v);
+      out.push('');
+    }
+  });
+  
+  write('log5', out.join('\n'), null);
+}
+</script>
+
+</body>
+</html>

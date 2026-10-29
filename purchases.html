@@ -1,0 +1,2325 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>المشتريات — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+<script src="ai-config.js"></script>
+<script src="ai-reorder.js"></script>
+<script src="barcode-scanner.js"></script>
+<style>
+:root {
+  --primary:#0B2C4D;--primary-light:#1e4a73;--primary-dark:#061a2e;
+  --accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B;--gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444;--danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981;--success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6;--info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6;--purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9;--bg-soft:#f8fafc;--bg-card:#ffffff;
+  --card:#ffffff;--text:#0f172a;--text-muted:#64748b;
+  --border:#e2e8f0;--border-soft:#f1f5f9;--radius:14px;--radius-sm:10px;--radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);--shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--card:#1e293b;--bg-card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background 0.2s,color 0.2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-success{background:var(--success-soft);color:var(--success)}
+.btn-success:hover{background:var(--success);color:#fff}
+.btn-warning{background:var(--gold-soft);color:var(--gold)}
+.btn-warning:hover{background:var(--gold);color:#fff}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1600px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.warn::before{background:var(--gold)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.info::before{background:var(--info)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:6px}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-title .count-badge{background:var(--accent-soft);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:800}
+
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 20px;background:var(--bg-soft);border-bottom:1px solid var(--border)}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap input{width:100%;padding:9px 36px 9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font-size:13px}
+.search-wrap input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.search-wrap svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none}
+.form-select,.form-input{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font-size:13px;min-width:120px}
+.form-select:focus,.form-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg-soft)}
+th{padding:12px 16px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tbody tr{transition:background 0.15s}
+tbody tr:hover{background:var(--bg-soft)}
+tbody tr:last-child td{border-bottom:none}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+.badge-teal{background:var(--accent-soft);color:var(--accent)}
+
+.actions-cell{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}
+.icon-btn{width:32px;height:32px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s}
+.icon-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.icon-btn.danger:hover{background:var(--danger-soft);color:var(--danger)}
+.icon-btn.success:hover{background:var(--success-soft);color:var(--success)}
+.icon-btn.warn:hover{background:var(--gold-soft);color:var(--gold)}
+.icon-btn svg{width:15px;height:15px}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:48px;height:48px;margin-bottom:14px;opacity:0.5}
+.empty-state h3{font-size:15px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:13px}
+.loading-state{padding:40px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px;border-top:1px solid var(--border);background:var(--bg-soft);flex-wrap:wrap}
+.pagination button{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:700}
+.pagination button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pagination button.active{background:var(--accent);color:white;border-color:var(--accent)}
+.pagination button:disabled{opacity:0.4;cursor:not-allowed}
+.pagination .page-info{font-size:12px;color:var(--text-muted);margin:0 8px}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:18px;width:100%;max-width:620px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn 0.25s cubic-bezier(0.4,0,0.2,1)}
+.modal.lg{max-width:900px}
+.modal.xl{max-width:1100px}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;gap:12px}
+.modal-header h3{font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px;flex:1}
+.modal-header h3 svg{width:20px;height:20px;color:var(--accent)}
+.modal-header-actions{display:flex;gap:6px}
+.modal-close{background:none;border:none;color:var(--text-muted);padding:6px;border-radius:8px}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-close svg{width:20px;height:20px}
+.modal-body{padding:22px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card);flex-wrap:wrap}
+
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.form-label .required{color:var(--danger)}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;transition:all 0.15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-textarea{resize:vertical;min-height:80px}
+.form-hint{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.form-error{background:var(--danger-soft);color:var(--danger);padding:11px 14px;border-radius:var(--radius-xs);font-size:12.5px;font-weight:600;margin-bottom:14px;display:none;border-right:3px solid var(--danger)}
+.form-error.show{display:block}
+
+/* ⭐ NEW: cash payment warning */
+.cash-payment-warning{background:var(--gold-soft);border:1px solid var(--gold);border-radius:var(--radius-xs);padding:10px 14px;margin-top:10px;font-size:12px;color:var(--text);display:flex;align-items:flex-start;gap:8px;line-height:1.6}
+.cash-payment-warning svg{width:16px;height:16px;color:var(--gold);flex-shrink:0;margin-top:2px}
+.cash-payment-warning strong{color:var(--gold)}
+
+.po-items-wrap{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:14px}
+.po-item-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 40px;gap:8px;padding:12px;border-bottom:1px solid var(--border-soft);align-items:center}
+.po-item-row:last-child{border-bottom:none}
+.po-item-row.head{background:var(--bg-soft);font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;padding:10px 12px}
+.po-item-row .form-input,.po-item-row .form-select{padding:8px 10px;font-size:13px}
+.po-item-row .rm{background:var(--danger-soft);color:var(--danger);border:none;width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.po-item-row .rm:hover{background:var(--danger);color:white}
+.po-item-row .rm svg{width:14px;height:14px}
+.po-line-total{padding:8px 10px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;color:var(--accent);text-align:center}
+
+.formula-box{grid-column:1/-1;background:linear-gradient(135deg, rgba(20,184,166,0.08), rgba(20,184,166,0.03));border:1px solid rgba(20,184,166,0.3);border-radius:10px;padding:14px;margin-top:8px}
+.formula-title{font-size:11px;font-weight:800;color:var(--accent-dark);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.formula-title svg{width:13px;height:13px}
+.formula-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.formula-item{background:var(--card);border-radius:8px;padding:10px 12px;border:1px solid var(--border)}
+.formula-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px}
+.formula-eq{font-size:11px;color:var(--text-muted);font-family:'Courier New',monospace;margin-bottom:6px;line-height:1.5;direction:ltr;text-align:left}
+.formula-result{font-size:15px;font-weight:800;color:var(--text)}
+.formula-result.accent{color:var(--accent-dark)}
+.formula-result.success{color:var(--success)}
+.formula-result.warn{color:var(--gold)}
+
+.po-total{background:var(--accent-soft);padding:16px;border-radius:var(--radius-sm);margin-top:12px}
+.po-total-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0}
+.po-total-row:not(:last-child){border-bottom:1px dashed rgba(20,184,166,0.2)}
+.po-total-row strong{font-size:16px;color:var(--accent-dark)}
+.po-total-row.grand{padding-top:12px;margin-top:8px;font-size:16px;font-weight:800}
+.po-total-row.grand strong{font-size:24px}
+
+.bulk-price-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:10px 12px;background:var(--gold-soft);border-radius:var(--radius-xs);margin-bottom:10px;font-size:12px}
+.bulk-price-bar input{width:70px;padding:5px 8px;font-size:12px}
+
+.ai-stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;padding:14px;background:var(--bg-soft);border-radius:var(--radius-sm);margin-bottom:16px}
+.ai-stat-item{text-align:center}
+.ai-stat-value{font-size:20px;font-weight:800;color:var(--accent)}
+.ai-stat-label{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px}
+
+.ai-suggest-item{display:grid;grid-template-columns:2fr auto 1fr 40px;gap:10px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px;align-items:center;transition:all 0.15s;background:var(--card)}
+.ai-suggest-item:hover{border-color:var(--accent)}
+.ai-suggest-item.selected{background:var(--accent-soft);border-color:var(--accent)}
+.ai-suggest-item.no-supplier{border-color:var(--danger);background:rgba(239,68,68,0.03)}
+.ai-suggest-info{min-width:0}
+.ai-suggest-name{font-weight:800;font-size:13.5px;margin-bottom:3px}
+.ai-suggest-meta{font-size:11px;color:var(--text-muted);line-height:1.5}
+.ai-suggest-badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:800;margin-right:4px}
+.ai-suggest-badge.unit-purchase{background:var(--info-soft);color:var(--info)}
+.ai-suggest-badge.unit-base{background:var(--bg-soft);color:var(--text-muted)}
+.ai-suggest-qty-block{text-align:center;padding:8px 10px;background:var(--bg-soft);border-radius:8px;min-width:110px}
+.ai-suggest-qty-value{font-weight:800;color:var(--accent-dark);font-size:14px}
+.ai-suggest-qty-unit{font-size:10px;color:var(--text-muted);margin-top:2px}
+.ai-supplier-select{padding:6px 8px;font-size:12px;border-radius:6px;border:1.5px solid var(--border);background:var(--card);color:var(--text);min-width:140px;width:100%}
+.ai-supplier-select.missing{border-color:var(--danger);background:var(--danger-soft);color:var(--danger);font-weight:700}
+
+.urgency-critical{color:var(--danger)}
+.urgency-high{color:var(--gold)}
+.urgency-medium{color:var(--info)}
+.urgency-low{color:var(--success)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto;background:var(--card)}
+.tab{padding:10px 16px;background:none;border:none;color:var(--text-muted);font-size:13px;font-weight:700;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast .3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}
+.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}
+.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}
+.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}
+.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+.draft-badge{background:var(--gold-soft);color:var(--gold);padding:4px 10px;border-radius:8px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:4px}
+
+/* ⭐ NEW: cash badge for PO details */
+.cash-badge{background:var(--success-soft);color:var(--success);padding:8px 12px;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;font-size:12.5px}
+
+@media print {
+  body * { visibility: hidden; }
+  #poDetailsModal, #poDetailsModal * { visibility: visible; }
+  #poDetailsModal {
+    position: absolute;
+    inset: 0;
+    background: white !important;
+    padding: 0;
+  }
+  #poDetailsModal .modal {
+    box-shadow: none;
+    border-radius: 0;
+    max-width: 100%;
+    max-height: none;
+  }
+  #poDetailsModal .modal-header,
+  #poDetailsModal .modal-footer {
+    display: none;
+  }
+  #poDetailsModal .modal-body {
+    padding: 20px;
+    color: black;
+    background: white;
+  }
+}
+
+@media (max-width:1024px){.refad-main-content{margin-right:0!important}}
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .form-row,.form-row.three{grid-template-columns:1fr}
+  .filter-bar{flex-direction:column;align-items:stretch}
+  .filter-bar .form-select{width:100%}
+  .po-item-row{grid-template-columns:1fr 1fr;padding:10px}
+  .po-item-row.head{display:none}
+  .po-item-row .rm{grid-column:2;justify-self:end}
+  .formula-grid{grid-template-columns:1fr}
+  .ai-suggest-item{grid-template-columns:1fr}
+}
+@media (max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .stat-value{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div><h1>المشتريات</h1><div class="topbar-subtitle" id="branchName">—</div></div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث (R)"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-ghost btn-icon" id="exportBtn" title="تصدير CSV"><i data-lucide="download"></i></button>
+      <button class="btn btn-warning" id="aiSuggestBtn"><i data-lucide="sparkles"></i><span>اقتراح ذكي</span></button>
+      <button class="btn btn-primary" id="newPoBtn"><i data-lucide="plus"></i><span>أمر شراء جديد</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="stats-grid">
+      <div class="stat-card info">
+        <div class="stat-label">إجمالي الأوامر</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub" id="statTotalSub"></div>
+      </div>
+      <div class="stat-card warn">
+        <div class="stat-label">قيد الانتظار</div>
+        <div class="stat-value" id="statPending" style="color:var(--gold)">—</div>
+        <div class="stat-sub" id="statPendingSub"></div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label">تم الاستلام</div>
+        <div class="stat-value" id="statReceived" style="color:var(--success)">—</div>
+        <div class="stat-sub" id="statReceivedSub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">متوسط قيمة PO</div>
+        <div class="stat-value" id="statAvg" style="color:var(--info)">—</div>
+        <div class="stat-sub" id="statAvgSub">ج.م</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i data-lucide="truck"></i>
+          <span>أوامر الشراء</span>
+          <span class="count-badge" id="tableCount">0</span>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <i data-lucide="search"></i>
+          <input type="text" id="searchInput" placeholder="بحث برقم الأمر / المورد / الملاحظات... (F2)">
+        </div>
+        <select class="form-select" id="statusFilter">
+          <option value="">كل الحالات</option>
+          <option value="draft">مسودة</option>
+          <option value="pending">قيد الانتظار</option>
+          <option value="approved">معتمد</option>
+          <option value="partially_received">استلام جزئي</option>
+          <option value="received">تم الاستلام</option>
+          <option value="cancelled">ملغى</option>
+        </select>
+        <input type="date" class="form-input" id="fromDate" title="من تاريخ">
+        <input type="date" class="form-input" id="toDate" title="إلى تاريخ">
+        <button class="btn btn-ghost btn-sm" id="clearFilters"><i data-lucide="x"></i><span>مسح</span></button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>رقم الأمر</th>
+              <th>المورد</th>
+              <th>التاريخ</th>
+              <th>الأصناف</th>
+              <th>الإجمالي</th>
+              <th>الحالة</th>
+              <th style="text-align:left">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="poTable">
+            <tr><td colspan="7" class="loading-state"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination" style="display:none"></div>
+    </div>
+  </div>
+</main>
+
+<!-- PO Modal -->
+<div class="modal-overlay" id="poModal">
+  <div class="modal xl">
+    <div class="modal-header">
+      <h3>
+        <i data-lucide="truck"></i>
+        <span id="poModalTitle">أمر شراء جديد</span>
+        <span id="poModeBadge" style="display:none" class="draft-badge"><i data-lucide="edit" style="width:12px;height:12px"></i>وضع التعديل</span>
+      </h3>
+      <div class="modal-header-actions">
+        <button class="btn btn-ghost btn-sm" id="poPreviewBtn" title="معاينة"><i data-lucide="eye"></i><span>معاينة</span></button>
+        <button class="modal-close" data-close="poModal"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="poFormError"></div>
+      <input type="hidden" id="poId">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">المورد <span class="required">*</span></label>
+          <select class="form-select" id="poSupplier">
+            <option value="">اختر مورد...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">رقم فاتورة المورد (اختياري)</label>
+          <input type="text" class="form-input" id="poSupplierRef" placeholder="مثلاً: INV-2024-001">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">تاريخ الاستلام المتوقع</label>
+          <input type="date" class="form-input" id="poExpectedDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">طريقة الدفع</label>
+          <select class="form-select" id="poPaymentMethod">
+            <option value="cash">نقدي (من الدرج)</option>
+            <option value="credit">آجل (ذمم)</option>
+            <option value="bank">تحويل بنكي</option>
+            <option value="mixed">مختلط</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ⭐ NEW: Cash Payment Warning -->
+      <div class="cash-payment-warning" id="cashPaymentWarning" style="display:none">
+        <i data-lucide="alert-triangle"></i>
+        <div>
+          <strong>دفع نقدي من الدرج</strong> — سيتم خصم المبلغ من رصيد الوردية المفتوحة تلقائياً عند الحفظ.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ملاحظات</label>
+        <input type="text" class="form-input" id="poNotes" placeholder="ملاحظات اختيارية">
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:14px;font-weight:800;color:var(--text)">
+          <i data-lucide="package" style="width:16px;height:16px;vertical-align:middle;color:var(--accent)"></i>
+          الأصناف
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="scanBarcodeBtn">
+          <i data-lucide="camera"></i><span>مسح باركود</span>
+        </button>
+      </div>
+
+      <div class="bulk-price-bar">
+        <i data-lucide="percent" style="width:14px;height:14px"></i>
+        <span>تعديل جماعي للأسعار:</span>
+        <input type="number" id="bulkPricePercent" placeholder="%" step="0.1" min="-100" max="500">
+        <button type="button" class="btn btn-ghost btn-sm" id="applyBulkPriceBtn">تطبيق على الكل</button>
+      </div>
+
+      <div class="po-items-wrap" id="poItems">
+        <div class="po-item-row head">
+          <div>المنتج</div>
+          <div>الوحدة</div>
+          <div>الكمية</div>
+          <div>سعر الوحدة</div>
+          <div>الإجمالي</div>
+          <div></div>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-ghost btn-sm" id="addPoItemBtn" style="width:100%">
+        <i data-lucide="plus"></i><span>إضافة صنف</span>
+      </button>
+
+      <div class="po-total">
+        <div class="po-total-row">
+          <span>عدد الأصناف:</span>
+          <strong id="poItemsCount">0</strong>
+        </div>
+        <div class="po-total-row">
+          <span>إجمالي الوحدات الصغيرة:</span>
+          <strong id="poUnitsCount">0</strong>
+        </div>
+        <div class="po-total-row">
+          <span>تحقق التكلفة (أساسية × كمية):</span>
+          <strong id="poBaseTotal">0.00 ج.م</strong>
+        </div>
+        <div class="po-total-row grand">
+          <span>الإجمالي الكلي:</span>
+          <strong id="poTotal">0.00 ج.م</strong>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="poModal">إلغاء</button>
+      <button class="btn btn-warning" id="saveDraftBtn"><i data-lucide="file-edit"></i><span>حفظ كمسودة</span></button>
+      <button class="btn btn-primary" id="savePoBtn"><i data-lucide="save"></i><span>حفظ وإرسال</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal lg">
+    <div class="modal-header">
+      <h3><i data-lucide="eye"></i><span>معاينة أمر الشراء</span></h3>
+      <button class="modal-close" data-close="previewModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="previewBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="previewModal">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receive Modal -->
+<div class="modal-overlay" id="receiveModal">
+  <div class="modal lg">
+    <div class="modal-header">
+      <h3><i data-lucide="package-check"></i><span>استلام مخزون</span></h3>
+      <button class="modal-close" data-close="receiveModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="receiveFormError"></div>
+      <input type="hidden" id="receivePoId">
+      <div id="receiveSummary"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;font-weight:700">الدفعات المستلمة:</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer">
+          <input type="checkbox" id="receiveAllFull" checked style="width:16px;height:16px;accent-color:var(--accent)">
+          استلام كل الكميات
+        </label>
+      </div>
+      <div id="receiveItemsContainer"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="receiveModal">إلغاء</button>
+      <button class="btn btn-success" id="confirmReceiveBtn"><i data-lucide="check-circle"></i><span>تأكيد الاستلام</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- PO Details Modal -->
+<div class="modal-overlay" id="poDetailsModal">
+  <div class="modal xl">
+    <div class="modal-header">
+      <h3><i data-lucide="file-text"></i><span id="poDetailsTitle">تفاصيل الأمر</span></h3>
+      <button class="modal-close" data-close="poDetailsModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="poDetailsBody">
+      <div class="loading-state"><div class="spinner"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="printPoBtn"><i data-lucide="printer"></i><span>طباعة</span></button>
+      <button class="btn btn-ghost" data-close="poDetailsModal">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i data-lucide="alert-triangle" style="color:var(--danger)"></i><span>إلغاء أمر الشراء</span></h3>
+      <button class="modal-close" data-close="cancelModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="cancelFormError"></div>
+      <input type="hidden" id="cancelPoId">
+      <p style="margin-bottom:14px;font-size:13px;color:var(--text-muted)" id="cancelPoName"></p>
+      <div class="form-group">
+        <label class="form-label">سبب الإلغاء <span class="required">*</span></label>
+        <input type="text" class="form-input" id="cancelReason" placeholder="مثلاً: خطأ في الأصناف">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="cancelModal">إلغاء</button>
+      <button class="btn btn-danger" id="confirmCancelBtn"><i data-lucide="x-circle"></i><span>تأكيد الإلغاء</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Suggest Modal -->
+<div class="modal-overlay" id="aiSuggestModal">
+  <div class="modal xl">
+    <div class="modal-header">
+      <h3><i data-lucide="sparkles"></i><span>اقتراح طلب شراء ذكي</span></h3>
+      <button class="modal-close" data-close="aiSuggestModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs">
+        <button class="tab" data-coverage="7">أسبوع</button>
+        <button class="tab" data-coverage="14">أسبوعين</button>
+        <button class="tab active" data-coverage="30">شهر</button>
+        <button class="tab" data-coverage="60">شهرين</button>
+        <button class="tab" data-coverage="90">3 شهور</button>
+      </div>
+      <div id="aiSuggestContent">
+        <div class="loading-state"><div class="spinner"></div>جاري التحليل...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="aiSuggestModal">إلغاء</button>
+      <button class="btn btn-primary" id="applyAiSuggestBtn" disabled>
+        <i data-lucide="check"></i><span>إنشاء PO من المقترحات</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  (function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let warehouse = null;
+  let products = [];
+  let suppliers = [];
+  let productSuppliersMap = {};
+  let purchaseOrders = [];
+  let poItemsMap = {};
+  let currentPage = 1;
+  let currentDetailsPoId = null;
+  let editingPoId = null;
+  const PAGE_SIZE = 25;
+  let lastPoSupplierMap = {};
+
+  let purchaseSettings = {
+    requireExpiryDate: true,
+    autoApprove: false,
+    requireSupplierInvoice: false,
+    defaultPaymentTerms: 30
+  };
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
+  const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
+  const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:3})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  async function loadPurchaseSettings() {
+    if (!window.RefadSettings) return;
+    try {
+      purchaseSettings.requireExpiryDate = window.RefadSettings.get('inventory.require_expiry_date', true);
+      purchaseSettings.autoApprove = window.RefadSettings.get('purchase.auto_approve', false);
+      purchaseSettings.requireSupplierInvoice = window.RefadSettings.get('purchase.require_supplier_invoice', false);
+      purchaseSettings.defaultPaymentTerms = Number(window.RefadSettings.get('purchase.payment_terms', 30)) || 30;
+      console.log('[Purchases] Settings loaded:', purchaseSettings);
+    } catch (e) {
+      console.warn('[Purchases] Settings load failed:', e);
+    }
+  }
+
+  // ⭐ NEW: جلب الوردية المفتوحة
+  async function getCurrentOpenSession() {
+    try {
+      const { data } = await sb.from('pos_sessions')
+        .select('id, cashier_id, opening_cash')
+        .eq('company_id', session.company_id)
+        .eq('status', 'open')
+        .eq('cashier_id', session.user_id)
+        .order('opened_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    } catch (e) {
+      console.warn('[Purchases] getCurrentOpenSession failed:', e);
+      return null;
+    }
+  }
+
+  // ⭐ NEW: تسجيل حركة درج
+  async function recordCashMovement(movementType, amount, description, referenceType, referenceId, sessionId) {
+    try {
+      const { error } = await sb.from('cash_movements').insert({
+        company_id: session.company_id,
+        branch_id: session.active_branch_id,
+        session_id: sessionId,
+        movement_type: movementType,
+        direction: 'out',
+        amount: Number(amount) || 0,
+        payment_method: 'cash',
+        reference_type: referenceType,
+        reference_id: referenceId,
+        description: description,
+        created_by: session.user_id
+      });
+      if (error) throw error;
+      console.log('[Purchases] ✅ Cash movement recorded:', movementType, amount);
+      return true;
+    } catch (e) {
+      console.error('[Purchases] ❌ Cash movement failed:', e);
+      return false;
+    }
+  }
+
+  function genPoNumber() {
+    const ts = Date.now().toString(36).toUpperCase().slice(-5);
+    const rand = Math.random().toString(36).toUpperCase().slice(2, 4);
+    return 'PO-' + new Date().getFullYear() + '-' + ts + rand;
+  }
+
+  function calculateLine(item) {
+    const { unitType, upp, qty, cost } = item;
+    const safeQty = Math.max(0, Number(qty) || 0);
+    const safeCost = Math.max(0, Number(cost) || 0);
+    const safeUpp = Number(upp) > 0 ? Number(upp) : 1;
+
+    if (unitType === 'purchase') {
+      const line_total = safeQty * safeCost;
+      const base_qty = safeQty * safeUpp;
+      const base_unit_cost = safeCost / safeUpp;
+      return {
+        line_total: round2(line_total),
+        base_qty: round3(base_qty),
+        base_unit_cost: round2(base_unit_cost)
+      };
+    }
+    const line_total = safeQty * safeCost;
+    return {
+      line_total: round2(line_total),
+      base_qty: round3(safeQty),
+      base_unit_cost: round2(safeCost)
+    };
+  }
+
+  function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+  function round3(n) { return Math.round((Number(n) || 0) * 1000) / 1000; }
+
+  function unitAllowsDecimal(baseUnit, isWeighted) {
+    if (isWeighted) return true;
+    const decUnits = ['kg', 'g', 'liter', 'ml', 'l', 'كيلو', 'جرام', 'لتر', 'مل'];
+    return decUnits.includes(String(baseUnit || '').toLowerCase());
+  }
+
+  function smartUnitSelection(product, suggestedBaseQty) {
+    const upp = Number(product.units_per_purchase) || 1;
+    const baseUnit = product.base_unit || 'piece';
+    const purchaseUnit = product.purchase_unit || 'carton';
+    const baseCost = Number(product.cost_price) || 0;
+    const purchasePrice = Number(product.purchase_price) || (baseCost * upp);
+
+    if (upp <= 1) {
+      const qty = Math.ceil(suggestedBaseQty);
+      return {
+        unitType: 'base', qty: qty, unit_cost: baseCost, upp: upp,
+        baseUnit: baseUnit, purchaseUnit: purchaseUnit,
+        line_total: qty * baseCost, base_qty: qty, base_unit_cost: baseCost
+      };
+    }
+
+    if (suggestedBaseQty >= upp) {
+      const purchaseQty = Math.ceil(suggestedBaseQty / upp);
+      const unit_cost = purchasePrice > 0 ? purchasePrice : (baseCost * upp);
+      const line_total = purchaseQty * unit_cost;
+      const base_qty = purchaseQty * upp;
+      const base_unit_cost = unit_cost / upp;
+      return {
+        unitType: 'purchase', qty: purchaseQty, unit_cost: round2(unit_cost), upp: upp,
+        baseUnit: baseUnit, purchaseUnit: purchaseUnit,
+        line_total: round2(line_total), base_qty: round3(base_qty), base_unit_cost: round2(base_unit_cost)
+      };
+    }
+
+    const qty = Math.ceil(suggestedBaseQty);
+    return {
+      unitType: 'base', qty: qty, unit_cost: baseCost, upp: upp,
+      baseUnit: baseUnit, purchaseUnit: purchaseUnit,
+      line_total: round2(qty * baseCost), base_qty: qty, base_unit_cost: baseCost
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOADERS
+  // ═══════════════════════════════════════════════════════════
+  async function loadWarehouse() {
+    let res = await sb.from('warehouses').select('id, name')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id)
+      .limit(1).maybeSingle();
+    warehouse = res.data;
+    if (!warehouse) {
+      res = await sb.from('warehouses').select('id, name').eq('company_id', session.company_id).limit(1).maybeSingle();
+      warehouse = res.data;
+    }
+  }
+
+  async function loadProducts() {
+    const res = await sb.from('products')
+      .select('id, name, barcode, plu_code, cost_price, sale_price, unit, base_unit, purchase_unit, sale_unit, units_per_purchase, units_per_sale, purchase_price, is_bundle, is_weighted, min_stock')
+      .eq('company_id', session.company_id)
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('name');
+    products = res.data || [];
+  }
+
+  async function loadSuppliers() {
+    const res = await sb.from('suppliers')
+      .select('id, name, phone, email')
+      .eq('company_id', session.company_id)
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('name');
+    suppliers = res.data || [];
+  }
+
+  async function loadProductSuppliers() {
+    productSuppliersMap = {};
+    try {
+      const res = await sb.from('product_suppliers')
+        .select('product_id, supplier_id')
+        .eq('company_id', session.company_id);
+      (res.data || []).forEach(ps => {
+        if (!productSuppliersMap[ps.product_id]) productSuppliersMap[ps.product_id] = ps.supplier_id;
+      });
+    } catch (e) { console.warn('product_suppliers load failed:', e); }
+  }
+
+  async function loadLastPoSuppliers() {
+    lastPoSupplierMap = {};
+    try {
+      const res = await sb.from('purchase_order_items')
+        .select('product_id, po_id, purchase_orders!inner(supplier_id, status, created_at)')
+        .eq('company_id', session.company_id)
+        .in('purchase_orders.status', ['received', 'partially_received'])
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      (res.data || []).forEach(row => {
+        if (!lastPoSupplierMap[row.product_id] && row.purchase_orders?.supplier_id) {
+          lastPoSupplierMap[row.product_id] = row.purchase_orders.supplier_id;
+        }
+      });
+    } catch (e) { console.warn('last PO suppliers failed:', e); }
+  }
+
+  async function loadPOs() {
+    const res = await sb.from('purchase_orders')
+      .select('*, suppliers(name, phone)')
+      .eq('company_id', session.company_id)
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (res.error) { toast('error', 'فشل تحميل أوامر الشراء'); return; }
+    purchaseOrders = res.data || [];
+    await loadAllItemsCounts();
+  }
+
+  async function loadAllItemsCounts() {
+    const ids = purchaseOrders.map(p => p.id);
+    if (ids.length === 0) return;
+    const res = await sb.from('purchase_order_items')
+      .select('po_id, quantity, base_qty, unit_cost, base_unit_cost, total')
+      .in('po_id', ids);
+    poItemsMap = {};
+    (res.data || []).forEach(item => {
+      if (!poItemsMap[item.po_id]) poItemsMap[item.po_id] = { count: 0, units: 0, baseUnits: 0, total: 0 };
+      poItemsMap[item.po_id].count++;
+      poItemsMap[item.po_id].units += Number(item.quantity || 0);
+      poItemsMap[item.po_id].baseUnits += Number(item.base_qty || item.quantity || 0);
+      poItemsMap[item.po_id].total += Number(item.total || 0);
+    });
+  }
+
+  async function loadPoItems(poId) {
+    const res = await sb.from('purchase_order_items')
+      .select('*, products(name, unit, base_unit, purchase_unit, units_per_purchase, sale_price, is_weighted)')
+      .eq('po_id', poId);
+    return res.data || [];
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  function renderStats() {
+    const active = purchaseOrders.filter(p => ['draft', 'pending', 'approved'].includes(p.status)).length;
+    const received = purchaseOrders.filter(p => p.status === 'received').length;
+    const totalValue = purchaseOrders.filter(p => p.status !== 'cancelled').reduce((s, p) => s + Number(p.total || 0), 0);
+    const nonCancelled = purchaseOrders.filter(p => p.status !== 'cancelled').length;
+    const avg = nonCancelled > 0 ? totalValue / nonCancelled : 0;
+
+    document.getElementById('statTotal').textContent = purchaseOrders.length;
+    document.getElementById('statTotalSub').textContent = 'قيمة: ' + money(totalValue);
+    document.getElementById('statPending').textContent = active;
+    document.getElementById('statPendingSub').textContent = 'مسودة + معلق';
+    document.getElementById('statReceived').textContent = received;
+    document.getElementById('statReceivedSub').textContent = 'مكتمل';
+    document.getElementById('statAvg').textContent = money(avg);
+    document.getElementById('statAvgSub').textContent = 'لأمر الشراء';
+  }
+
+  function statusBadge(s) {
+    const map = {
+      draft: ['gray', 'مسودة', 'file-edit'],
+      pending: ['warning', 'قيد الانتظار', 'clock'],
+      approved: ['info', 'معتمد', 'check'],
+      partially_received: ['purple', 'استلام جزئي', 'package'],
+      received: ['success', 'تم الاستلام', 'check-circle'],
+      cancelled: ['danger', 'ملغى', 'x-circle']
+    };
+    const v = map[s] || ['gray', s || '—', 'circle'];
+    return '<span class="badge badge-' + v[0] + '"><i data-lucide="' + v[2] + '"></i>' + v[1] + '</span>';
+  }
+
+  function getFilteredPOs() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const sf = document.getElementById('statusFilter').value;
+    const from = document.getElementById('fromDate').value;
+    const to = document.getElementById('toDate').value;
+
+    let filtered = purchaseOrders.slice();
+    if (q) filtered = filtered.filter(p =>
+      (p.po_number || '').toLowerCase().includes(q) ||
+      (p.suppliers && p.suppliers.name || '').toLowerCase().includes(q) ||
+      (p.notes || '').toLowerCase().includes(q)
+    );
+    if (sf) filtered = filtered.filter(p => p.status === sf);
+    if (from) filtered = filtered.filter(p => new Date(p.order_date) >= new Date(from));
+    if (to) {
+      const toEnd = new Date(to); toEnd.setHours(23,59,59,999);
+      filtered = filtered.filter(p => new Date(p.order_date) <= toEnd);
+    }
+    return filtered;
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('poTable');
+    const filtered = getFilteredPOs();
+    document.getElementById('tableCount').textContent = filtered.length;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i data-lucide="truck"></i><h3>لا توجد أوامر شراء</h3><p>اضغط "أمر شراء جديد" للبدء</p></td></tr>';
+      document.getElementById('pagination').style.display = 'none';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    const pageItems = filtered.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+
+    tbody.innerHTML = pageItems.map(po => {
+      const info = poItemsMap[po.id] || { count: 0, baseUnits: 0 };
+      const canEdit = ['draft', 'pending'].includes(po.status);
+      const canReceive = ['draft', 'pending', 'approved', 'partially_received'].includes(po.status);
+      const canCancel = ['draft', 'pending', 'approved'].includes(po.status);
+      const canDuplicate = po.status !== 'cancelled';
+
+      return '<tr>' +
+        '<td><strong style="font-family:monospace;font-size:12px">' + esc(po.po_number) + '</strong>' + (po.paid_from_cash ? ' <span class="badge badge-success" style="padding:1px 6px;font-size:9px"><i data-lucide="banknote" style="width:9px;height:9px"></i>نقدي</span>' : '') + '</td>' +
+        '<td>' + esc(po.suppliers && po.suppliers.name || '—') + '</td>' +
+        '<td style="font-size:12px">' + fmtDate(po.order_date) + '</td>' +
+        '<td><span class="badge badge-teal">' + info.count + ' صنف</span> <span class="badge badge-gray">' + num(info.baseUnits) + ' وحدة</span></td>' +
+        '<td><strong>' + money(po.total) + '</strong></td>' +
+        '<td>' + statusBadge(po.status) + '</td>' +
+        '<td style="text-align:left"><div class="actions-cell">' +
+          '<button class="icon-btn" data-action="view" data-id="' + po.id + '" title="تفاصيل"><i data-lucide="eye"></i></button>' +
+          (canEdit ? '<button class="icon-btn warn" data-action="edit" data-id="' + po.id + '" title="تعديل"><i data-lucide="edit"></i></button>' : '') +
+          (canDuplicate ? '<button class="icon-btn" data-action="duplicate" data-id="' + po.id + '" title="تكرار"><i data-lucide="copy"></i></button>' : '') +
+          '<button class="icon-btn" data-action="print" data-id="' + po.id + '" title="طباعة"><i data-lucide="printer"></i></button>' +
+          (canReceive ? '<button class="icon-btn success" data-action="receive" data-id="' + po.id + '" title="استلام"><i data-lucide="package-check"></i></button>' : '') +
+          (canCancel ? '<button class="icon-btn danger" data-action="cancel" data-id="' + po.id + '" title="إلغاء"><i data-lucide="x"></i></button>' : '') +
+        '</div></td>' +
+      '</tr>';
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+
+    tbody.querySelectorAll('[data-action="view"]').forEach(b => b.onclick = () => showPoDetails(b.dataset.id));
+    tbody.querySelectorAll('[data-action="edit"]').forEach(b => b.onclick = () => openEditModal(b.dataset.id));
+    tbody.querySelectorAll('[data-action="duplicate"]').forEach(b => b.onclick = () => duplicatePo(b.dataset.id));
+    tbody.querySelectorAll('[data-action="print"]').forEach(b => b.onclick = () => printPo(b.dataset.id));
+    tbody.querySelectorAll('[data-action="receive"]').forEach(b => b.onclick = () => openReceiveModal(b.dataset.id));
+    tbody.querySelectorAll('[data-action="cancel"]').forEach(b => b.onclick = () => openCancelModal(b.dataset.id));
+
+    renderPagination(filtered.length, totalPages);
+  }
+
+  function renderPagination(total, totalPages) {
+    const el = document.getElementById('pagination');
+    if (totalPages <= 1) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    let html = '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' data-p="' + (currentPage-1) + '">‹ السابق</button>';
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    for (let i = start; i <= end; i++) {
+      html += '<button class="' + (i === currentPage ? 'active' : '') + '" data-p="' + i + '">' + i + '</button>';
+    }
+    html += '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' data-p="' + (currentPage+1) + '">التالي ›</button>';
+    html += '<span class="page-info">' + total + ' أمر</span>';
+    el.innerHTML = html;
+    el.querySelectorAll('button[data-p]').forEach(btn => {
+      btn.onclick = () => { currentPage = Number(btn.dataset.p); renderTable(); window.scrollTo({top:0, behavior:'smooth'}); };
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PO ITEM ROW
+  // ═══════════════════════════════════════════════════════════
+  function fillSuppliersSelect() {
+    const opts = '<option value="">اختر مورد...</option>' +
+      suppliers.map(s => '<option value="' + s.id + '">' + esc(s.name) + (s.phone ? ' - ' + esc(s.phone) : '') + '</option>').join('');
+    document.getElementById('poSupplier').innerHTML = opts;
+  }
+
+  function addPoItemRow(productId, qty, cost, unitType) {
+    productId = productId || '';
+    qty = qty || '';
+    cost = cost || '';
+    unitType = unitType || 'purchase';
+
+    const container = document.getElementById('poItems');
+    const row = document.createElement('div');
+    row.className = 'po-item-row';
+
+    const productOpts = '<option value="">اختر منتج...</option>' +
+      products.filter(p => !p.is_bundle).map(p => {
+        let label = p.name;
+        if (p.is_weighted) label += ' [موزون]';
+        return '<option value="' + p.id + '"' +
+          ' data-cost="' + (p.cost_price || 0) + '"' +
+          ' data-pp="' + (p.purchase_price || 0) + '"' +
+          ' data-upp="' + (p.units_per_purchase || 1) + '"' +
+          ' data-pu="' + (p.purchase_unit || 'piece') + '"' +
+          ' data-bu="' + (p.base_unit || 'piece') + '"' +
+          ' data-weighted="' + (p.is_weighted ? '1' : '0') + '"' +
+          (p.id === productId ? ' selected' : '') + '>' + esc(label) + '</option>';
+      }).join('');
+
+    row.innerHTML =
+      '<select class="form-select po-product">' + productOpts + '</select>' +
+      '<select class="form-select po-unit">' +
+        '<option value="purchase"' + (unitType === 'purchase' ? ' selected' : '') + '>وحدة شراء</option>' +
+        '<option value="base"' + (unitType === 'base' ? ' selected' : '') + '>أساسية</option>' +
+      '</select>' +
+      '<input type="number" class="form-input po-qty" placeholder="الكمية" step="1" min="0" value="' + qty + '">' +
+      '<input type="number" class="form-input po-cost" placeholder="السعر" step="0.01" min="0" value="' + cost + '">' +
+      '<div class="po-line-total">0.00</div>' +
+      '<button type="button" class="rm"><i data-lucide="trash-2"></i></button>' +
+      '<div class="formula-box" style="display:none;"></div>';
+
+    container.appendChild(row);
+    if (window.lucide) lucide.createIcons();
+
+    row.querySelector('.rm').onclick = function () { row.remove(); recalcPoTotal(); };
+    row.querySelector('.po-product').onchange = function () { updateRowDetails(row); recalcPoTotal(); };
+    row.querySelector('.po-unit').onchange = function () { updateRowDetails(row); recalcPoTotal(); };
+    row.querySelector('.po-qty').oninput = function () { updateRowDetails(row); recalcPoTotal(); };
+    row.querySelector('.po-qty').onblur = function () { normalizeQtyInput(row); updateRowDetails(row); recalcPoTotal(); };
+    row.querySelector('.po-cost').oninput = function () { updateRowDetails(row); recalcPoTotal(); };
+
+    if (productId) updateRowDetails(row);
+  }
+
+  function normalizeQtyInput(row) {
+    const qtyInput = row.querySelector('.po-qty');
+    const sel = row.querySelector('.po-product');
+    const opt = sel.selectedOptions[0];
+    if (!opt || !opt.value) return;
+
+    const isWeighted = opt.dataset.weighted === '1';
+    const baseUnit = opt.dataset.bu || 'piece';
+    const allowDecimal = unitAllowsDecimal(baseUnit, isWeighted);
+    qtyInput.step = allowDecimal ? '0.001' : '1';
+
+    let val = Number(qtyInput.value) || 0;
+    if (!allowDecimal) {
+      val = Math.floor(val);
+      if (val < 0) val = 0;
+      qtyInput.value = val;
+    }
+  }
+
+  function updateRowDetails(row) {
+    const sel = row.querySelector('.po-product');
+    const opt = sel.selectedOptions[0];
+    const formulaBox = row.querySelector('.formula-box');
+    const costInput = row.querySelector('.po-cost');
+    const qtyInput = row.querySelector('.po-qty');
+    const unitType = row.querySelector('.po-unit').value;
+
+    if (!opt || !opt.value) {
+      formulaBox.style.display = 'none';
+      row.querySelector('.po-line-total').textContent = '0.00';
+      return;
+    }
+
+    const upp = Number(opt.dataset.upp) || 1;
+    const baseUnit = opt.dataset.bu || 'piece';
+    const purchaseUnit = opt.dataset.pu || 'piece';
+    const purchasePrice = Number(opt.dataset.pp) || 0;
+    const baseCost = Number(opt.dataset.cost) || 0;
+    const isWeighted = opt.dataset.weighted === '1';
+
+    const allowDecimal = unitAllowsDecimal(baseUnit, isWeighted);
+    qtyInput.step = allowDecimal ? '0.001' : '1';
+
+    if (!costInput.value) {
+      if (unitType === 'purchase' && purchasePrice > 0) costInput.value = purchasePrice;
+      else if (unitType === 'base' && baseCost > 0) costInput.value = baseCost;
+    }
+
+    let qty = Number(qtyInput.value) || 0;
+    if (!allowDecimal) {
+      qty = Math.floor(qty);
+      if (Number(qtyInput.value) !== qty && Number(qtyInput.value) > 0) {
+        qtyInput.value = qty;
+      }
+    }
+
+    const cost = Number(costInput.value) || 0;
+    const calc = calculateLine({ unitType, upp, qty, cost });
+
+    row.querySelector('.po-line-total').textContent = calc.line_total.toFixed(2);
+
+    if (qty > 0 && cost > 0) {
+      const inputUnitLabel = unitType === 'purchase' ? purchaseUnit : baseUnit;
+      let formulaHtml = '<div class="formula-title"><i data-lucide="calculator"></i>الحساب التفصيلي</div>';
+      formulaHtml += '<div class="formula-grid">';
+
+      formulaHtml += '<div class="formula-item">';
+      formulaHtml += '<div class="formula-label">إجمالي السطر</div>';
+      formulaHtml += '<div class="formula-eq">' + num(qty) + ' ' + esc(inputUnitLabel) + ' × ' + money(cost) + '</div>';
+      formulaHtml += '<div class="formula-result success">' + money(calc.line_total) + '</div>';
+      formulaHtml += '</div>';
+
+      if (unitType === 'purchase' && upp > 1) {
+        formulaHtml += '<div class="formula-item">';
+        formulaHtml += '<div class="formula-label">الوحدات الصغيرة</div>';
+        formulaHtml += '<div class="formula-eq">' + num(qty) + ' × ' + upp + ' = ' + num(calc.base_qty) + '</div>';
+        formulaHtml += '<div class="formula-result accent">' + num(calc.base_qty) + ' ' + esc(baseUnit) + '</div>';
+        formulaHtml += '</div>';
+      } else {
+        formulaHtml += '<div class="formula-item">';
+        formulaHtml += '<div class="formula-label">الوحدات الأساسية</div>';
+        formulaHtml += '<div class="formula-eq">—</div>';
+        formulaHtml += '<div class="formula-result accent">' + num(calc.base_qty) + ' ' + esc(baseUnit) + '</div>';
+        formulaHtml += '</div>';
+      }
+
+      if (unitType === 'purchase' && upp > 1) {
+        formulaHtml += '<div class="formula-item">';
+        formulaHtml += '<div class="formula-label">تكلفة الوحدة الصغيرة</div>';
+        formulaHtml += '<div class="formula-eq">' + money(cost) + ' ÷ ' + upp + '</div>';
+        formulaHtml += '<div class="formula-result warn">' + money(calc.base_unit_cost) + ' / ' + esc(baseUnit) + '</div>';
+        formulaHtml += '</div>';
+      } else {
+        formulaHtml += '<div class="formula-item">';
+        formulaHtml += '<div class="formula-label">تكلفة الوحدة</div>';
+        formulaHtml += '<div class="formula-eq">—</div>';
+        formulaHtml += '<div class="formula-result warn">' + money(calc.base_unit_cost) + '</div>';
+        formulaHtml += '</div>';
+      }
+
+      formulaHtml += '</div>';
+
+      const diff = Math.abs(calc.base_qty * calc.base_unit_cost - calc.line_total);
+      if (diff < 0.01) {
+        formulaHtml += '<div style="margin-top:10px;padding:8px 10px;background:var(--success-soft);border-radius:6px;font-size:11px;color:var(--success);font-weight:700">✅ التحقق: ' + num(calc.base_qty) + ' × ' + money(calc.base_unit_cost) + ' = ' + money(calc.line_total) + '</div>';
+      }
+
+      if (!allowDecimal && Math.abs(Number(qtyInput.value) - qty) > 0.001) {
+        formulaHtml += '<div style="margin-top:8px;padding:6px 10px;background:var(--gold-soft);border-radius:6px;font-size:11px;color:var(--gold);font-weight:700">⚠️ الوحدة دي لا تقبل كسور — تم تقريب الكمية لـ ' + num(qty) + '</div>';
+      }
+
+      formulaBox.innerHTML = formulaHtml;
+      formulaBox.style.display = 'block';
+      if (window.lucide) lucide.createIcons();
+    } else {
+      formulaBox.style.display = 'none';
+    }
+  }
+
+  function recalcPoTotal() {
+    let grandTotal = 0, itemsCount = 0, baseUnitsCount = 0;
+
+    document.querySelectorAll('#poItems .po-item-row:not(.head)').forEach(row => {
+      const productSel = row.querySelector('.po-product');
+      const opt = productSel.selectedOptions[0];
+      if (!productSel.value) return;
+
+      const qty = Number(row.querySelector('.po-qty').value) || 0;
+      const cost = Number(row.querySelector('.po-cost').value) || 0;
+      const unitType = row.querySelector('.po-unit').value;
+      const upp = Number(opt && opt.dataset.upp) || 1;
+      if (qty <= 0) return;
+
+      const calc = calculateLine({ unitType, upp, qty, cost });
+      grandTotal += calc.line_total;
+      baseUnitsCount += calc.base_qty;
+      itemsCount++;
+    });
+
+    document.getElementById('poTotal').textContent = money(grandTotal);
+    document.getElementById('poBaseTotal').textContent = money(grandTotal);
+    document.getElementById('poItemsCount').textContent = itemsCount;
+    document.getElementById('poUnitsCount').textContent = num(baseUnitsCount);
+  }
+
+  // ⭐ NEW: Toggle cash warning
+  function updateCashWarning() {
+    const method = document.getElementById('poPaymentMethod').value;
+    const warning = document.getElementById('cashPaymentWarning');
+    if (warning) {
+      warning.style.display = method === 'cash' ? 'flex' : 'none';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // OPEN MODAL
+  // ═══════════════════════════════════════════════════════════
+  function openNewPoModal() {
+    editingPoId = null;
+    document.getElementById('poModalTitle').textContent = 'أمر شراء جديد';
+    document.getElementById('poModeBadge').style.display = 'none';
+    document.getElementById('poFormError').classList.remove('show');
+    document.getElementById('poId').value = '';
+    document.getElementById('poSupplier').value = '';
+    document.getElementById('poSupplierRef').value = '';
+    document.getElementById('poExpectedDate').value = '';
+    document.getElementById('poPaymentMethod').value = 'cash';
+    document.getElementById('poNotes').value = '';
+    document.getElementById('poItems').innerHTML =
+      '<div class="po-item-row head"><div>المنتج</div><div>الوحدة</div><div>الكمية</div><div>سعر الوحدة</div><div>الإجمالي</div><div></div></div>';
+    addPoItemRow();
+    fillSuppliersSelect();
+    updateCashWarning();
+    document.getElementById('poModal').classList.add('show');
+    recalcPoTotal();
+  }
+
+  async function openEditModal(poId) {
+    const po = purchaseOrders.find(p => p.id === poId);
+    if (!po) return;
+    if (!['draft', 'pending'].includes(po.status)) {
+      toast('warning', 'لا يمكن تعديل أمر شراء تم استلامه أو إلغاؤه');
+      return;
+    }
+
+    editingPoId = poId;
+    document.getElementById('poModalTitle').textContent = 'تعديل ' + po.po_number;
+    document.getElementById('poModeBadge').style.display = 'inline-flex';
+    document.getElementById('poFormError').classList.remove('show');
+    document.getElementById('poId').value = poId;
+    fillSuppliersSelect();
+    document.getElementById('poSupplier').value = po.supplier_id || '';
+    document.getElementById('poExpectedDate').value = po.expected_date ? po.expected_date.slice(0,10) : '';
+    document.getElementById('poPaymentMethod').value = po.payment_method || 'cash';
+    updateCashWarning();
+
+    let notes = po.notes || '';
+    let supplierRef = '';
+    if (notes.startsWith('فاتورة المورد: ')) {
+      const lines = notes.split('\n');
+      supplierRef = lines[0].replace('فاتورة المورد: ', '');
+      notes = lines.slice(1).join('\n');
+    }
+    document.getElementById('poSupplierRef').value = supplierRef;
+    document.getElementById('poNotes').value = notes;
+
+    document.getElementById('poItems').innerHTML =
+      '<div class="po-item-row head"><div>المنتج</div><div>الوحدة</div><div>الكمية</div><div>سعر الوحدة</div><div>الإجمالي</div><div></div></div>';
+
+    const items = await loadPoItems(poId);
+    if (items.length === 0) {
+      addPoItemRow();
+    } else {
+      items.forEach(item => {
+        const unitType = item.purchase_unit && item.purchase_unit !== 'base' && item.purchase_unit !== 'piece' ? 'purchase' : 'base';
+        addPoItemRow(item.product_id, item.quantity, item.unit_cost, unitType);
+      });
+    }
+
+    document.getElementById('poModal').classList.add('show');
+    recalcPoTotal();
+  }
+
+  async function duplicatePo(poId) {
+    const po = purchaseOrders.find(p => p.id === poId);
+    if (!po) return;
+    if (!confirm('تكرار أمر الشراء ' + po.po_number + ' كأمر جديد؟')) return;
+
+    try {
+      const items = await loadPoItems(poId);
+      const total = items.reduce((s, i) => s + Number(i.total || 0), 0);
+
+      const poRes = await sb.from('purchase_orders').insert({
+        company_id: session.company_id,
+        branch_id: session.active_branch_id,
+        warehouse_id: warehouse && warehouse.id,
+        supplier_id: po.supplier_id,
+        po_number: genPoNumber(),
+        status: 'draft',
+        order_date: new Date().toISOString().slice(0, 10),
+        expected_date: po.expected_date,
+        total: total,
+        notes: 'نسخة من ' + po.po_number + (po.notes ? '\n' + po.notes : ''),
+        payment_method: po.payment_method || 'cash',
+        paid_from_cash: false,
+        created_by: session.user_id
+      }).select().single();
+      if (poRes.error) throw poRes.error;
+
+      const itemRows = items.map(i => ({
+        po_id: poRes.data.id,
+        product_id: i.product_id,
+        quantity: i.quantity,
+        unit_cost: i.unit_cost,
+        purchase_unit: i.purchase_unit,
+        units_per_purchase: i.units_per_purchase,
+        base_qty: i.base_qty,
+        base_unit_cost: i.base_unit_cost,
+        received_qty: 0
+      }));
+      await sb.from('purchase_order_items').insert(itemRows);
+
+      toast('success', 'تم نسخ الأمر كمسودة جديدة');
+      await loadPOs();
+      renderStats();
+      renderTable();
+      setTimeout(() => openEditModal(poRes.data.id), 300);
+    } catch (e) {
+      toast('error', e.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PREVIEW
+  // ═══════════════════════════════════════════════════════════
+  function previewPo() {
+    const supplierId = document.getElementById('poSupplier').value;
+    const supplier = suppliers.find(s => s.id === supplierId);
+    const supplierRef = document.getElementById('poSupplierRef').value.trim();
+    const expectedDate = document.getElementById('poExpectedDate').value;
+    const notes = document.getElementById('poNotes').value.trim();
+
+    const items = [];
+    document.querySelectorAll('#poItems .po-item-row:not(.head)').forEach(row => {
+      const productSel = row.querySelector('.po-product');
+      const opt = productSel.selectedOptions[0];
+      if (!productSel.value) return;
+      const qty = Number(row.querySelector('.po-qty').value) || 0;
+      const cost = Number(row.querySelector('.po-cost').value) || 0;
+      if (qty <= 0) return;
+      const unitType = row.querySelector('.po-unit').value;
+      const upp = Number(opt && opt.dataset.upp) || 1;
+      const calc = calculateLine({ unitType, upp, qty, cost });
+      items.push({
+        name: opt.textContent.trim(),
+        qty, cost, baseQty: calc.base_qty, baseCost: calc.base_unit_cost,
+        lineTotal: calc.line_total,
+        unitLabel: unitType === 'purchase' ? (opt.dataset.pu || 'وحدة شراء') : (opt.dataset.bu || 'وحدة'),
+        baseUnitLabel: opt.dataset.bu || 'وحدة'
+      });
+    });
+
+    if (items.length === 0) {
+      toast('warning', 'أضف صنفاً واحداً على الأقل');
+      return;
+    }
+
+    const total = items.reduce((s, i) => s + i.lineTotal, 0);
+
+    document.getElementById('previewBody').innerHTML =
+      '<div style="padding:16px;background:var(--bg-soft);border-radius:10px;margin-bottom:16px">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">' +
+          '<div><strong>المورد:</strong> ' + esc(supplier ? supplier.name : '—') + '</div>' +
+          '<div><strong>التاريخ:</strong> ' + fmtDate(new Date()) + '</div>' +
+          (supplierRef ? '<div><strong>فاتورة المورد:</strong> ' + esc(supplierRef) + '</div>' : '') +
+          (expectedDate ? '<div><strong>الاستلام المتوقع:</strong> ' + fmtDate(expectedDate) + '</div>' : '') +
+        '</div>' +
+        (notes ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><strong>ملاحظات:</strong> ' + esc(notes) + '</div>' : '') +
+      '</div>' +
+      '<div class="table-wrap" style="border:1px solid var(--border);border-radius:8px"><table><thead><tr><th>المنتج</th><th>الكمية</th><th>الوحدة</th><th>الأساسية</th><th>سعر الوحدة</th><th>إجمالي</th></tr></thead><tbody>' +
+        items.map(i => '<tr>' +
+          '<td><strong>' + esc(i.name) + '</strong></td>' +
+          '<td>' + num(i.qty) + '</td>' +
+          '<td style="font-size:11px">' + esc(i.unitLabel) + '</td>' +
+          '<td>' + num(i.baseQty) + ' ' + esc(i.baseUnitLabel) + '</td>' +
+          '<td>' + money(i.cost) + '</td>' +
+          '<td><strong>' + money(i.lineTotal) + '</strong></td>' +
+        '</tr>').join('') +
+      '</tbody></table></div>' +
+      '<div style="text-align:left;margin-top:16px;font-size:20px;font-weight:800">' +
+        'الإجمالي: <span style="color:var(--accent)">' + money(total) + '</span>' +
+      '</div>';
+
+    document.getElementById('previewModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SAVE — ⭐ مع cash_movement + paid_from_cash
+  // ═══════════════════════════════════════════════════════════
+  async function savePo(asDraft) {
+    const errEl = document.getElementById('poFormError');
+    errEl.classList.remove('show');
+
+    const supplierId = document.getElementById('poSupplier').value;
+    const supplierRef = document.getElementById('poSupplierRef').value.trim();
+    const expectedDate = document.getElementById('poExpectedDate').value;
+    const notes = document.getElementById('poNotes').value.trim();
+    const paymentMethod = document.getElementById('poPaymentMethod').value || 'cash';
+
+    if (purchaseSettings.requireSupplierInvoice && !supplierRef) {
+      errEl.textContent = 'رقم فاتورة المورد مطلوب حسب إعدادات الشركة';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const items = [];
+    document.querySelectorAll('#poItems .po-item-row:not(.head)').forEach(row => {
+      const productSel = row.querySelector('.po-product');
+      const opt = productSel.selectedOptions[0];
+      if (!productSel.value) return;
+      let qty = Number(row.querySelector('.po-qty').value) || 0;
+      const cost = Number(row.querySelector('.po-cost').value) || 0;
+      if (qty <= 0) return;
+
+      const unitType = row.querySelector('.po-unit').value;
+      const upp = Number(opt && opt.dataset.upp) || 1;
+      const baseUnit = (opt && opt.dataset.bu) || 'piece';
+      const purchaseUnit = (opt && opt.dataset.pu) || 'piece';
+      const isWeighted = opt && opt.dataset.weighted === '1';
+
+      const allowDecimal = unitAllowsDecimal(baseUnit, isWeighted);
+      if (!allowDecimal) qty = Math.floor(qty);
+
+      const calc = calculateLine({ unitType, upp, qty, cost });
+
+      items.push({
+        product_id: productSel.value,
+        quantity: qty,
+        unit_cost: cost,
+        purchase_unit: unitType === 'purchase' ? purchaseUnit : baseUnit,
+        units_per_purchase: upp,
+        base_qty: calc.base_qty,
+        base_unit_cost: calc.base_unit_cost,
+        line_total: calc.line_total
+      });
+    });
+
+    if (!supplierId) { errEl.textContent = 'اختر المورد'; errEl.classList.add('show'); return; }
+    if (items.length === 0) { errEl.textContent = 'أضف صنفاً واحداً على الأقل'; errEl.classList.add('show'); return; }
+
+    const total = items.reduce((s, i) => s + i.line_total, 0);
+
+    // ⭐ NEW: جلب الوردية المفتوحة
+    let currentSession = null;
+    if (paymentMethod === 'cash') {
+      currentSession = await getCurrentOpenSession();
+    }
+
+    const btnId = asDraft ? 'saveDraftBtn' : 'savePoBtn';
+    const btn = document.getElementById(btnId);
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
+
+    try {
+      const status = asDraft ? 'draft' : (purchaseSettings.autoApprove ? 'approved' : 'pending');
+      const poPayload = {
+        company_id: session.company_id,
+        branch_id: session.active_branch_id,
+        warehouse_id: warehouse && warehouse.id,
+        supplier_id: supplierId,
+        status,
+        order_date: new Date().toISOString().slice(0, 10),
+        expected_date: expectedDate || null,
+        total: round2(total),
+        notes: (supplierRef ? 'فاتورة المورد: ' + supplierRef + '\n' : '') + (notes || ''),
+        payment_method: paymentMethod,
+        created_by: session.user_id,
+        // ⭐ NEW: paid_from_cash + session_id
+        paid_from_cash: paymentMethod === 'cash' && !!currentSession,
+        session_id: currentSession ? currentSession.id : null
+      };
+
+      let poId = editingPoId;
+
+      if (editingPoId) {
+        const updRes = await sb.from('purchase_orders').update({
+          supplier_id: supplierId,
+          expected_date: expectedDate || null,
+          total: round2(total),
+          notes: poPayload.notes,
+          status,
+          payment_method: paymentMethod,
+          paid_from_cash: poPayload.paid_from_cash,
+          session_id: poPayload.session_id
+        }).eq('id', editingPoId);
+        if (updRes.error) throw updRes.error;
+        await sb.from('purchase_order_items').delete().eq('po_id', editingPoId);
+      } else {
+        poPayload.po_number = genPoNumber();
+        const poRes = await sb.from('purchase_orders').insert(poPayload).select().single();
+        if (poRes.error) throw poRes.error;
+        poId = poRes.data.id;
+      }
+
+      const itemRows = items.map(i => ({
+        po_id: poId,
+        product_id: i.product_id,
+        quantity: i.quantity,
+        unit_cost: i.unit_cost,
+        purchase_unit: i.purchase_unit,
+        units_per_purchase: i.units_per_purchase,
+        base_qty: i.base_qty,
+        base_unit_cost: i.base_unit_cost,
+        received_qty: 0
+      }));
+      const itemsRes = await sb.from('purchase_order_items').insert(itemRows);
+      if (itemsRes.error) throw itemsRes.error;
+
+      // ⭐ NEW: تسجيل cash_movement لو دفع نقدي من الدرج
+      if (paymentMethod === 'cash' && currentSession && !editingPoId) {
+        const supplier = suppliers.find(s => s.id === supplierId);
+        const supplierName = supplier ? supplier.name : '';
+        await recordCashMovement(
+          'purchase_payment',
+          round2(total),
+          'دفع مورد — ' + supplierName + ' — ' + poPayload.po_number,
+          'purchase_order',
+          poId,
+          currentSession.id
+        );
+      }
+
+      toast('success', (editingPoId ? 'تم تحديث ' : 'تم إنشاء ') + 'أمر الشراء — ' + money(total));
+      document.getElementById('poModal').classList.remove('show');
+      editingPoId = null;
+      await loadPOs();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CANCEL / BULK / DETAILS / RECEIVE
+  // ═══════════════════════════════════════════════════════════
+  function openCancelModal(poId) {
+    const po = purchaseOrders.find(p => p.id === poId);
+    if (!po) return;
+    if (po.status === 'partially_received') {
+      toast('error', 'لا يمكن إلغاء أمر تم استلامه جزئياً');
+      return;
+    }
+    document.getElementById('cancelPoId').value = poId;
+    document.getElementById('cancelPoName').innerHTML = 'أمر الشراء: <strong>' + esc(po.po_number) + '</strong>';
+    document.getElementById('cancelReason').value = '';
+    document.getElementById('cancelFormError').classList.remove('show');
+    document.getElementById('cancelModal').classList.add('show');
+  }
+
+  async function confirmCancel() {
+    const errEl = document.getElementById('cancelFormError');
+    errEl.classList.remove('show');
+    const poId = document.getElementById('cancelPoId').value;
+    const reason = document.getElementById('cancelReason').value.trim();
+    if (!reason) { errEl.textContent = 'السبب مطلوب'; errEl.classList.add('show'); return; }
+
+    const btn = document.getElementById('confirmCancelBtn');
+    btn.disabled = true;
+
+    try {
+      await sb.from('purchase_orders').update({
+        status: 'cancelled',
+        notes: (purchaseOrders.find(p => p.id === poId)?.notes || '') + '\n[ملغى: ' + reason + ']'
+      }).eq('id', poId);
+      toast('success', 'تم الإلغاء');
+      document.getElementById('cancelModal').classList.remove('show');
+      await loadPOs();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function applyBulkPrice() {
+    const pct = Number(document.getElementById('bulkPricePercent').value);
+    if (!pct || isNaN(pct)) { toast('warning', 'أدخل نسبة صحيحة'); return; }
+    document.querySelectorAll('#poItems .po-item-row:not(.head)').forEach(row => {
+      const costInput = row.querySelector('.po-cost');
+      const current = Number(costInput.value) || 0;
+      if (current > 0) {
+        costInput.value = Math.max(0, current * (1 + pct/100)).toFixed(2);
+        updateRowDetails(row);
+      }
+    });
+    recalcPoTotal();
+    toast('success', 'تم تعديل ' + pct + '% على كل الأسعار');
+  }
+
+  async function showPoDetails(id) {
+    const po = purchaseOrders.find(p => p.id === id);
+    if (!po) return;
+    currentDetailsPoId = id;
+    document.getElementById('poDetailsTitle').textContent = 'أمر ' + po.po_number;
+    const body = document.getElementById('poDetailsBody');
+    body.innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+    document.getElementById('poDetailsModal').classList.add('show');
+
+    const items = await loadPoItems(id);
+
+    body.innerHTML =
+      '<div class="form-row">' +
+        '<div class="form-group"><label class="form-label">المورد</label><div style="padding:10px;background:var(--bg-soft);border-radius:8px;font-weight:700">' + esc(po.suppliers && po.suppliers.name || '—') + '</div></div>' +
+        '<div class="form-group"><label class="form-label">الحالة</label><div style="padding:10px;background:var(--bg-soft);border-radius:8px">' + statusBadge(po.status) + '</div></div>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label class="form-label">تاريخ الأمر</label><div style="padding:10px;background:var(--bg-soft);border-radius:8px;font-weight:700">' + fmtDate(po.order_date) + '</div></div>' +
+        '<div class="form-group"><label class="form-label">تاريخ الاستلام المتوقع</label><div style="padding:10px;background:var(--bg-soft);border-radius:8px;font-weight:700">' + fmtDate(po.expected_date) + '</div></div>' +
+      '</div>' +
+      (po.notes ? '<div class="form-group"><label class="form-label">ملاحظات</label><div style="padding:10px;background:var(--bg-soft);border-radius:8px;white-space:pre-wrap">' + esc(po.notes) + '</div></div>' : '') +
+      // ⭐ NEW: عرض paid_from_cash
+      (po.paid_from_cash ? '<div class="form-group"><label class="form-label">الدفع</label><div class="cash-badge"><i data-lucide="banknote" style="width:16px;height:16px"></i>مدفوع من الدرج (نقدي)' + (po.session_id ? ' — مربوط بالوردية' : '') + '</div></div>' : '') +
+      '<div style="font-size:14px;font-weight:800;margin:16px 0 8px">الأصناف (' + items.length + ')</div>' +
+      '<div class="table-wrap" style="border:1px solid var(--border);border-radius:8px">' +
+        '<table>' +
+          '<thead><tr><th>المنتج</th><th>الكمية</th><th>الوحدة</th><th>سعر الوحدة</th><th>الوحدات الصغيرة</th><th>تكلفة الصغيرة</th><th>الإجمالي</th><th>مستلم</th></tr></thead>' +
+          '<tbody>' +
+            (items.length === 0 ? '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted)">لا أصناف</td></tr>' :
+              items.map(function (i) {
+                const prod = i.products || {};
+                const unitLabel = i.purchase_unit === 'purchase' ?
+                  (prod.purchase_unit || 'وحدة شراء') :
+                  (prod.base_unit || 'وحدة');
+                const baseUnitLabel = prod.base_unit || '—';
+                return '<tr>' +
+                  '<td><strong>' + esc(prod.name || '—') + '</strong></td>' +
+                  '<td>' + num(i.quantity) + '</td>' +
+                  '<td style="font-size:11px;color:var(--text-muted)">' + esc(unitLabel) + '</td>' +
+                  '<td>' + money(i.unit_cost) + '</td>' +
+                  '<td><strong>' + num(i.base_qty || 0) + '</strong> ' + esc(baseUnitLabel) + '</td>' +
+                  '<td style="font-size:11px;color:var(--text-muted)">' + money(i.base_unit_cost || (i.unit_cost / (i.units_per_purchase || 1))) + '</td>' +
+                  '<td><strong>' + money(i.total) + '</strong></td>' +
+                  '<td>' + num(i.received_qty || 0) + '</td>' +
+                '</tr>';
+              }).join('')
+            ) +
+          '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div style="text-align:left;margin-top:16px;font-size:20px;font-weight:800">' +
+        'الإجمالي: <span style="color:var(--accent)">' + money(po.total) + '</span>' +
+      '</div>';
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function printPo(id) {
+    const po = purchaseOrders.find(p => p.id === id);
+    if (!po) return;
+    showPoDetails(id).then(() => setTimeout(() => { window.print(); }, 500));
+  }
+
+  async function openReceiveModal(poId) {
+    const po = purchaseOrders.find(p => p.id === poId);
+    if (!po) return;
+
+    document.getElementById('receivePoId').value = poId;
+    document.getElementById('receiveFormError').classList.remove('show');
+    document.getElementById('receiveAllFull').checked = true;
+
+    const items = await loadPoItems(poId);
+
+    document.getElementById('receiveSummary').innerHTML =
+      '<div class="form-row">' +
+        '<div class="form-group"><label class="form-label">أمر الشراء</label><div style="padding:10px;background:var(--bg-soft);border-radius:8px;font-weight:700;font-family:monospace">' + esc(po.po_number) + '</div></div>' +
+        '<div class="form-group"><label class="form-label">المورد</label><div style="padding:10px;background:var(--bg-soft);border-radius:8px;font-weight:700">' + esc(po.suppliers && po.suppliers.name || '—') + '</div></div>' +
+      '</div>';
+
+    const container = document.getElementById('receiveItemsContainer');
+    container.innerHTML = items.map(function (i) {
+      const prod = i.products || {};
+      const requestedQty = Number(i.quantity || 0);
+      const receivedQty = Number(i.received_qty || 0);
+      const remaining = requestedQty - receivedQty;
+      const upp = Number(i.units_per_purchase) || 1;
+      const isPurchaseUnit = i.purchase_unit && i.purchase_unit !== 'base' && i.purchase_unit !== 'piece';
+      const defaultExpiry = new Date(Date.now() + 365*24*60*60*1000).toISOString().slice(0,10);
+      const suggestedSalePrice = prod.sale_price || i.base_unit_cost || i.unit_cost;
+      const baseQtyOrdered = i.base_qty || (requestedQty * (isPurchaseUnit ? upp : 1));
+      const baseQtyReceived = receivedQty * (isPurchaseUnit ? upp : 1);
+      const baseQtyRemaining = Math.max(0, baseQtyOrdered - baseQtyReceived);
+      const isWeighted = prod.is_weighted;
+      const baseUnit = prod.base_unit || 'piece';
+      const allowDecimal = unitAllowsDecimal(baseUnit, isWeighted);
+      const step = allowDecimal ? '0.001' : '1';
+
+      return '<div style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px" data-item-id="' + i.id + '" data-upp="' + upp + '" data-is-purchase="' + (isPurchaseUnit ? '1' : '0') + '" data-default-qty="' + remaining + '" data-allow-decimal="' + (allowDecimal ? '1' : '0') + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">' +
+          '<div><strong>' + esc(prod.name || '—') + '</strong>' +
+            (isPurchaseUnit ? '<div style="font-size:11px;color:var(--text-muted)">1 ' + esc(prod.purchase_unit || 'وحدة شراء') + ' = ' + upp + ' ' + esc(prod.base_unit || 'وحدة') + '</div>' : '') +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);text-align:left">' +
+            'مطلوب: <strong>' + num(remaining) + '</strong> ' + (isPurchaseUnit ? esc(prod.purchase_unit || '') : esc(prod.base_unit || '')) + ' = ' + num(baseQtyRemaining) + ' ' + esc(prod.base_unit || '') +
+          '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' +
+          '<div><label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">الكمية المستلمة</label><input type="number" class="form-input recv-qty" value="' + remaining + '" step="' + step + '" min="0" style="font-size:13px"></div>' +
+          '<div><label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">تاريخ الصلاحية</label><input type="date" class="form-input recv-expiry" value="' + defaultExpiry + '" style="font-size:13px"></div>' +
+          '<div><label style="font-size:11px;font-weight:600;display:block;margin-bottom:3px">سعر البيع (أساسي)</label><input type="number" class="form-input recv-sale" value="' + suggestedSalePrice + '" step="0.01" min="0" style="font-size:13px"></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+    document.getElementById('receiveModal').classList.add('show');
+  }
+
+  async function confirmReceive() {
+    const errEl = document.getElementById('receiveFormError');
+    errEl.classList.remove('show');
+
+    const poId = document.getElementById('receivePoId').value;
+    const po = purchaseOrders.find(p => p.id === poId);
+    if (!po) return;
+
+    const items = await loadPoItems(poId);
+    const payload = [];
+    const itemUpdates = [];
+    let missingExpiry = false;
+
+    document.querySelectorAll('#receiveItemsContainer [data-item-id]').forEach(function (row) {
+      const itemId = row.dataset.itemId;
+      const upp = Number(row.dataset.upp) || 1;
+      const isPurchaseUnit = row.dataset.isPurchase === '1';
+      const allowDecimal = row.dataset.allowDecimal === '1';
+      let qty = Number(row.querySelector('.recv-qty').value) || 0;
+      const expiry = row.querySelector('.recv-expiry').value;
+      const salePrice = Number(row.querySelector('.recv-sale').value) || 0;
+      if (qty <= 0) return;
+
+      if (purchaseSettings.requireExpiryDate && !expiry) {
+        missingExpiry = true;
+        return;
+      }
+
+      if (!allowDecimal) qty = Math.floor(qty);
+
+      const item = items.find(function (i) { return i.id === itemId; });
+      if (!item) return;
+
+      const baseQty = isPurchaseUnit ? qty * upp : qty;
+      const baseUnitCost = item.base_unit_cost
+        ? Number(item.base_unit_cost)
+        : (isPurchaseUnit ? Number(item.unit_cost) / upp : Number(item.unit_cost));
+
+      payload.push({
+        product_id: item.product_id,
+        quantity: baseQty,
+        unit_cost: baseUnitCost,
+        sale_price: salePrice > 0 ? salePrice : ((item.products && item.products.sale_price) || baseUnitCost),
+        expiry_date: expiry,
+        lot_number: null
+      });
+
+      const currentReceived = Number(item.received_qty || 0);
+      itemUpdates.push({ id: itemId, received_qty: currentReceived + qty });
+    });
+
+    if (missingExpiry) {
+      errEl.textContent = 'تاريخ الصلاحية مطلوب لكل صنف حسب إعدادات الشركة';
+      errEl.classList.add('show');
+      return;
+    }
+
+    if (payload.length === 0) {
+      errEl.textContent = 'أدخل كمية لصنف واحد على الأقل';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('confirmReceiveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
+
+    try {
+      const res = await sb.rpc('record_receipt', {
+        p_company: session.company_id,
+        p_branch: session.active_branch_id,
+        p_warehouse: warehouse.id,
+        p_supplier: po.supplier_id,
+        p_po: poId,
+        p_items: payload,
+        p_notes: null
+      });
+      if (res.error) throw res.error;
+
+      for (const upd of itemUpdates) {
+        await sb.from('purchase_order_items').update({ received_qty: upd.received_qty }).eq('id', upd.id);
+      }
+
+      const updatedItems = await loadPoItems(poId);
+      const allReceived = updatedItems.every(i => Number(i.received_qty || 0) >= Number(i.quantity || 0));
+      await sb.from('purchase_orders').update({ status: allReceived ? 'received' : 'partially_received' }).eq('id', poId);
+
+      toast('success', 'تم استلام ' + payload.length + ' صنف');
+      document.getElementById('receiveModal').classList.remove('show');
+      await loadPOs();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="check-circle"></i><span>تأكيد الاستلام</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // AI SUGGEST
+  // ═══════════════════════════════════════════════════════════
+  async function openAiSuggest() {
+    if (!window.Refad || !Refad.AIReorder) {
+      toast('error', 'محرك الاقتراحات غير محمّل');
+      return;
+    }
+    document.getElementById('aiSuggestModal').classList.add('show');
+    await loadAiAnalysis(30);
+  }
+
+  async function loadAiAnalysis(coverageDays) {
+    const container = document.getElementById('aiSuggestContent');
+    container.innerHTML = '<div class="loading-state"><div class="spinner"></div>جاري التحليل...</div>';
+    document.getElementById('applyAiSuggestBtn').disabled = true;
+
+    try {
+      const result = await Refad.AIReorder.analyze({
+        session, coverageDays, safetyFactor: 15, lookbackDays: 90, skipDeadStock: true
+      });
+
+      if (result.suggestions && result.suggestions.length > 0) {
+        result.suggestions = result.suggestions.map(s => {
+          const product = products.find(p => p.id === s.product_id);
+          if (!product) return s;
+
+          let supplierId = s.supplier_id || productSuppliersMap[s.product_id] || lastPoSupplierMap[s.product_id] || null;
+          const supplier = supplierId ? suppliers.find(x => x.id === supplierId) : null;
+
+          const smart = smartUnitSelection(product, s.suggested_qty);
+
+          const allowDecimal = unitAllowsDecimal(smart.baseUnit, product.is_weighted);
+          let finalQty = smart.qty;
+          if (!allowDecimal) finalQty = Math.floor(finalQty);
+          if (finalQty <= 0) finalQty = 1;
+
+          const calc = calculateLine({
+            unitType: smart.unitType,
+            upp: smart.upp,
+            qty: finalQty,
+            cost: smart.unit_cost
+          });
+
+          return {
+            ...s,
+            supplier_id: supplierId,
+            supplier_name: supplier ? supplier.name : null,
+            unit_type: smart.unitType,
+            unit_qty: finalQty,
+            base_qty: calc.base_qty,
+            unit_cost: smart.unit_cost,
+            base_unit_cost: calc.base_unit_cost,
+            unit_label: smart.unitType === 'purchase' ? (product.purchase_unit || 'carton') : (product.base_unit || 'piece'),
+            base_label: product.base_unit || 'piece',
+            upp: smart.upp,
+            line_total: calc.line_total,
+            product_ref: product
+          };
+        });
+      }
+
+      renderAiSuggest(result, coverageDays);
+    } catch (e) {
+      container.innerHTML = '<div class="form-error show">فشل التحليل: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  function renderAiSuggest(analysis, coverageDays) {
+    const container = document.getElementById('aiSuggestContent');
+
+    if (!analysis.suggestions || analysis.suggestions.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i data-lucide="check-circle"></i><h3>ممتاز! لا حاجة لطلب شراء</h3></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const totalCost = analysis.suggestions.reduce((s, sug) => s + (Number(sug.line_total) || 0), 0);
+    let missingSupplierCount = 0;
+    analysis.suggestions.forEach(s => { if (!s.supplier_id) missingSupplierCount++; });
+
+    let html = '<div class="ai-stat">' +
+      '<div class="ai-stat-item"><div class="ai-stat-value">' + analysis.stats.needsReorder + '</div><div class="ai-stat-label">يحتاج طلب</div></div>' +
+      '<div class="ai-stat-item"><div class="ai-stat-value" style="color:var(--danger)">' + analysis.stats.critical + '</div><div class="ai-stat-label">حرج</div></div>' +
+      '<div class="ai-stat-item"><div class="ai-stat-value">' + money(totalCost) + '</div><div class="ai-stat-label">التكلفة</div></div>' +
+      '<div class="ai-stat-item"><div class="ai-stat-value">' + analysis.suggestions.length + '</div><div class="ai-stat-label">أصناف</div></div>' +
+    '</div>';
+
+    if (missingSupplierCount > 0) {
+      html += '<div style="padding:12px;background:var(--danger-soft);border-radius:8px;margin-bottom:12px;border-right:3px solid var(--danger);font-size:12.5px;color:var(--danger);font-weight:600">' +
+        '<i data-lucide="alert-triangle" style="width:14px;height:14px;vertical-align:middle"></i> ' +
+        missingSupplierCount + ' منتج ليس له مورد محدد — اختر المورد من القائمة المنسدلة تحت كل صنف' +
+      '</div>';
+    }
+
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
+      '<div style="font-size:13px;font-weight:800">المنتجات المقترحة:</div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<button type="button" class="btn btn-ghost btn-sm" id="aiSelectAllBtn"><i data-lucide="check-square"></i><span>الكل</span></button>' +
+        '<button type="button" class="btn btn-ghost btn-sm" id="aiSelectNoneBtn"><i data-lucide="square"></i><span>لا شيء</span></button>' +
+      '</div>' +
+    '</div>';
+
+    html += '<div style="max-height:450px;overflow-y:auto">';
+    for (let i = 0; i < analysis.suggestions.length && i < 100; i++) {
+      const s = analysis.suggestions[i];
+      const hasSupplier = !!s.supplier_id;
+      const urgencyClass = 'urgency-' + s.urgency.level;
+      const unitBadge = s.unit_type === 'purchase'
+        ? '<span class="ai-suggest-badge unit-purchase">' + esc(s.unit_label) + ' × ' + s.upp + '</span>'
+        : '<span class="ai-suggest-badge unit-base">' + esc(s.base_label) + '</span>';
+
+      const supplierOpts = '<option value="">-- اختر مورد --</option>' +
+        suppliers.map(sup =>
+          '<option value="' + sup.id + '"' + (sup.id === s.supplier_id ? ' selected' : '') + '>' +
+            esc(sup.name) + (sup.phone ? ' - ' + esc(sup.phone) : '') +
+          '</option>'
+        ).join('');
+
+      html += '<div class="ai-suggest-item' + (hasSupplier ? ' selected' : ' no-supplier') + '" data-suggest-idx="' + i + '">' +
+        '<div class="ai-suggest-info">' +
+          '<div class="ai-suggest-name">' +
+            esc(s.product_name) +
+            ' <span class="' + urgencyClass + '" style="font-size:11px;font-weight:800">(' + s.urgency.label + ')</span>' +
+          '</div>' +
+          '<div class="ai-suggest-meta">' +
+            unitBadge + ' ' +
+            'مخزون: <strong>' + s.current_stock + '</strong> · ' +
+            'معدل يومي: <strong>' + s.daily_rate.toFixed(1) + '</strong> · ' +
+            'الحد الأدنى: <strong>' + s.reorder_level + '</strong>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ai-suggest-qty-block">' +
+          '<div class="ai-suggest-qty-value">' + num(s.unit_qty) + ' × ' + money(s.unit_cost) + '</div>' +
+          '<div class="ai-suggest-qty-unit" style="color:var(--success);font-weight:800;font-size:13px">' +
+            '= ' + money(s.line_total) +
+          '</div>' +
+          '<div class="ai-suggest-qty-unit">' +
+            num(s.base_qty) + ' ' + esc(s.base_label) +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<select class="ai-supplier-select' + (hasSupplier ? '' : ' missing') + '" data-supplier-idx="' + i + '">' +
+            supplierOpts +
+          '</select>' +
+        '</div>' +
+        '<input type="checkbox"' + (hasSupplier ? ' checked' : '') + ' data-check-idx="' + i + '" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">' +
+      '</div>';
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+
+    container.querySelectorAll('[data-supplier-idx]').forEach(sel => {
+      sel.onchange = async function () {
+        const idx = Number(sel.dataset.supplierIdx);
+        const newSupplierId = sel.value || null;
+        analysis.suggestions[idx].supplier_id = newSupplierId;
+        const sup = suppliers.find(x => x.id === newSupplierId);
+        analysis.suggestions[idx].supplier_name = sup ? sup.name : null;
+
+        const item = container.querySelector('[data-suggest-idx="' + idx + '"]');
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        if (newSupplierId) {
+          item.classList.add('selected');
+          item.classList.remove('no-supplier');
+          sel.classList.remove('missing');
+          checkbox.checked = true;
+        } else {
+          item.classList.remove('selected');
+          item.classList.add('no-supplier');
+          sel.classList.add('missing');
+          checkbox.checked = false;
+        }
+
+        if (newSupplierId) {
+          try {
+            await sb.from('product_suppliers').upsert({
+              company_id: session.company_id,
+              product_id: analysis.suggestions[idx].product_id,
+              supplier_id: newSupplierId
+            }, { onConflict: 'product_id,supplier_id' });
+            productSuppliersMap[analysis.suggestions[idx].product_id] = newSupplierId;
+          } catch (e) { console.warn('Failed to save product-supplier:', e); }
+        }
+      };
+    });
+
+    container.querySelectorAll('[data-check-idx]').forEach(cb => {
+      cb.onchange = function () {
+        const idx = Number(cb.dataset.checkIdx);
+        const item = container.querySelector('[data-suggest-idx="' + idx + '"]');
+        if (cb.checked && !analysis.suggestions[idx].supplier_id) {
+          toast('warning', 'اختر المورد أولاً');
+          cb.checked = false;
+          return;
+        }
+        item.classList.toggle('selected', cb.checked);
+      };
+    });
+
+    document.getElementById('aiSelectAllBtn').onclick = function () {
+      container.querySelectorAll('.ai-suggest-item').forEach(function (item) {
+        const idx = Number(item.dataset.suggestIdx);
+        if (analysis.suggestions[idx]?.supplier_id) {
+          const cb = item.querySelector('input[type="checkbox"]');
+          cb.checked = true;
+          item.classList.add('selected');
+        }
+      });
+    };
+    document.getElementById('aiSelectNoneBtn').onclick = function () {
+      container.querySelectorAll('.ai-suggest-item').forEach(function (item) {
+        const cb = item.querySelector('input[type="checkbox"]');
+        cb.checked = false;
+        item.classList.remove('selected');
+      });
+    };
+
+    document.getElementById('applyAiSuggestBtn').disabled = false;
+    document.getElementById('applyAiSuggestBtn').onclick = function () { applyAiSuggest(analysis, coverageDays); };
+  }
+
+  async function applyAiSuggest(analysis, coverageDays) {
+    if (!analysis) return;
+
+    const selected = [];
+    document.querySelectorAll('.ai-suggest-item').forEach(function (item) {
+      const cb = item.querySelector('input[type="checkbox"]');
+      if (cb.checked) {
+        const idx = Number(item.dataset.suggestIdx);
+        const s = analysis.suggestions[idx];
+        if (s && s.supplier_id) {
+          selected.push({
+            product_id: s.product_id,
+            quantity: s.unit_qty,
+            unit_cost: s.unit_cost,
+            supplier_id: s.supplier_id,
+            unit_type: s.unit_type,
+            upp: s.upp,
+            base_qty: s.base_qty,
+            base_unit_cost: s.base_unit_cost,
+            unit_label: s.unit_label,
+            base_label: s.base_label,
+            line_total: s.line_total
+          });
+        }
+      }
+    });
+
+    if (selected.length === 0) { toast('warning', 'اختر صنف واحد على الأقل له مورد'); return; }
+
+    const bySupplier = {};
+    selected.forEach(function (s) {
+      if (!bySupplier[s.supplier_id]) bySupplier[s.supplier_id] = [];
+      bySupplier[s.supplier_id].push(s);
+    });
+
+    const supplierIds = Object.keys(bySupplier);
+    if (supplierIds.length === 0) { toast('error', 'مفيش موردين محددين'); return; }
+
+    if (!confirm('سيتم إنشاء ' + supplierIds.length + ' أمر شراء. متابعة؟')) return;
+
+    const btn = document.getElementById('applyAiSuggestBtn');
+    btn.disabled = true;
+
+    try {
+      let created = 0;
+      for (const sid of supplierIds) {
+        const items = bySupplier[sid];
+        const total = items.reduce((s, it) => s + (Number(it.line_total) || 0), 0);
+
+        const poRes = await sb.from('purchase_orders').insert({
+          company_id: session.company_id,
+          branch_id: session.active_branch_id,
+          warehouse_id: warehouse && warehouse.id,
+          supplier_id: sid,
+          po_number: genPoNumber(),
+          status: 'pending',
+          order_date: new Date().toISOString().slice(0, 10),
+          total: round2(total),
+          notes: 'AI Suggest — تغطية ' + coverageDays + ' يوم',
+          payment_method: 'cash',
+          paid_from_cash: false,
+          created_by: session.user_id
+        }).select().single();
+        if (poRes.error) throw poRes.error;
+
+        const itemRows = items.map(it => ({
+          po_id: poRes.data.id,
+          product_id: it.product_id,
+          quantity: it.quantity,
+          unit_cost: it.unit_cost,
+          purchase_unit: it.unit_type === 'purchase' ? it.unit_label : it.base_label,
+          units_per_purchase: it.upp,
+          base_qty: it.base_qty,
+          base_unit_cost: it.base_unit_cost,
+          received_qty: 0
+        }));
+
+        const insRes = await sb.from('purchase_order_items').insert(itemRows);
+        if (insRes.error) throw insRes.error;
+        created++;
+      }
+
+      toast('success', 'تم إنشاء ' + created + ' أمر شراء');
+      document.getElementById('aiSuggestModal').classList.remove('show');
+      await loadPOs();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      toast('error', 'فشل: ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BARCODE / EXPORT
+  // ═══════════════════════════════════════════════════════════
+  function openBarcodeScan() {
+    if (!window.Refad || !Refad.BarcodeScanner) {
+      toast('error', 'ماسح الباركود غير محمّل');
+      return;
+    }
+    Refad.BarcodeScanner.open({
+      onDetect: function (result) {
+        const code = result.raw || result.text;
+        const product = products.find(p => p.barcode === code || p.plu_code === code);
+        if (product) {
+          if (!document.getElementById('poModal').classList.contains('show')) openNewPoModal();
+          addPoItemRow(product.id, 1, product.purchase_price || product.cost_price || 0);
+          recalcPoTotal();
+          toast('success', 'تمت إضافة: ' + product.name);
+        } else {
+          toast('warning', 'المنتج مش موجود: ' + code);
+        }
+      }
+    });
+  }
+
+  function exportCSV() {
+    const filtered = getFilteredPOs();
+    const rows = [['po_number', 'supplier', 'order_date', 'expected_date', 'total', 'status', 'items_count', 'paid_from_cash', 'notes']];
+    filtered.forEach(po => {
+      const info = poItemsMap[po.id] || { count: 0 };
+      rows.push([
+        po.po_number,
+        po.suppliers?.name || '',
+        po.order_date || '',
+        po.expected_date || '',
+        po.total || 0,
+        po.status || '',
+        info.count,
+        po.paid_from_cash ? 'نعم' : 'لا',
+        (po.notes || '').replace(/\n/g, ' ')
+      ]);
+    });
+    const csv = rows.map(r => r.map(c => '"' + String(c || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'purchases-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    toast('success', 'تم التصدير');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    if (window.Refad && Refad.requireSession) {
+      session = await Refad.requireSession();
+    }
+    if (!session) { location.href = 'index.html'; return; }
+
+    await loadPurchaseSettings();
+
+    const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+    document.getElementById('branchName').textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+
+    await loadWarehouse();
+    await Promise.all([loadProducts(), loadSuppliers(), loadProductSuppliers()]);
+    await loadLastPoSuppliers();
+    await loadPOs();
+    renderStats();
+    renderTable();
+
+    document.getElementById('newPoBtn').onclick = openNewPoModal;
+    document.getElementById('addPoItemBtn').onclick = () => { addPoItemRow(); recalcPoTotal(); };
+    document.getElementById('savePoBtn').onclick = () => savePo(false);
+    document.getElementById('saveDraftBtn').onclick = () => savePo(true);
+    document.getElementById('poPreviewBtn').onclick = previewPo;
+    document.getElementById('applyBulkPriceBtn').onclick = applyBulkPrice;
+    document.getElementById('confirmReceiveBtn').onclick = confirmReceive;
+    document.getElementById('confirmCancelBtn').onclick = confirmCancel;
+    document.getElementById('aiSuggestBtn').onclick = openAiSuggest;
+    document.getElementById('scanBarcodeBtn').onclick = openBarcodeScan;
+    document.getElementById('exportBtn').onclick = exportCSV;
+    document.getElementById('printPoBtn').onclick = () => { if (currentDetailsPoId) printPo(currentDetailsPoId); };
+
+    // ⭐ NEW: تحديث cash warning لما طريقة الدفع تتغير
+    document.getElementById('poPaymentMethod').onchange = updateCashWarning;
+
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await Promise.all([loadPOs(), loadProducts(), loadSuppliers(), loadProductSuppliers()]);
+      await loadLastPoSuppliers();
+      renderStats();
+      renderTable();
+      toast('success', 'تم التحديث');
+    };
+
+    document.getElementById('searchInput').oninput = () => { currentPage = 1; renderTable(); };
+    document.getElementById('statusFilter').onchange = () => { currentPage = 1; renderTable(); };
+    document.getElementById('fromDate').onchange = () => { currentPage = 1; renderTable(); };
+    document.getElementById('toDate').onchange = () => { currentPage = 1; renderTable(); };
+    document.getElementById('clearFilters').onclick = () => {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('fromDate').value = '';
+      document.getElementById('toDate').value = '';
+      currentPage = 1;
+      renderTable();
+    };
+
+    document.getElementById('receiveAllFull').onchange = function () {
+      document.querySelectorAll('#receiveItemsContainer [data-item-id]').forEach(row => {
+        const qtyInput = row.querySelector('.recv-qty');
+        if (this.checked) qtyInput.value = row.dataset.defaultQty;
+        else qtyInput.value = '';
+      });
+    };
+
+    document.querySelectorAll('[data-coverage]').forEach(function (tab) {
+      tab.onclick = function () {
+        document.querySelectorAll('[data-coverage]').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        loadAiAnalysis(Number(tab.dataset.coverage));
+      };
+    });
+
+    document.querySelectorAll('[data-close]').forEach(function (el) {
+      el.onclick = function () {
+        document.getElementById(el.dataset.close).classList.remove('show');
+        if (el.dataset.close === 'poModal') editingPoId = null;
+      };
+    });
+    document.querySelectorAll('.modal-overlay').forEach(function (m) {
+      m.onclick = function (e) { if (e.target === m) { m.classList.remove('show'); if (m.id === 'poModal') editingPoId = null; } };
+    });
+
+    window.addEventListener('refad:settings-changed', async () => {
+      await loadPurchaseSettings();
+      toast('info', 'تم تحديث إعدادات الشراء');
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'F2') { e.preventDefault(); document.getElementById('searchInput').focus(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && document.getElementById('poModal').classList.contains('show')) {
+        e.preventDefault();
+        savePo(false);
+      }
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+        editingPoId = null;
+      }
+    });
+
+    if (window.lucide) lucide.createIcons();
+    console.log('[Purchases v2.0] Ready. POs:', purchaseOrders.length);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

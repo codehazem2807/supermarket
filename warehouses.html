@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>المخازن — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root{
+  --primary:#0B2C4D;--primary-light:#1e4a73;--primary-dark:#061a2e;
+  --accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B;--gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444;--danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981;--success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6;--info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6;--purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9;--bg-soft:#f8fafc;--bg-card:#ffffff;--card:#ffffff;
+  --text:#0f172a;--text-muted:#64748b;
+  --border:#e2e8f0;--border-soft:#f1f5f9;
+  --radius:14px;--radius-sm:10px;--radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background 0.2s,color 0.2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-warning{background:var(--gold-soft);color:var(--gold)}
+.btn-warning:hover{background:var(--gold);color:#fff}
+.btn-success{background:var(--success-soft);color:var(--success)}
+.btn-success:hover{background:var(--success);color:#fff}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1600px}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;transition:all .15s}
+.stat-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:var(--shadow)}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.danger::before{background:var(--danger)}
+.stat-card.info::before{background:var(--info)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.stat-icon svg{width:18px;height:18px}
+.stat-icon.teal{background:var(--accent-soft);color:var(--accent)}
+.stat-icon.blue{background:var(--info-soft);color:var(--info)}
+.stat-icon.gold{background:var(--gold-soft);color:var(--gold)}
+.stat-icon.green{background:var(--success-soft);color:var(--success)}
+.stat-icon.red{background:var(--danger-soft);color:var(--danger)}
+.stat-icon.purple{background:var(--purple-soft);color:var(--purple)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600}
+
+/* Warehouse Grid */
+.warehouses-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.wh-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:all .2s;position:relative;cursor:pointer}
+.wh-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+.wh-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--accent-dark))}
+.wh-card.type-cold::before{background:linear-gradient(90deg,var(--info),#2563eb)}
+.wh-card.type-frozen::before{background:linear-gradient(90deg,var(--purple),#7c3aed)}
+.wh-card.type-dry::before{background:linear-gradient(90deg,var(--gold),#d97706)}
+.wh-card.type-transit::before{background:linear-gradient(90deg,#94a3b8,#64748b)}
+.wh-card.type-returns::before{background:linear-gradient(90deg,var(--gold),#ea580c)}
+.wh-card.type-damaged::before{background:linear-gradient(90deg,var(--danger),#dc2626)}
+.wh-card.is-default{background:linear-gradient(135deg,var(--accent-soft),var(--card))}
+.wh-card.inactive{opacity:.6}
+
+.wh-header{padding:16px 18px;display:flex;align-items:flex-start;gap:12px}
+.wh-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+.wh-icon svg{width:22px;height:22px}
+.wh-icon.type-cold{background:linear-gradient(135deg,var(--info),#2563eb)}
+.wh-icon.type-frozen{background:linear-gradient(135deg,var(--purple),#7c3aed)}
+.wh-icon.type-dry{background:linear-gradient(135deg,var(--gold),#d97706)}
+.wh-icon.type-transit{background:linear-gradient(135deg,#94a3b8,#64748b)}
+.wh-icon.type-returns{background:linear-gradient(135deg,var(--gold),#ea580c)}
+.wh-icon.type-damaged{background:linear-gradient(135deg,var(--danger),#dc2626)}
+.wh-icon.is-default::after{content:'⭐';position:absolute;top:-6px;right:-6px;font-size:14px}
+.wh-info{flex:1;min-width:0}
+.wh-name{font-size:15px;font-weight:800;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wh-code{font-size:11px;color:var(--text-muted);font-family:monospace}
+.wh-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+
+.wh-body{padding:0 18px 16px}
+.wh-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;padding:10px;background:var(--bg-soft);border-radius:var(--radius-xs)}
+.wh-stat{text-align:center}
+.wh-stat-val{font-size:16px;font-weight:800;color:var(--accent)}
+.wh-stat-val.gold{color:var(--gold)}
+.wh-stat-val.danger{color:var(--danger)}
+.wh-stat-val.success{color:var(--success)}
+.wh-stat-lbl{font-size:10px;color:var(--text-muted);font-weight:600;margin-top:2px}
+
+.wh-alerts{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;min-height:20px}
+.wh-alert{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:4px 8px;border-radius:6px}
+.wh-alert.danger{background:var(--danger-soft);color:var(--danger)}
+.wh-alert.gold{background:var(--gold-soft);color:var(--gold)}
+.wh-alert.info{background:var(--info-soft);color:var(--info)}
+.wh-alert.success{background:var(--success-soft);color:var(--success)}
+.wh-alert svg{width:12px;height:12px}
+
+.wh-fill{margin-bottom:12px}
+.wh-fill-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:600}
+.progress{height:6px;background:var(--bg-soft);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width .3s}
+.progress-fill.good{background:var(--success)}
+.progress-fill.warn{background:var(--gold)}
+.progress-fill.danger{background:var(--danger)}
+
+.wh-actions{display:flex;gap:6px;padding-top:12px;border-top:1px solid var(--border-soft)}
+.wh-actions .btn{flex:1;padding:7px;font-size:11.5px;justify-content:center;min-width:0}
+.wh-actions .btn.icon-only{flex:0 0 36px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:18px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn .25s cubic-bezier(0.4,0,0.2,1)}
+.modal.xl{max-width:1200px}
+.modal.lg{max-width:800px}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:2;gap:12px;border-radius:18px 18px 0 0}
+.modal-header h3{font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px;flex:1}
+.modal-header h3 svg{width:20px;height:20px;color:var(--accent)}
+.modal-close{background:none;border:none;color:var(--text-muted);padding:6px;border-radius:8px;flex-shrink:0}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-close svg{width:20px;height:20px}
+.modal-body{padding:22px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card);flex-wrap:wrap;border-radius:0 0 18px 18px}
+
+/* Form */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.form-label .required{color:var(--danger)}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;transition:all .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-input.error{border-color:var(--danger);background:rgba(239,68,68,0.03)}
+.form-textarea{resize:vertical;min-height:60px}
+.form-hint{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.form-error{background:var(--danger-soft);color:var(--danger);padding:11px 14px;border-radius:var(--radius-xs);font-size:12.5px;font-weight:600;margin-bottom:14px;display:none;border-right:3px solid var(--danger)}
+.form-error.show{display:block}
+.form-check{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--radius-xs);cursor:pointer;user-select:none;margin-bottom:10px}
+.form-check:hover{background:var(--bg)}
+.form-check input{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.form-check label{flex:1;font-size:13px;font-weight:600;cursor:pointer}
+
+/* Details tabs */
+.details-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:0 -24px 20px;padding:0 24px;overflow-x:auto;background:var(--card);position:sticky;top:64px;z-index:1}
+.details-tab{padding:14px 16px;background:none;border:none;color:var(--text-muted);font-size:12.5px;font-weight:700;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px;cursor:pointer}
+.details-tab:hover{color:var(--text)}
+.details-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.details-tab svg{width:15px;height:15px}
+.details-tab .count-badge{background:var(--bg-soft);color:var(--text-muted);padding:1px 6px;border-radius:8px;font-size:10px;font-weight:800}
+.details-tab.active .count-badge{background:var(--accent-soft);color:var(--accent)}
+.details-panel{display:none}
+.details-panel.active{display:block}
+
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.info-item{background:var(--bg-soft);padding:14px;border-radius:var(--radius-xs);border:1px solid var(--border)}
+.info-label{font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.info-value{font-size:14px;font-weight:700;word-break:break-word}
+
+.mini-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.mini-stat{background:var(--bg-soft);padding:14px;border-radius:var(--radius-xs);border:1px solid var(--border);text-align:center}
+.mini-stat-icon{width:36px;height:36px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px}
+.mini-stat-icon svg{width:18px;height:18px}
+.mini-stat-icon.teal{background:var(--accent-soft);color:var(--accent)}
+.mini-stat-icon.gold{background:var(--gold-soft);color:var(--gold)}
+.mini-stat-icon.blue{background:var(--info-soft);color:var(--info)}
+.mini-stat-icon.purple{background:var(--purple-soft);color:var(--purple)}
+.mini-stat-icon.green{background:var(--success-soft);color:var(--success)}
+.mini-stat-icon.red{background:var(--danger-soft);color:var(--danger)}
+.mini-stat-value{font-size:20px;font-weight:800;line-height:1.1}
+.mini-stat-label{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:4px}
+
+.detail-table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);border-radius:8px;overflow:hidden}
+.detail-table thead{background:var(--bg)}
+.detail-table th{padding:10px 12px;text-align:right;font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+.detail-table td{padding:10px 12px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+.detail-table tbody tr:last-child td{border-bottom:none}
+.detail-table tbody tr:hover{background:var(--bg)}
+
+/* Stock filter bar in details */
+.stock-filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.stock-filter-bar input,.stock-filter-bar select{padding:8px 12px;font-size:12.5px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-soft);color:var(--text);font-family:inherit}
+.stock-filter-bar input:focus,.stock-filter-bar select:focus{outline:none;border-color:var(--accent)}
+.stock-filter-bar .search-input{flex:1;min-width:200px}
+.stock-summary{display:flex;gap:16px;padding:10px 14px;background:var(--accent-soft);border-radius:var(--radius-xs);margin-bottom:12px;font-size:12.5px;flex-wrap:wrap}
+.stock-summary strong{color:var(--accent-dark);font-weight:800}
+
+.empty-details{padding:40px 20px;text-align:center;color:var(--text-muted);font-size:13px}
+.empty-details svg{width:40px;height:40px;margin-bottom:10px;opacity:.4}
+.empty-details p{margin-top:4px;font-size:12px}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+.badge-accent{background:var(--accent-soft);color:var(--accent)}
+
+/* FEFO bars */
+.fefo-bar{display:flex;height:32px;border-radius:8px;overflow:hidden;margin-bottom:16px;border:1px solid var(--border)}
+.fefo-segment{display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;white-space:nowrap;min-width:0;transition:all .2s}
+.fefo-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.fefo-legend-item{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:6px 10px;background:var(--bg-soft);border-radius:6px;border:1px solid var(--border)}
+.fefo-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Toast */
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast .3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+.loading-state{padding:60px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:48px;height:48px;margin-bottom:14px;opacity:.5}
+.empty-state h3{font-size:15px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:12.5px}
+
+@media (max-width:1024px){.refad-main-content{margin-right:0!important}}
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .form-row,.form-row.three{grid-template-columns:1fr}
+  .warehouses-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .info-grid{grid-template-columns:1fr}
+  .details-tabs{padding:0 16px;margin-left:-16px;margin-right:-16px}
+  .detail-table{font-size:11px}
+  .detail-table th,.detail-table td{padding:8px}
+  .stock-filter-bar{flex-direction:column;align-items:stretch}
+  .stock-filter-bar .search-input{min-width:100%}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div><h1>المخازن</h1><div class="topbar-subtitle" id="branchName">—</div></div>
+    </div>
+    <div class="topbar-actions">
+      <a href="transfers.html" class="btn btn-ghost" style="text-decoration:none"><i data-lucide="arrow-left-right"></i><span>التحويلات</span></a>
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-primary" id="addWarehouseBtn"><i data-lucide="plus"></i><span>مخزن جديد</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="info-banner" id="permissionBanner" style="display:none;background:var(--info-soft);border:1px solid rgba(59,130,246,0.3);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:12.5px;color:var(--info);align-items:flex-start;gap:10px">
+      <i data-lucide="info" style="width:18px;height:18px;flex-shrink:0;margin-top:1px"></i>
+      <div id="permissionBannerText"></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon teal"><i data-lucide="warehouse"></i></div>
+        <div class="stat-label">إجمالي المخازن</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub" id="statTotalSub">—</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-icon green"><i data-lucide="package"></i></div>
+        <div class="stat-label">إجمالي المنتجات</div>
+        <div class="stat-value" id="statProducts" style="color:var(--success)">—</div>
+        <div class="stat-sub">عبر كل المخازن</div>
+      </div>
+      <div class="stat-card info">
+        <div class="stat-icon blue"><i data-lucide="boxes"></i></div>
+        <div class="stat-label">إجمالي الوحدات</div>
+        <div class="stat-value" id="statUnits" style="color:var(--info)">—</div>
+        <div class="stat-sub" id="statUnitsSub">—</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-icon gold"><i data-lucide="banknote"></i></div>
+        <div class="stat-label">قيمة المخزون</div>
+        <div class="stat-value" id="statValue" style="color:var(--gold)">—</div>
+        <div class="stat-sub">بسعر التكلفة</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-icon red"><i data-lucide="alert-triangle"></i></div>
+        <div class="stat-label">تنبيهات</div>
+        <div class="stat-value" id="statAlerts" style="color:var(--danger)">—</div>
+        <div class="stat-sub" id="statAlertsSub">قريبة انتهاء</div>
+      </div>
+    </div>
+
+    <div class="warehouses-grid" id="warehousesGrid">
+      <div class="loading-state" style="grid-column:1/-1"><div class="spinner"></div>جاري التحميل...</div>
+    </div>
+  </div>
+</main>
+
+<!-- ═══ Warehouse Form Modal ═══ -->
+<div class="modal-overlay" id="whModal">
+  <div class="modal lg">
+    <div class="modal-header">
+      <h3><i data-lucide="warehouse"></i><span id="whModalTitle">مخزن جديد</span></h3>
+      <button class="modal-close" data-close="whModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="whFormError"></div>
+      <input type="hidden" id="whId">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">اسم المخزن <span class="required">*</span></label>
+          <input type="text" class="form-input" id="whName" maxlength="100" placeholder="مثال: المخزن الرئيسي">
+        </div>
+        <div class="form-group">
+          <label class="form-label">الكود</label>
+          <input type="text" class="form-input" id="whCode" maxlength="20" dir="ltr" placeholder="WH-01">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">النوع <span class="required">*</span></label>
+          <select class="form-select" id="whType"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">الفرع</label>
+          <select class="form-select" id="whBranch"></select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">المسؤول</label>
+          <select class="form-select" id="whManager"><option value="">— بدون —</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">الهاتف</label>
+          <input type="tel" class="form-input" id="whPhone" maxlength="20" placeholder="01000000000">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">العنوان</label>
+        <textarea class="form-textarea" id="whAddress" maxlength="200"></textarea>
+      </div>
+
+      <div class="form-row three">
+        <div class="form-group">
+          <label class="form-label">السعة (م³)</label>
+          <input type="number" class="form-input" id="whCapacityM3" min="0" step="0.01" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">السعة (وحدات)</label>
+          <input type="number" class="form-input" id="whCapacityUnits" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">الحد الأدنى للحرارة (°C)</label>
+          <input type="number" class="form-input" id="whMinTemp" step="0.1">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">الحد الأقصى للحرارة (°C)</label>
+          <input type="number" class="form-input" id="whMaxTemp" step="0.1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ملاحظات</label>
+          <input type="text" class="form-input" id="whNotes" maxlength="200">
+        </div>
+      </div>
+
+      <div class="form-check">
+        <input type="checkbox" id="whIsDefault">
+        <label for="whIsDefault">المخزن الافتراضي</label>
+        <span class="badge badge-warning"><i data-lucide="star"></i>افتراضي</span>
+      </div>
+      <div class="form-check">
+        <input type="checkbox" id="whAllowNegative">
+        <label for="whAllowNegative">السماح بالبيع بالسالب</label>
+      </div>
+      <div class="form-check">
+        <input type="checkbox" id="whRequireExpiry" checked>
+        <label for="whRequireExpiry">إلزام تاريخ الصلاحية</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="whModal">إلغاء</button>
+      <button class="btn btn-primary" id="saveWhBtn"><i data-lucide="save"></i><span>حفظ</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Warehouse Details Modal ═══ -->
+<div class="modal-overlay" id="detailsModal">
+  <div class="modal xl">
+    <div class="modal-header">
+      <h3><i data-lucide="warehouse"></i><span id="detailsTitle">تفاصيل المخزن</span></h3>
+      <button class="modal-close" data-close="detailsModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="detailsBody">
+      <div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Confirm Delete Modal ═══ -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 style="color:var(--danger)"><i data-lucide="alert-triangle"></i><span>تأكيد الحذف</span></h3>
+      <button class="modal-close" data-close="deleteModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="deleteError"></div>
+      <p style="font-size:13px;margin-bottom:14px" id="deleteMessage">هل تريد حذف هذا المخزن؟</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="deleteModal">إلغاء</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn"><i data-lucide="trash-2"></i>حذف</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let warehouses = [];
+  let branches = [];
+  let usersList = [];
+  let canManage = false;
+  let deleteTargetId = null;
+  let currentDetailsId = null;
+
+  // Cache for stock details (per warehouse)
+  const stockCache = {};
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
+  const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:0})};
+  const numDec = (window.Refad && Refad.numDec) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:3})};
+  const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
+  const fmtDateTime = (window.Refad && Refad.fmtDateTime) || function(d){if(!d)return'—';return new Date(d).toLocaleString('ar-EG',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  function whTypeMeta(type) {
+    const types = (cfg.WAREHOUSES && cfg.WAREHOUSES.TYPES) || [];
+    return types.find(t => t.value === type) || types[0] || { value: 'main', label: 'رئيسي', icon: 'warehouse', color: 'var(--accent)' };
+  }
+
+  function daysBetween(a, b) {
+    return Math.ceil((new Date(a) - new Date(b)) / (1000 * 60 * 60 * 24));
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOADERS
+  // ═══════════════════════════════════════════════════════════
+  async function loadWarehouses() {
+    try {
+      const res = await sb.from('v_warehouse_summary')
+        .select('*')
+        .eq('company_id', session.company_id)
+        .order('is_default', { ascending: false })
+        .order('created_at');
+      if (res.error) {
+        console.error('[Warehouses] load error:', res.error);
+        toast('error', 'فشل تحميل المخازن: ' + res.error.message);
+        warehouses = [];
+        return;
+      }
+      warehouses = res.data || [];
+    } catch (e) {
+      console.error('[Warehouses] exception:', e);
+      toast('error', 'خطأ في تحميل المخازن');
+      warehouses = [];
+    }
+  }
+
+  async function loadBranches() {
+    const res = await sb.from('branches')
+      .select('id, name, code')
+      .eq('company_id', session.company_id)
+      .is('deleted_at', null)
+      .eq('is_active', true);
+    branches = res.data || [];
+  }
+
+  async function loadUsers() {
+    const res = await sb.from('users')
+      .select('id, full_name, email, branch_id')
+      .eq('company_id', session.company_id)
+      .is('deleted_at', null)
+      .eq('is_active', true);
+    usersList = res.data || [];
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  function renderStats() {
+    const total = warehouses.length;
+    const defaultWh = warehouses.filter(w => w.is_default).length;
+    const active = warehouses.filter(w => w.is_active).length;
+    const totalProducts = warehouses.reduce((s, w) => s + Number(w.total_products || 0), 0);
+    const totalUnits = warehouses.reduce((s, w) => s + Number(w.total_units || 0), 0);
+    const totalValue = warehouses.reduce((s, w) => s + Number(w.total_value || 0), 0);
+    const totalAlerts = warehouses.reduce((s, w) => s + Number(w.expiring_count || 0) + Number(w.expired_count || 0), 0);
+
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statTotalSub').textContent = active + ' نشط • ' + defaultWh + ' افتراضي';
+    document.getElementById('statProducts').textContent = totalProducts;
+    document.getElementById('statUnits').textContent = num(totalUnits);
+    document.getElementById('statUnitsSub').textContent = warehouses.length + ' مخزن';
+    document.getElementById('statValue').textContent = money(totalValue);
+    document.getElementById('statAlerts').textContent = totalAlerts;
+    document.getElementById('statAlertsSub').textContent = totalAlerts > 0 ? 'تحتاج مراجعة' : 'كل شيء تمام';
+  }
+
+  function renderWarehouses() {
+    const grid = document.getElementById('warehousesGrid');
+    if (warehouses.length === 0) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><i data-lucide="warehouse"></i><h3>لا توجد مخازن</h3><p>اضغط "مخزن جديد" للبدء</p></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    grid.innerHTML = warehouses.map(w => {
+      const meta = whTypeMeta(w.warehouse_type);
+      const fillPct = Number(w.fill_pct || 0);
+      const fillCls = fillPct > 80 ? 'danger' : fillPct > 60 ? 'warn' : 'good';
+      const alerts = [];
+      if (Number(w.expired_count) > 0) alerts.push(`<div class="wh-alert danger"><i data-lucide="alert-octagon"></i>${w.expired_count} دفعة منتهية</div>`);
+      if (Number(w.expiring_count) > 0) alerts.push(`<div class="wh-alert gold"><i data-lucide="clock"></i>${w.expiring_count} قريبة الانتهاء</div>`);
+      if (Number(w.quarantined_count) > 0) alerts.push(`<div class="wh-alert info"><i data-lucide="shield-alert"></i>${w.quarantined_count} في الحجر</div>`);
+      if (alerts.length === 0) alerts.push(`<div class="wh-alert success"><i data-lucide="check-circle"></i>لا توجد تنبيهات</div>`);
+
+      return `<div class="wh-card ${w.is_default ? 'is-default' : ''} ${!w.is_active ? 'inactive' : ''} type-${w.warehouse_type || 'main'}" data-wh-id="${w.id}">
+        <div class="wh-header">
+          <div class="wh-icon type-${w.warehouse_type || 'main'} ${w.is_default ? 'is-default' : ''}">
+            <i data-lucide="${meta.icon}"></i>
+          </div>
+          <div class="wh-info">
+            <div class="wh-name">${esc(w.name)}</div>
+            <div class="wh-code">${esc(w.code || '—')}</div>
+            <div class="wh-badges">
+              <span class="badge badge-accent">${esc(meta.label)}</span>
+              ${w.is_default ? '<span class="badge badge-warning"><i data-lucide="star"></i>افتراضي</span>' : ''}
+              ${w.is_active ? '<span class="badge badge-success"><i data-lucide="check"></i>نشط</span>' : '<span class="badge badge-danger">معطل</span>'}
+            </div>
+          </div>
+        </div>
+        <div class="wh-body">
+          <div class="wh-stats">
+            <div class="wh-stat"><div class="wh-stat-val">${w.total_products || 0}</div><div class="wh-stat-lbl">منتج</div></div>
+            <div class="wh-stat"><div class="wh-stat-val gold">${num(w.total_units || 0)}</div><div class="wh-stat-lbl">وحدة</div></div>
+            <div class="wh-stat"><div class="wh-stat-val success">${num(w.total_value || 0)}</div><div class="wh-stat-lbl">قيمة</div></div>
+          </div>
+          <div class="wh-alerts">${alerts.join('')}</div>
+          ${Number(w.capacity_units) > 0 ? `
+            <div class="wh-fill">
+              <div class="wh-fill-label"><span>السعة</span><span>${fillPct}%</span></div>
+              <div class="progress"><div class="progress-fill ${fillCls}" style="width:${Math.min(fillPct, 100)}%"></div></div>
+            </div>
+          ` : ''}
+          <div class="wh-actions">
+            <button class="btn btn-ghost btn-sm" data-action="view" data-id="${w.id}"><i data-lucide="eye"></i>تفاصيل</button>
+            ${canManage ? `<button class="btn btn-ghost btn-sm" data-action="edit" data-id="${w.id}"><i data-lucide="edit"></i>تعديل</button>` : ''}
+            ${canManage && !w.is_default ? `<button class="btn btn-danger btn-sm icon-only" data-action="delete" data-id="${w.id}" title="حذف"><i data-lucide="trash-2"></i></button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+
+    grid.querySelectorAll('[data-action]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        if (action === 'view') showDetails(id);
+        else if (action === 'edit') openEditModal(id);
+        else if (action === 'delete') openDeleteModal(id);
+      };
+    });
+
+    grid.querySelectorAll('.wh-card').forEach(card => {
+      card.onclick = (e) => {
+        if (e.target.closest('[data-action]')) return;
+        showDetails(card.dataset.whId);
+      };
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DETAILS MODAL — 7 Tabs
+  // ═══════════════════════════════════════════════════════════
+  async function showDetails(id) {
+    const w = warehouses.find(x => x.id === id);
+    if (!w) return;
+    currentDetailsId = id;
+
+    document.getElementById('detailsTitle').textContent = w.name;
+    document.getElementById('detailsBody').innerHTML = '<div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>';
+    document.getElementById('detailsModal').classList.add('show');
+
+    try {
+      const manager = w.manager_id ? usersList.find(u => u.id === w.manager_id) : null;
+
+      // Load all data in parallel
+      const [
+        lotsRes, fefoRes, movementsRes, invoicesRes, transfersRes, countsRes
+      ] = await Promise.all([
+        // ⭐ كل الدفعات في المخزن
+        sb.from('stock_lots')
+          .select('id, product_id, lot_number, quantity_in, quantity_left, effective_unit_cost, sale_price, expiry_date, is_quarantined, received_at')
+          .eq('company_id', session.company_id)
+          .eq('warehouse_id', id)
+          .gt('quantity_left', 0)
+          .order('expiry_date', { ascending: true, nullsFirst: false })
+          .limit(2000),
+        sb.from('v_warehouse_fefo').select('*').eq('warehouse_id', id),
+        sb.from('inventory_movements')
+          .select('id, movement_type, quantity, reason, created_at, product_id, reference_type, reference_id')
+          .eq('company_id', session.company_id)
+          .eq('warehouse_id', id)
+          .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(100),
+        sb.from('sales_invoices')
+          .select('id, invoice_number, invoice_date, total, paid, status')
+          .eq('company_id', session.company_id)
+          .eq('branch_id', w.branch_id)
+          .order('invoice_date', { ascending: false })
+          .limit(10),
+        sb.from('stock_transfers')
+          .select('id, transfer_number, from_warehouse_id, to_warehouse_id, status, created_at, received_date, updated_at')
+          .eq('company_id', session.company_id)
+          .or(`from_warehouse_id.eq.${id},to_warehouse_id.eq.${id}`)
+          .order('created_at', { ascending: false })
+          .limit(10),
+        sb.from('warehouse_counts')
+          .select('id, count_number, count_type, status, started_at, completed_at, total_items, variance_items, variance_value')
+          .eq('warehouse_id', id)
+          .order('started_at', { ascending: false })
+          .limit(10)
+      ]);
+
+      const lots = lotsRes.data || [];
+      const fefo = fefoRes.data || [];
+      const movements = movementsRes.data || [];
+      const invoices = invoicesRes.data || [];
+      const transfers = transfersRes.data || [];
+      const counts = countsRes.data || [];
+
+      // Load product names
+      const productIds = [...new Set([
+        ...lots.map(l => l.product_id).filter(Boolean),
+        ...movements.map(m => m.product_id).filter(Boolean)
+      ])];
+
+      let productMap = {};
+      if (productIds.length > 0) {
+        const chunks = [];
+        for (let i = 0; i < productIds.length; i += 100) {
+          chunks.push(productIds.slice(i, i + 100));
+        }
+        for (const chunk of chunks) {
+          const { data: prods } = await sb.from('products')
+            .select('id, name, barcode, plu_code, sale_unit, base_unit, cost_price, sale_price, min_stock, category_id')
+            .in('id', chunk);
+          (prods || []).forEach(p => productMap[p.id] = p);
+        }
+      }
+
+      // ⭐ categoryNames — نعرّفها هنا (برّه أي if) عشان نستخدمها في binding
+      let categoryNames = {};
+      if (Object.keys(productMap).length > 0) {
+        const categories = [...new Set(Object.values(productMap).map(p => p.category_id).filter(Boolean))];
+        if (categories.length > 0) {
+          const { data: cats } = await sb.from('categories').select('id, name').in('id', categories);
+          (cats || []).forEach(c => categoryNames[c.id] = c.name);
+        }
+      }
+
+      // Warehouse names for transfers
+      const whIds = [...new Set([...transfers.map(t => t.from_warehouse_id), ...transfers.map(t => t.to_warehouse_id)])];
+      let whMap = {};
+      if (whIds.length > 0) {
+        const { data: whs } = await sb.from('warehouses').select('id, name').in('id', whIds);
+        (whs || []).forEach(x => whMap[x.id] = x);
+      }
+
+      // FEFO buckets
+      const buckets = {};
+      fefo.forEach(f => { buckets[f.bucket] = f; });
+      const fefoBucketOrder = ['expired', 'urgent', 'soon', 'normal', 'safe', 'no_expiry'];
+      const fefoMeta = {
+        expired: { label: 'منتهي', color: 'var(--danger)' },
+        urgent: { label: '0-30 يوم', color: 'var(--danger)' },
+        soon: { label: '31-90 يوم', color: 'var(--gold)' },
+        normal: { label: '91-180 يوم', color: 'var(--info)' },
+        safe: { label: 'أكثر من 180', color: 'var(--success)' },
+        no_expiry: { label: 'بدون صلاحية', color: 'var(--text-muted)' }
+      };
+      const fefoTotal = fefo.reduce((s, f) => s + Number(f.total_units || 0), 0);
+
+      // Movement stats
+      const movIn = movements.filter(m => m.movement_type === 'in').reduce((s, m) => s + Number(m.quantity || 0), 0);
+      const movOut = movements.filter(m => m.movement_type === 'out').reduce((s, m) => s + Number(m.quantity || 0), 0);
+      const movAdjust = movements.filter(m => m.movement_type === 'adjust').reduce((s, m) => s + Number(m.quantity || 0), 0);
+
+      let html = '';
+
+      // Tabs
+      html += '<div class="details-tabs">' +
+        '<button class="details-tab active" data-dtab="overview"><i data-lucide="layout-dashboard"></i>نظرة عامة</button>' +
+        '<button class="details-tab" data-dtab="stock"><i data-lucide="package"></i>المخزون <span class="count-badge">' + lots.length + '</span></button>' +
+        '<button class="details-tab" data-dtab="fefo"><i data-lucide="calendar-clock"></i>FEFO <span class="count-badge">' + fefo.length + '</span></button>' +
+        '<button class="details-tab" data-dtab="movements"><i data-lucide="arrow-left-right"></i>الحركات <span class="count-badge">' + movements.length + '</span></button>' +
+        '<button class="details-tab" data-dtab="invoices"><i data-lucide="receipt"></i>الفواتير <span class="count-badge">' + invoices.length + '</span></button>' +
+        '<button class="details-tab" data-dtab="transfers"><i data-lucide="truck"></i>التحويلات <span class="count-badge">' + transfers.length + '</span></button>' +
+        '<button class="details-tab" data-dtab="counts"><i data-lucide="clipboard-check"></i>الجرد <span class="count-badge">' + counts.length + '</span></button>' +
+      '</div>';
+
+      // ═════ TAB: OVERVIEW ═════
+      html += '<div class="details-panel active" data-dpanel="overview">';
+      html += '<div class="info-grid">' +
+        '<div class="info-item"><div class="info-label">الاسم</div><div class="info-value">' + esc(w.name) + '</div></div>' +
+        '<div class="info-item"><div class="info-label">الكود</div><div class="info-value"><span style="font-family:monospace">' + esc(w.code || '—') + '</span></div></div>' +
+        '<div class="info-item"><div class="info-label">النوع</div><div class="info-value"><span class="badge badge-accent">' + esc(whTypeMeta(w.warehouse_type).label) + '</span></div></div>' +
+        '<div class="info-item"><div class="info-label">الحالة</div><div class="info-value">' + (w.is_active ? '<span class="badge badge-success">نشط</span>' : '<span class="badge badge-danger">معطل</span>') + (w.is_default ? ' <span class="badge badge-warning"><i data-lucide="star"></i>افتراضي</span>' : '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">المسؤول</div><div class="info-value">' + (manager ? esc(manager.full_name) : '<span style="color:var(--text-muted)">—</span>') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">الهاتف</div><div class="info-value">' + (w.phone ? '<span dir="ltr">' + esc(w.phone) + '</span>' : '<span style="color:var(--text-muted)">—</span>') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">العنوان</div><div class="info-value">' + (w.address ? esc(w.address) : '<span style="color:var(--text-muted)">—</span>') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">تاريخ الإنشاء</div><div class="info-value">' + fmtDate(w.created_at) + '</div></div>' +
+        (w.min_temp != null || w.max_temp != null ? '<div class="info-item"><div class="info-label">نطاق الحرارة</div><div class="info-value">' + (w.min_temp != null ? w.min_temp : '?') + '° → ' + (w.max_temp != null ? w.max_temp : '?') + '°C</div></div>' : '') +
+        (Number(w.capacity_units) > 0 ? '<div class="info-item"><div class="info-label">السعة</div><div class="info-value">' + num(w.capacity_units) + ' وحدة</div></div>' : '') +
+      '</div>';
+
+      html += '<div class="mini-stat-grid">' +
+        '<div class="mini-stat"><div class="mini-stat-icon teal"><i data-lucide="package"></i></div><div class="mini-stat-value" style="color:var(--accent)">' + (w.total_products || 0) + '</div><div class="mini-stat-label">منتج</div></div>' +
+        '<div class="mini-stat"><div class="mini-stat-icon blue"><i data-lucide="boxes"></i></div><div class="mini-stat-value" style="color:var(--info)">' + num(w.total_units) + '</div><div class="mini-stat-label">وحدة</div></div>' +
+        '<div class="mini-stat"><div class="mini-stat-icon gold"><i data-lucide="banknote"></i></div><div class="mini-stat-value" style="color:var(--gold)">' + money(w.total_value) + '</div><div class="mini-stat-label">قيمة</div></div>' +
+        '<div class="mini-stat"><div class="mini-stat-icon green"><i data-lucide="layers"></i></div><div class="mini-stat-value" style="color:var(--success)">' + (w.lot_count || 0) + '</div><div class="mini-stat-label">دفعة</div></div>' +
+        '<div class="mini-stat"><div class="mini-stat-icon red"><i data-lucide="clock"></i></div><div class="mini-stat-value" style="color:var(--danger)">' + ((w.expiring_count || 0) + (w.expired_count || 0)) + '</div><div class="mini-stat-label">تنبيهات</div></div>' +
+        '<div class="mini-stat"><div class="mini-stat-icon purple"><i data-lucide="map-pin"></i></div><div class="mini-stat-value" style="color:var(--purple)">' + (w.location_count || 0) + '</div><div class="mini-stat-label">رف</div></div>' +
+      '</div>';
+
+      // Movement summary
+      html += '<div class="info-grid">' +
+        '<div class="info-item"><div class="info-label">وارد (30 يوم)</div><div class="info-value" style="color:var(--success)">+' + num(movIn) + '</div></div>' +
+        '<div class="info-item"><div class="info-label">صادر (30 يوم)</div><div class="info-value" style="color:var(--danger)">-' + num(movOut) + '</div></div>' +
+        '<div class="info-item"><div class="info-label">تسويات (30 يوم)</div><div class="info-value" style="color:var(--info)">' + num(movAdjust) + '</div></div>' +
+        '<div class="info-item"><div class="info-label">عدد الحركات</div><div class="info-value">' + movements.length + '</div></div>' +
+      '</div>';
+
+      html += '</div>';
+
+      // ═════ TAB: STOCK ═════
+      html += '<div class="details-panel" data-dpanel="stock">';
+
+      if (lots.length === 0) {
+        html += '<div class="empty-details"><i data-lucide="package"></i><h3>لا يوجد مخزون</h3><p>لم يتم استلام أي منتجات بعد</p></div>';
+      } else {
+        html += `
+          <div class="stock-filter-bar">
+            <input type="text" class="search-input" id="stockSearch" placeholder="ابحث بالاسم أو الباركود أو PLU أو رقم الدفعة..." autocomplete="off">
+            <select id="stockCategoryFilter">
+              <option value="">كل الفئات</option>
+            </select>
+            <select id="stockStatusFilter">
+              <option value="all">كل الحالات</option>
+              <option value="ok">متاح</option>
+              <option value="low">منخفض</option>
+              <option value="expiring">قريب الانتهاء (30 يوم)</option>
+              <option value="expired">منتهي</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" id="stockClearFilter" style="padding:8px 12px;font-size:12px">
+              <i data-lucide="x" style="width:12px;height:12px"></i>مسح
+            </button>
+          </div>
+          <div class="stock-summary" id="stockSummary">
+            <span>إجمالي: <strong>${lots.length}</strong> دفعة</span>
+            <span>المنتجات: <strong>${Object.keys(productMap).length}</strong></span>
+            <span>الوحدات: <strong>${num(lots.reduce((s, l) => s + Number(l.quantity_left || 0), 0))}</strong></span>
+            <span>القيمة: <strong>${money(lots.reduce((s, l) => s + Number(l.quantity_left || 0) * Number(l.effective_unit_cost || 0), 0))}</strong></span>
+          </div>
+          <div id="stockTableContainer"></div>
+        `;
+
+        // Store data globally for filtering
+        window._stockLotsData = lots;
+        window._stockProductMap = productMap;
+        window._stockCategoryNames = categoryNames;
+      }
+
+      html += '</div>';
+
+      // ═════ TAB: FEFO ═════
+      html += '<div class="details-panel" data-dpanel="fefo">';
+      if (fefo.length === 0) {
+        html += '<div class="empty-details"><i data-lucide="calendar-clock"></i><h3>لا يوجد بيانات FEFO</h3></div>';
+      } else {
+        html += '<div class="fefo-bar">';
+        fefoBucketOrder.forEach(b => {
+          const item = buckets[b];
+          if (!item) return;
+          const pct = fefoTotal > 0 ? (Number(item.total_units) / fefoTotal) * 100 : 0;
+          if (pct < 1) return;
+          html += '<div class="fefo-segment" style="width:' + pct + '%;background:' + fefoMeta[b].color + '">' + (pct > 8 ? pct.toFixed(0) + '%' : '') + '</div>';
+        });
+        html += '</div>';
+
+        html += '<div class="fefo-legend">';
+        fefoBucketOrder.forEach(b => {
+          const item = buckets[b];
+          if (!item) return;
+          html += '<div class="fefo-legend-item">' +
+            '<div class="fefo-dot" style="background:' + fefoMeta[b].color + '"></div>' +
+            '<span>' + fefoMeta[b].label + '</span>' +
+            '<strong>(' + num(item.total_units) + ')</strong>' +
+          '</div>';
+        });
+        html += '</div>';
+
+        html += '<div style="overflow-x:auto"><table class="detail-table"><thead><tr>' +
+          '<th>الفئة</th><th>عدد الدفعات</th><th>الوحدات</th><th>القيمة</th><th>النسبة</th>' +
+          '</tr></thead><tbody>';
+        fefoBucketOrder.forEach(b => {
+          const item = buckets[b];
+          if (!item) return;
+          const pct = fefoTotal > 0 ? (Number(item.total_units) / fefoTotal) * 100 : 0;
+          html += '<tr>' +
+            '<td><span class="badge" style="background:' + fefoMeta[b].color + '22;color:' + fefoMeta[b].color + '">' + fefoMeta[b].label + '</span></td>' +
+            '<td>' + item.lot_count + '</td>' +
+            '<td><strong>' + num(item.total_units) + '</strong></td>' +
+            '<td>' + money(item.total_value) + '</td>' +
+            '<td>' + pct.toFixed(1) + '%</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      // ═════ TAB: MOVEMENTS ═════
+      html += '<div class="details-panel" data-dpanel="movements">';
+      if (movements.length === 0) {
+        html += '<div class="empty-details"><i data-lucide="arrow-left-right"></i><h3>لا توجد حركات</h3><p>لم يتم تسجيل حركات في آخر 30 يوم</p></div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="detail-table"><thead><tr>' +
+          '<th>التاريخ</th><th>المنتج</th><th>النوع</th><th>الكمية</th><th>السبب</th>' +
+          '</tr></thead><tbody>';
+        const typeMap = { in: ['success', 'دخول'], out: ['warning', 'خروج'], adjust: ['info', 'تسوية'], shrink: ['danger', 'هالك'], return: ['purple', 'مرتجع'], transfer: ['info', 'تحويل'] };
+        movements.forEach(m => {
+          const p = productMap[m.product_id];
+          const [cls, txt] = typeMap[m.movement_type] || ['gray', m.movement_type];
+          html += '<tr>' +
+            '<td style="font-size:11px">' + fmtDateTime(m.created_at) + '</td>' +
+            '<td>' + esc((p && p.name) || '—') + '</td>' +
+            '<td><span class="badge badge-' + cls + '">' + txt + '</span></td>' +
+            '<td><strong>' + num(m.quantity) + '</strong></td>' +
+            '<td style="font-size:11px;color:var(--text-muted)">' + esc(m.reason || '—') + '</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      // ═════ TAB: INVOICES ═════
+      html += '<div class="details-panel" data-dpanel="invoices">';
+      if (invoices.length === 0) {
+        html += '<div class="empty-details"><i data-lucide="receipt"></i><h3>لا توجد فواتير</h3></div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="detail-table"><thead><tr>' +
+          '<th>رقم الفاتورة</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>الحالة</th>' +
+          '</tr></thead><tbody>';
+        const statusMap = { paid: ['success', 'مدفوعة'], partial: ['warning', 'جزئية'], credit: ['info', 'آجلة'], voided: ['danger', 'ملغاة'], returned: ['danger', 'مرتجعة'] };
+        invoices.forEach(inv => {
+          const [cls, txt] = statusMap[inv.status] || ['gray', inv.status];
+          html += '<tr>' +
+            '<td><strong style="font-family:monospace">' + esc(inv.invoice_number) + '</strong></td>' +
+            '<td>' + fmtDateTime(inv.invoice_date) + '</td>' +
+            '<td><strong>' + money(inv.total) + '</strong></td>' +
+            '<td>' + money(inv.paid) + '</td>' +
+            '<td><span class="badge badge-' + cls + '">' + txt + '</span></td>' +
+          '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      // ═════ TAB: TRANSFERS ═════
+      html += '<div class="details-panel" data-dpanel="transfers">';
+      if (transfers.length === 0) {
+        html += '<div class="empty-details"><i data-lucide="truck"></i><h3>لا توجد تحويلات</h3><p>لم يتم تسجيل تحويلات من/إلى هذا المخزن</p></div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="detail-table"><thead><tr>' +
+          '<th>رقم التحويل</th><th>الاتجاه</th><th>من / إلى</th><th>الحالة</th><th>التاريخ</th>' +
+          '</tr></thead><tbody>';
+        const tStatus = { draft: ['gray', 'مسودة'], pending: ['warning', 'بانتظار'], in_transit: ['info', 'في الطريق'], received: ['success', 'مستلم'], cancelled: ['danger', 'ملغي'] };
+        transfers.forEach(t => {
+          const isOut = t.from_warehouse_id === id;
+          const otherId = isOut ? t.to_warehouse_id : t.from_warehouse_id;
+          const other = whMap[otherId];
+          const [cls, txt] = tStatus[t.status] || ['gray', t.status];
+          html += '<tr>' +
+            '<td><strong style="font-family:monospace">' + esc(t.transfer_number) + '</strong></td>' +
+            '<td><span class="badge badge-' + (isOut ? 'warning' : 'success') + '">' + (isOut ? 'صادر' : 'وارد') + '</span></td>' +
+            '<td>' + esc((other && other.name) || '—') + '</td>' +
+            '<td><span class="badge badge-' + cls + '">' + txt + '</span></td>' +
+            '<td style="font-size:11px">' + fmtDateTime(t.created_at) + '</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      // ═════ TAB: COUNTS ═════
+      html += '<div class="details-panel" data-dpanel="counts">';
+      if (counts.length === 0) {
+        html += '<div class="empty-details"><i data-lucide="clipboard-check"></i><h3>لا توجد عمليات جرد</h3></div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="detail-table"><thead><tr>' +
+          '<th>رقم الجرد</th><th>النوع</th><th>الحالة</th><th>التاريخ</th><th>الأصناف</th><th>الفرق</th>' +
+          '</tr></thead><tbody>';
+        const cStatus = { draft: ['gray', 'مسودة'], in_progress: ['warning', 'جاري'], completed: ['success', 'مكتمل'], cancelled: ['danger', 'ملغي'] };
+        counts.forEach(c => {
+          const [cls, txt] = cStatus[c.status] || ['gray', c.status];
+          const varCls = Number(c.variance_value) < 0 ? 'var(--danger)' : Number(c.variance_value) > 0 ? 'var(--success)' : 'var(--text-muted)';
+          html += '<tr>' +
+            '<td><strong style="font-family:monospace">' + esc(c.count_number) + '</strong></td>' +
+            '<td>' + esc(c.count_type) + '</td>' +
+            '<td><span class="badge badge-' + cls + '">' + txt + '</span></td>' +
+            '<td style="font-size:11px">' + fmtDateTime(c.started_at) + '</td>' +
+            '<td>' + (c.total_items || 0) + '</td>' +
+            '<td><strong style="color:' + varCls + '">' + money(c.variance_value) + '</strong></td>' +
+          '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      document.getElementById('detailsBody').innerHTML = html;
+
+      // Bind tabs
+      document.querySelectorAll('[data-dtab]').forEach(tab => {
+        tab.onclick = () => {
+          const key = tab.dataset.dtab;
+          document.querySelectorAll('[data-dtab]').forEach(t => t.classList.toggle('active', t.dataset.dtab === key));
+          document.querySelectorAll('[data-dpanel]').forEach(p => p.classList.toggle('active', p.dataset.dpanel === key));
+
+          // ⭐ لو تاب المخزون، نرسم الجدول لأول مرة
+          if (key === 'stock' && lots.length > 0 && !document.querySelector('#stockTableContainer table')) {
+            renderStockTableInDetails(lots, productMap, categoryNames);
+          }
+        };
+      });
+
+      // Bind stock filters (if exists)
+      const searchInput = document.getElementById('stockSearch');
+      const catFilter = document.getElementById('stockCategoryFilter');
+      const statusFilter = document.getElementById('stockStatusFilter');
+      const clearBtn = document.getElementById('stockClearFilter');
+
+      if (catFilter && Object.keys(categoryNames).length > 0) {
+        catFilter.innerHTML = '<option value="">كل الفئات</option>' +
+          Object.entries(categoryNames).map(([cid, cname]) => `<option value="${cid}">${esc(cname)}</option>`).join('');
+      }
+
+      if (searchInput) {
+        let timer;
+        searchInput.oninput = () => {
+          clearTimeout(timer);
+          timer = setTimeout(applyStockFilters, 200);
+        };
+      }
+      if (catFilter) catFilter.onchange = applyStockFilters;
+      if (statusFilter) statusFilter.onchange = applyStockFilters;
+      if (clearBtn) {
+        clearBtn.onclick = () => {
+          if (searchInput) searchInput.value = '';
+          if (catFilter) catFilter.value = '';
+          if (statusFilter) statusFilter.value = 'all';
+          applyStockFilters();
+        };
+      }
+
+      if (window.lucide) lucide.createIcons();
+
+      // Render stock table if there are lots
+      if (lots.length > 0) {
+        renderStockTableInDetails(lots, productMap, categoryNames);
+      }
+
+    } catch (e) {
+      console.error('[Warehouses] showDetails error:', e);
+      document.getElementById('detailsBody').innerHTML = '<div class="empty-details"><i data-lucide="alert-circle"></i><h3>خطأ في التحميل</h3><p>' + esc(e.message || '') + '</p></div>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ⭐ STOCK TABLE IN DETAILS (Main feature!)
+  // ═══════════════════════════════════════════════════════════
+  function renderStockTableInDetails(lots, productMap, categoryNames) {
+    const container = document.getElementById('stockTableContainer');
+    if (!container) return;
+
+    const searchTerm = (document.getElementById('stockSearch')?.value || '').toLowerCase().trim();
+    const catFilter = document.getElementById('stockCategoryFilter')?.value || '';
+    const statusFilter = document.getElementById('stockStatusFilter')?.value || 'all';
+
+    // Filter
+    let filtered = lots;
+    if (searchTerm) {
+      filtered = filtered.filter(l => {
+        const p = productMap[l.product_id];
+        if (!p) return false;
+        return (p.name || '').toLowerCase().includes(searchTerm) ||
+               (p.barcode || '').includes(searchTerm) ||
+               (p.plu_code || '').includes(searchTerm) ||
+               (l.lot_number || '').toLowerCase().includes(searchTerm);
+      });
+    }
+    if (catFilter) {
+      filtered = filtered.filter(l => {
+        const p = productMap[l.product_id];
+        return p && p.category_id === catFilter;
+      });
+    }
+    if (statusFilter !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(l => {
+        const daysLeft = l.expiry_date ? daysBetween(l.expiry_date, now) : null;
+        const p = productMap[l.product_id];
+        const minStock = Number(p?.min_stock || 0);
+        if (statusFilter === 'expired') return daysLeft !== null && daysLeft < 0;
+        if (statusFilter === 'expiring') return daysLeft !== null && daysLeft >= 0 && daysLeft <= 30;
+        if (statusFilter === 'low') return Number(l.quantity_left) <= minStock && minStock > 0;
+        if (statusFilter === 'ok') return !daysLeft || daysLeft > 30;
+        return true;
+      });
+    }
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="empty-details"><i data-lucide="search-x"></i><h3>لا توجد نتائج</h3><p>جرب تغيير الفلتر أو البحث</p></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    // Update summary
+    const totalQty = filtered.reduce((s, l) => s + Number(l.quantity_left || 0), 0);
+    const totalValue = filtered.reduce((s, l) => s + Number(l.quantity_left || 0) * Number(l.effective_unit_cost || 0), 0);
+    const uniqueProducts = new Set(filtered.map(l => l.product_id)).size;
+
+    const summaryEl = document.getElementById('stockSummary');
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <span>معروض: <strong>${filtered.length}</strong> من ${lots.length} دفعة</span>
+        <span>المنتجات: <strong>${uniqueProducts}</strong></span>
+        <span>الوحدات: <strong>${num(totalQty)}</strong></span>
+        <span>القيمة: <strong>${money(totalValue)}</strong></span>
+      `;
+    }
+
+    // Render table
+    container.innerHTML = `
+      <div style="overflow-x:auto;background:var(--card);border-radius:8px;border:1px solid var(--border)">
+        <table class="detail-table" style="margin:0">
+          <thead>
+            <tr>
+              <th>المنتج</th>
+              <th>الباركود</th>
+              <th>رقم الدفعة</th>
+              <th>الكمية</th>
+              <th>سعر التكلفة</th>
+              <th>القيمة</th>
+              <th>الصلاحية</th>
+              <th>الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(l => {
+              const p = productMap[l.product_id] || {};
+              const qty = Number(l.quantity_left || 0);
+              const cost = Number(l.effective_unit_cost || 0);
+              const value = qty * cost;
+              const daysLeft = l.expiry_date ? daysBetween(l.expiry_date, new Date()) : null;
+              const minStock = Number(p.min_stock || 0);
+
+              let expBadge = '<span class="badge badge-gray">—</span>';
+              if (daysLeft !== null) {
+                if (daysLeft < 0) expBadge = '<span class="badge badge-danger">منتهي</span>';
+                else if (daysLeft <= 30) expBadge = '<span class="badge badge-danger">' + daysLeft + ' يوم</span>';
+                else if (daysLeft <= 90) expBadge = '<span class="badge badge-warning">' + daysLeft + ' يوم</span>';
+                else expBadge = '<span class="badge badge-success">' + daysLeft + ' يوم</span>';
+              }
+
+              let statusBadge = '<span class="badge badge-success">متاح</span>';
+              if (l.is_quarantined) statusBadge = '<span class="badge badge-purple">محجوز</span>';
+              else if (qty <= 0) statusBadge = '<span class="badge badge-gray">نافد</span>';
+              else if (minStock > 0 && qty <= minStock) statusBadge = '<span class="badge badge-warning">منخفض</span>';
+
+              const unit = p.sale_unit || p.base_unit || '';
+
+              return `<tr>
+                <td>
+                  <strong>${esc(p.name || '—')}</strong>
+                  ${p.plu_code ? '<div style="font-size:10px;color:var(--text-muted);margin-top:2px">PLU: ' + esc(p.plu_code) + '</div>' : ''}
+                </td>
+                <td style="font-family:monospace;font-size:11px">${esc(p.barcode || '—')}</td>
+                <td style="font-size:11px">${esc(l.lot_number || '—')}</td>
+                <td><strong style="color:var(--accent)">${numDec(qty)}</strong> <span style="font-size:10px;color:var(--text-muted)">${esc(unit)}</span></td>
+                <td>${money(cost)}</td>
+                <td><strong style="color:var(--gold)">${money(value)}</strong></td>
+                <td>
+                  ${expBadge}
+                  <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${l.expiry_date ? fmtDate(l.expiry_date) : '—'}</div>
+                </td>
+                <td>${statusBadge}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function applyStockFilters() {
+    if (window._stockLotsData && window._stockProductMap) {
+      renderStockTableInDetails(
+        window._stockLotsData,
+        window._stockProductMap,
+        window._stockCategoryNames || {}
+      );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ADD / EDIT
+  // ═══════════════════════════════════════════════════════════
+  function populateFormSelects() {
+    const typeSel = document.getElementById('whType');
+    typeSel.innerHTML = (cfg.WAREHOUSES && cfg.WAREHOUSES.TYPES || []).map(t =>
+      '<option value="' + t.value + '">' + esc(t.label) + '</option>'
+    ).join('');
+
+    const branchSel = document.getElementById('whBranch');
+    branchSel.innerHTML = '<option value="">— بدون —</option>' +
+      branches.map(b => '<option value="' + b.id + '">' + esc(b.name) + '</option>').join('');
+
+    const mgrSel = document.getElementById('whManager');
+    mgrSel.innerHTML = '<option value="">— بدون —</option>' +
+      usersList.map(u => '<option value="' + u.id + '">' + esc(u.full_name || u.email) + '</option>').join('');
+  }
+
+  function openAddModal() {
+    document.getElementById('whModalTitle').textContent = 'مخزن جديد';
+    document.getElementById('whFormError').classList.remove('show');
+    document.getElementById('whId').value = '';
+    ['whName','whCode','whPhone','whAddress','whNotes'].forEach(id => document.getElementById(id).value = '');
+    ['whCapacityM3','whCapacityUnits'].forEach(id => document.getElementById(id).value = '0');
+    ['whMinTemp','whMaxTemp'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('whType').value = 'main';
+    document.getElementById('whBranch').value = branches[0]?.id || '';
+    document.getElementById('whManager').value = '';
+    document.getElementById('whIsDefault').checked = false;
+    document.getElementById('whAllowNegative').checked = false;
+    document.getElementById('whRequireExpiry').checked = true;
+    document.getElementById('whModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function openEditModal(id) {
+    const w = warehouses.find(x => x.id === id);
+    if (!w) return;
+    document.getElementById('whModalTitle').textContent = 'تعديل المخزن';
+    document.getElementById('whFormError').classList.remove('show');
+    document.getElementById('whId').value = w.id;
+    document.getElementById('whName').value = w.name || '';
+    document.getElementById('whCode').value = w.code || '';
+    document.getElementById('whPhone').value = w.phone || '';
+    document.getElementById('whAddress').value = w.address || '';
+    document.getElementById('whNotes').value = w.notes || '';
+    document.getElementById('whCapacityM3').value = w.capacity_m3 || 0;
+    document.getElementById('whCapacityUnits').value = w.capacity_units || 0;
+    document.getElementById('whMinTemp').value = w.min_temp != null ? w.min_temp : '';
+    document.getElementById('whMaxTemp').value = w.max_temp != null ? w.max_temp : '';
+    document.getElementById('whType').value = w.warehouse_type || 'main';
+    document.getElementById('whBranch').value = w.branch_id || '';
+    document.getElementById('whManager').value = w.manager_id || '';
+    document.getElementById('whIsDefault').checked = !!w.is_default;
+    document.getElementById('whAllowNegative').checked = !!w.allow_negative_stock;
+    document.getElementById('whRequireExpiry').checked = !!w.require_expiry_date;
+    document.getElementById('whModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function saveWarehouse() {
+    const errEl = document.getElementById('whFormError');
+    errEl.classList.remove('show');
+    const id = document.getElementById('whId').value || null;
+    const name = document.getElementById('whName').value.trim();
+    if (!name) {
+      errEl.textContent = 'اسم المخزن مطلوب';
+      errEl.classList.add('show');
+      return;
+    }
+    const btn = document.getElementById('saveWhBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري الحفظ...</span>';
+
+    try {
+      const { data, error } = await sb.rpc('save_warehouse', {
+        p_id: id,
+        p_name: name,
+        p_code: document.getElementById('whCode').value.trim() || null,
+        p_type: document.getElementById('whType').value,
+        p_address: document.getElementById('whAddress').value.trim() || null,
+        p_phone: document.getElementById('whPhone').value.trim() || null,
+        p_manager_id: document.getElementById('whManager').value || null,
+        p_capacity_m3: Number(document.getElementById('whCapacityM3').value) || 0,
+        p_capacity_units: Number(document.getElementById('whCapacityUnits').value) || 0,
+        p_min_temp: document.getElementById('whMinTemp').value !== '' ? Number(document.getElementById('whMinTemp').value) : null,
+        p_max_temp: document.getElementById('whMaxTemp').value !== '' ? Number(document.getElementById('whMaxTemp').value) : null,
+        p_allow_negative: document.getElementById('whAllowNegative').checked,
+        p_require_expiry: document.getElementById('whRequireExpiry').checked,
+        p_is_default: document.getElementById('whIsDefault').checked,
+        p_notes: document.getElementById('whNotes').value.trim() || null,
+        p_branch_id: document.getElementById('whBranch').value || null
+      });
+      if (error) throw error;
+      toast('success', id ? 'تم تحديث المخزن' : 'تم إنشاء المخزن');
+      document.getElementById('whModal').classList.remove('show');
+      await reload();
+    } catch (e) {
+      console.error('[Warehouses] save error:', e);
+      errEl.textContent = e.message || 'فشل الحفظ';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DELETE
+  // ═══════════════════════════════════════════════════════════
+  function openDeleteModal(id) {
+    const w = warehouses.find(x => x.id === id);
+    if (!w) return;
+    deleteTargetId = id;
+    document.getElementById('deleteError').classList.remove('show');
+    document.getElementById('deleteMessage').innerHTML =
+      'هل تريد حذف المخزن <strong>' + esc(w.name) + '</strong>؟<br>' +
+      (Number(w.total_units) > 0 ? '<span style="color:var(--danger)">⚠️ يحتوي على ' + num(w.total_units) + ' وحدة — لن يتم الحذف</span>' : '<span style="color:var(--text-muted)">لا يمكن التراجع عن هذا الإجراء.</span>');
+    document.getElementById('deleteModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function confirmDelete() {
+    if (!deleteTargetId) return;
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
+    try {
+      const { error } = await sb.rpc('delete_warehouse', { p_id: deleteTargetId });
+      if (error) throw error;
+      toast('success', 'تم حذف المخزن');
+      document.getElementById('deleteModal').classList.remove('show');
+      deleteTargetId = null;
+      await reload();
+    } catch (e) {
+      console.error('[Warehouses] delete error:', e);
+      document.getElementById('deleteError').textContent = e.message || 'فشل الحذف';
+      document.getElementById('deleteError').classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RELOAD
+  // ═══════════════════════════════════════════════════════════
+  async function reload() {
+    await loadWarehouses();
+    renderStats();
+    renderWarehouses();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) { location.href = 'admin.html'; return; }
+      }
+    } catch (e) { console.warn('[Warehouses] admin check failed:', e); }
+
+    if (window.Refad && Refad.requireSession) {
+      session = await Refad.requireSession();
+    } else {
+      const token = localStorage.getItem(cfg.SESSION_KEY);
+      if (!token) { location.href = 'index.html'; return; }
+      const { data: { user }, error } = await sb.auth.getUser(token);
+      if (error || !user) { location.href = 'index.html'; return; }
+      const { data: profile } = await sb.from('users')
+        .select('id, company_id, branch_id, full_name, email, is_owner, is_active, deleted_at, permissions, role_id')
+        .eq('id', user.id).maybeSingle();
+      if (!profile || profile.is_active === false || profile.deleted_at) {
+        location.href = 'index.html'; return;
+      }
+      let roleData = null;
+      if (profile.role_id) {
+        const { data: r } = await sb.from('roles').select('name, is_owner, permissions').eq('id', profile.role_id).maybeSingle();
+        roleData = r;
+      }
+      const isOwner = !!(profile.is_owner || (roleData && roleData.is_owner));
+      session = {
+        user_id: user.id, email: user.email, company_id: profile.company_id,
+        active_branch_id: profile.branch_id, is_owner: isOwner,
+        permissions: (profile.permissions && profile.permissions.length)
+          ? profile.permissions : ((roleData && roleData.permissions) || []),
+        full_name: profile.full_name,
+        role_name: (roleData && roleData.name) || (isOwner ? 'مالك' : 'مستخدم')
+      };
+    }
+
+    if (!session) { location.href = 'index.html'; return; }
+    if (!session.company_id) { location.href = 'index.html'; return; }
+
+    canManage = !!(session.is_owner ||
+      (session.permissions && (
+        session.permissions.includes('admin.full') ||
+        session.permissions.includes('warehouses.manage')
+      )));
+
+    const canView = !!(session.is_owner || canManage ||
+      (session.permissions && session.permissions.includes('warehouses.view')));
+
+    if (!canView) {
+      document.getElementById('permissionBanner').style.display = 'flex';
+      document.getElementById('permissionBannerText').innerHTML = '<strong>غير مصرح.</strong> إدارة المخازن متاحة للمالك أو من لديه صلاحية <code>warehouses.view</code>.';
+      document.getElementById('addWarehouseBtn').style.display = 'none';
+      setTimeout(() => location.href = 'dashboard.html', 2500);
+      return;
+    }
+
+    const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+    const branchName = session.branch_name || '';
+    document.getElementById('branchName').textContent = branchName ? (companyName + ' — ' + branchName) : companyName;
+
+    if (!canManage) {
+      document.getElementById('addWarehouseBtn').style.display = 'none';
+      document.getElementById('permissionBanner').style.display = 'flex';
+      document.getElementById('permissionBannerText').innerHTML = '<strong>وضع القراءة فقط.</strong> إدارة المخازن متاحة للمالك أو من لديه صلاحية <code>warehouses.manage</code>.';
+    }
+
+    await Promise.all([loadBranches(), loadUsers()]);
+    populateFormSelects();
+    await reload();
+
+    document.getElementById('addWarehouseBtn').onclick = openAddModal;
+    document.getElementById('saveWhBtn').onclick = saveWarehouse;
+    document.getElementById('confirmDeleteBtn').onclick = confirmDelete;
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await reload();
+      toast('success', 'تم التحديث');
+    };
+
+    document.querySelectorAll('[data-close]').forEach(el => {
+      el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+    });
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.onclick = (e) => { if (e.target === m) m.classList.remove('show'); };
+    });
+
+    window.addEventListener((cfg.EVENTS && cfg.EVENTS.WAREHOUSE_CHANGED) || 'refad:warehouse-changed', () => reload());
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

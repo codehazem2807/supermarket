@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>الإعدادات — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<!-- ⭐ ترتيب السكربتات — settings-manager قبل app.js -->
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root{
+  --primary:#0B2C4D;--primary-light:#1e4a73;--primary-dark:#061a2e;
+  --accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B;--gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444;--danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981;--success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6;--info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6;--purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9;--bg-soft:#f8fafc;--bg-card:#ffffff;--card:#ffffff;
+  --text:#0f172a;--text-muted:#64748b;
+  --border:#e2e8f0;--border-soft:#f1f5f9;
+  --radius:14px;--radius-sm:10px;--radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-warning{background:var(--gold-soft);color:var(--gold)}
+.btn-warning:hover{background:var(--gold);color:#fff}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1400px}
+
+.settings-layout{display:grid;grid-template-columns:240px 1fr;gap:20px}
+.settings-nav{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;height:fit-content;position:sticky;top:90px;max-height:calc(100vh - 110px);overflow-y:auto}
+.settings-nav-item{display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:13px;font-weight:600;color:var(--text);border:none;background:none;width:100%;text-align:right;border-bottom:1px solid var(--border-soft);transition:all .15s;cursor:pointer;position:relative}
+.settings-nav-item:last-child{border-bottom:none}
+.settings-nav-item:hover{background:var(--bg-soft)}
+.settings-nav-item.active{background:var(--accent-soft);color:var(--accent-dark);font-weight:700}
+.settings-nav-item.active::before{content:'';position:absolute;right:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.settings-nav-item svg{width:16px;height:16px;flex-shrink:0}
+.settings-nav-item .changed-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:auto;display:none}
+.settings-nav-item.changed .changed-dot{display:block}
+
+.settings-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;min-height:400px}
+.panel-header{border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:20px}
+.panel-header h2{font-size:18px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+.panel-header h2 svg{width:20px;height:20px;color:var(--accent)}
+.panel-header p{font-size:12.5px;color:var(--text-muted)}
+
+.form-group{margin-bottom:18px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.form-label .required{color:var(--danger)}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;transition:all 0.15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-input.error{border-color:var(--danger);background:rgba(239,68,68,0.03)}
+.form-input:disabled,.form-select:disabled{background:var(--bg);color:var(--text-muted);cursor:not-allowed;opacity:0.7}
+.form-textarea{resize:vertical;min-height:80px}
+.form-hint{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.form-check{display:flex;align-items:center;gap:10px;padding:10px 0;user-select:none}
+.form-check input[type="checkbox"]{width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.form-check input[type="checkbox"]:disabled{cursor:not-allowed}
+.form-check label{font-size:13px;font-weight:600;cursor:pointer;flex:1}
+
+.settings-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);flex-wrap:wrap}
+.save-status{font-size:12px;color:var(--text-muted);margin-right:auto;display:flex;align-items:center;gap:6px}
+.save-status.changed{color:var(--gold);font-weight:700}
+.save-status.saved{color:var(--success);font-weight:700}
+.save-status svg{width:14px;height:14px}
+
+.info-banner{background:var(--info-soft);border:1px solid rgba(59,130,246,0.3);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:12.5px;color:var(--info);display:flex;gap:10px;align-items:flex-start}
+.info-banner svg{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+
+.warning-banner{background:var(--gold-soft);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:12.5px;color:#92400e;display:flex;gap:10px;align-items:flex-start}
+.warning-banner svg{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+
+.themes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:20px}
+.theme-card{background:var(--bg-soft);border:2px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;cursor:pointer;transition:all .2s}
+.theme-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+.theme-card.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.theme-preview{height:110px;display:flex;padding:10px;gap:6px}
+.theme-preview-sidebar{width:28%;border-radius:6px}
+.theme-preview-main{flex:1;display:flex;flex-direction:column;gap:5px}
+.theme-preview-bar{height:12px;border-radius:3px}
+.theme-preview-cards{display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:1}
+.theme-preview-cards>div{border-radius:5px}
+.theme-card-info{padding:12px;background:var(--card);border-top:1px solid var(--border)}
+.theme-card-name{font-size:13px;font-weight:800;margin-bottom:2px}
+.theme-card-desc{font-size:11px;color:var(--text-muted)}
+.theme-card-badge{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;background:var(--accent);color:#fff;font-size:10px;font-weight:700}
+
+.coa-preview{background:var(--bg-soft);border-radius:var(--radius-sm);padding:14px;font-family:monospace;font-size:12px;line-height:1.8;max-height:300px;overflow-y:auto}
+.coa-preview .coa-row{display:flex;justify-content:space-between;padding:2px 0}
+.coa-preview .coa-code{color:var(--accent);font-weight:700;width:60px}
+.coa-preview .coa-name{flex:1}
+.coa-preview .coa-type{color:var(--text-muted);font-size:10px}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast .3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}
+.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}
+.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}
+.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}
+.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+.loading-state{padding:40px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media (max-width:1024px){.refad-main-content{margin-right:0!important}}
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .settings-layout{grid-template-columns:1fr}
+  .settings-nav{position:static;max-height:none;display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .settings-nav-item{border-bottom:1px solid var(--border-soft);font-size:12px;padding:10px 12px}
+  .settings-nav-item svg{width:14px;height:14px}
+  .settings-nav-item.active::before{display:none}
+  .form-row,.form-row.three{grid-template-columns:1fr}
+  .settings-panel{padding:16px}
+  .themes-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div><h1>الإعدادات</h1><div class="topbar-subtitle" id="branchName">—</div></div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-ghost" id="resetAllBtn" title="إعادة تعيين"><i data-lucide="rotate-ccw"></i><span>إعادة الكل</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="settings-layout">
+      <nav class="settings-nav" id="settingsNav">
+        <button class="settings-nav-item active" data-section="identity"><i data-lucide="store"></i>الهوية<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="theme"><i data-lucide="palette"></i>المظهر<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="locale"><i data-lucide="globe"></i>اللغة والعملة<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="barcode"><i data-lucide="barcode"></i>الباركود<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="pos"><i data-lucide="shopping-cart"></i>نقطة البيع<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="tax"><i data-lucide="percent"></i>الضريبة<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="accounting"><i data-lucide="book-open"></i>المحاسبة<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="purchase"><i data-lucide="truck"></i>المشتريات<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="sales"><i data-lucide="receipt"></i>المبيعات<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="inventory"><i data-lucide="boxes"></i>المخزون<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="alerts"><i data-lucide="bell"></i>التنبيهات<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="promotions"><i data-lucide="tag"></i>العروض<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="loyalty"><i data-lucide="award"></i>الولاء<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="security"><i data-lucide="shield"></i>الأمان<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="notifications"><i data-lucide="message-circle"></i>الإشعارات<span class="changed-dot"></span></button>
+        <button class="settings-nav-item" data-section="ai"><i data-lucide="sparkles"></i>AI<span class="changed-dot"></span></button>
+      </nav>
+
+      <div class="settings-panel" id="settingsPanel">
+        <div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let currentSection = 'identity';
+  let currentSectionDirty = false;
+  let canEdit = false;
+  let themesList = [];
+  let companyThemeInfo = null;
+  let settingsCache = {};
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // ⭐ GET SETTING — من RefadSettings (مصدر واحد)
+  // ═══════════════════════════════════════════════════════════
+  function getSetting(category, key, defaultValue) {
+    if (window.RefadSettings) {
+      const val = window.RefadSettings.get(category + '.' + key);
+      if (val !== undefined && val !== null) return val;
+    }
+    // fallback: من cache المحلي
+    if (settingsCache[category] && settingsCache[category][key] !== undefined) {
+      return settingsCache[category][key];
+    }
+    return defaultValue !== undefined ? defaultValue : '';
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOAD SETTINGS — يستخدم RefadSettings
+  // ═══════════════════════════════════════════════════════════
+  async function loadSettings() {
+    try {
+      // ⭐ حمّل من RefadSettings (بيستخدم RPC + fallback)
+      if (window.RefadSettings) {
+        await window.RefadSettings.load(sb);
+      }
+
+      // ⭐ حمّل من DB مباشرة عشان نعرض القيم الحقيقية
+      const res = await sb.from('company_settings')
+        .select('category, key, value')
+        .eq('company_id', session.company_id)
+        .is('branch_id', null);
+
+      settingsCache = {};
+      (res.data || []).forEach(r => {
+        if (!settingsCache[r.category]) settingsCache[r.category] = {};
+        settingsCache[r.category][r.key] = r.value;
+      });
+
+      // ⭐ حمّل الثيمات
+      await loadThemes();
+    } catch (e) {
+      console.error('[Settings] loadSettings failed:', e);
+      toast('error', 'فشل تحميل الإعدادات');
+    }
+  }
+
+  async function loadThemes() {
+    try {
+      const [themesRes, companyRes] = await Promise.all([
+        sb.from('themes').select('*').order('created_at'),
+        sb.from('companies').select('active_theme_slug, active_custom_theme_id, theme_overrides').eq('id', session.company_id).maybeSingle()
+      ]);
+      themesList = themesRes.data || [];
+      companyThemeInfo = companyRes.data || { active_theme_slug: 'default-blue', active_custom_theme_id: null, theme_overrides: {} };
+    } catch (e) {
+      console.warn('[Settings] loadThemes failed:', e);
+      themesList = [];
+      companyThemeInfo = { active_theme_slug: 'default-blue', active_custom_theme_id: null, theme_overrides: {} };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SAVE SECTION — يستخدم save_company_setting RPC
+  // ═══════════════════════════════════════════════════════════
+  async function saveSection(section, settings) {
+    const keys = Object.keys(settings);
+    if (keys.length === 0) return;
+
+    // ⭐ استخدم RPC save_company_setting لكل مفتاح
+    for (const key of keys) {
+      try {
+        const { error } = await sb.rpc('save_company_setting', {
+          p_company_id: session.company_id,
+          p_category: section,
+          p_key: key,
+          p_value: settings[key],
+          p_branch_id: null
+        });
+        if (error) {
+          console.warn('[Settings] save_company_setting failed for', key, error.message);
+          // fallback: insert/update مباشر
+          const { data: existing } = await sb.from('company_settings')
+            .select('id')
+            .eq('company_id', session.company_id)
+            .is('branch_id', null)
+            .eq('category', section)
+            .eq('key', key)
+            .maybeSingle();
+
+          if (existing?.id) {
+            await sb.from('company_settings').update({
+              value: settings[key],
+              updated_by: session.user_id,
+              updated_at: new Date().toISOString()
+            }).eq('id', existing.id);
+          } else {
+            await sb.from('company_settings').insert({
+              company_id: session.company_id,
+              category: section,
+              key: key,
+              value: settings[key],
+              updated_by: session.user_id
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[Settings] save_company_setting exception for', key, e);
+      }
+    }
+
+    // ⭐ حدّث cache المحلي
+    if (!settingsCache[section]) settingsCache[section] = {};
+    Object.assign(settingsCache[section], settings);
+
+    // ⭐ reload RefadSettings
+    if (window.RefadSettings && window.RefadSettings.invalidate) {
+      window.RefadSettings.invalidate();
+      try { await window.RefadSettings.load(sb); } catch (e) {}
+    }
+  }
+
+  async function syncWithCompanyTable(section, settings) {
+    const updates = {};
+
+    if (section === 'identity') {
+      if (settings.company_name !== undefined) updates.name = settings.company_name;
+      if (settings.legal_name !== undefined) updates.legal_name = settings.legal_name || null;
+      if (settings.phone !== undefined) updates.phone = settings.phone || null;
+      if (settings.email !== undefined) updates.email = settings.email || null;
+      if (settings.address !== undefined) updates.address = settings.address || null;
+      if (settings.tax_id !== undefined) updates.tax_id = settings.tax_id || null;
+    } else if (section === 'locale') {
+      if (settings.currency !== undefined) updates.currency = settings.currency;
+      if (settings.locale !== undefined) updates.locale = settings.locale;
+      if (settings.timezone !== undefined) updates.timezone = settings.timezone;
+      if (settings.direction !== undefined) updates.direction = settings.direction;
+    }
+
+    if (Object.keys(updates).length === 0) return;
+    updates.updated_at = new Date().toISOString();
+    const res = await sb.from('companies').update(updates).eq('id', session.company_id);
+    if (res.error) console.warn('[Settings] sync companies failed:', res.error.message);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VALIDATORS
+  // ═══════════════════════════════════════════════════════════
+  function validateSection() {
+    const panel = document.getElementById('settingsPanel');
+    let valid = true;
+    let firstError = null;
+
+    panel.querySelectorAll('[data-setting]').forEach(input => {
+      input.classList.remove('error');
+      const key = input.dataset.setting;
+      const val = input.type === 'checkbox' ? input.checked : input.value.trim();
+
+      if (key === 'default_rate') {
+        const num = Number(val);
+        if (isNaN(num) || num < 0 || num > 100) {
+          input.classList.add('error'); valid = false;
+          if (!firstError) firstError = 'نسبة الضريبة يجب أن تكون بين 0 و 100';
+        }
+      }
+      if (key === 'email' || key === 'report_email') {
+        if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+          input.classList.add('error'); valid = false;
+          if (!firstError) firstError = 'صيغة الإيميل غير صحيحة';
+        }
+      }
+      if (key === 'phone' && val) {
+        if (!/^[\+]?[0-9\s\-\(\)]{7,20}$/.test(val)) {
+          input.classList.add('error'); valid = false;
+          if (!firstError) firstError = 'صيغة الهاتف غير صحيحة';
+        }
+      }
+      if (key === 'prefix' && val) {
+        if (!/^\d{2,5}$/.test(val)) {
+          input.classList.add('error'); valid = false;
+          if (!firstError) firstError = 'بادئة الباركود يجب أن تكون 2-5 أرقام';
+        }
+      }
+      if (key === 'min_password_length') {
+        const num = Number(val);
+        if (isNaN(num) || num < 6 || num > 32) {
+          input.classList.add('error'); valid = false;
+          if (!firstError) firstError = 'طول كلمة المرور 6-32';
+        }
+      }
+      if (key === 'company_name' && !val) {
+        input.classList.add('error'); valid = false;
+        if (!firstError) firstError = 'اسم السوبرماركت مطلوب';
+      }
+    });
+
+    if (!valid && firstError) toast('error', firstError);
+    return valid;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FIELD BUILDERS
+  // ═══════════════════════════════════════════════════════════
+  function field(label, key, value, opts = {}) {
+    const type = opts.type || 'text';
+    const required = opts.required ? ' <span class="required">*</span>' : '';
+    const hint = opts.hint ? `<div class="form-hint">${esc(opts.hint)}</div>` : '';
+    const placeholder = opts.placeholder ? ` placeholder="${esc(opts.placeholder)}"` : '';
+    const min = opts.min !== undefined ? ` min="${opts.min}"` : '';
+    const max = opts.max !== undefined ? ` max="${opts.max}"` : '';
+    const step = opts.step !== undefined ? ` step="${opts.step}"` : '';
+    const disabled = !canEdit ? ' disabled' : '';
+    return `<div class="form-group">
+      <label class="form-label">${esc(label)}${required}</label>
+      <input type="${type}" class="form-input" data-setting="${key}" value="${esc(value)}"${placeholder}${min}${max}${step}${disabled}>
+      ${hint}
+    </div>`;
+  }
+
+  function selectField(label, key, value, options, hint) {
+    const opts = options.map(o => `<option value="${esc(o.value)}"${o.value === value ? ' selected' : ''}>${esc(o.label)}</option>`).join('');
+    const disabled = !canEdit ? ' disabled' : '';
+    return `<div class="form-group">
+      <label class="form-label">${esc(label)}</label>
+      <select class="form-select" data-setting="${key}"${disabled}>${opts}</select>
+      ${hint ? `<div class="form-hint">${esc(hint)}</div>` : ''}
+    </div>`;
+  }
+
+  function checkField(label, key, checked) {
+    const disabled = !canEdit ? ' disabled' : '';
+    return `<div class="form-check">
+      <input type="checkbox" data-setting="${key}" id="chk_${key}"${checked ? ' checked' : ''}${disabled}>
+      <label for="chk_${key}">${esc(label)}</label>
+    </div>`;
+  }
+
+  function saveBar(section) {
+    if (!canEdit) {
+      return `<div class="settings-actions">
+        <div class="save-status" style="color:var(--info)">
+          <i data-lucide="lock"></i><span>قراءة فقط — لا تملك صلاحية التعديل</span>
+        </div>
+      </div>`;
+    }
+    return `<div class="settings-actions">
+      <div class="save-status" id="saveStatus">
+        <i data-lucide="circle"></i><span>لا توجد تغييرات</span>
+      </div>
+      <button class="btn btn-ghost" data-reset-section="${section}">
+        <i data-lucide="rotate-ccw"></i>إعادة تعيين
+      </button>
+      <button class="btn btn-primary" data-save-section="${section}">
+        <i data-lucide="save"></i>حفظ
+      </button>
+    </div>`;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PANELS
+  // ═══════════════════════════════════════════════════════════
+  function buildIdentityPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="store"></i>الهوية</h2>
+      <p>بيانات الشركة الأساسية</p>
+    </div>
+    <div class="info-banner">
+      <i data-lucide="info"></i>
+      <div>هذه البيانات تظهر في الفواتير والتقارير وتتزامن مع جدول <code>companies</code> تلقائياً.</div>
+    </div>
+    <div class="form-row">
+      ${field('اسم السوبرماركت', 'company_name', getSetting('identity', 'company_name', ''), { required: true, placeholder: 'مثال: رفاد سوبرماركت' })}
+      ${field('الاسم القانوني', 'legal_name', getSetting('identity', 'legal_name', ''), { placeholder: 'الاسم التجاري الكامل' })}
+    </div>
+    <div class="form-row">
+      ${field('الهاتف', 'phone', getSetting('identity', 'phone', ''), { type: 'tel', placeholder: '01000000000' })}
+      ${field('الإيميل', 'email', getSetting('identity', 'email', ''), { type: 'email', placeholder: 'info@company.com' })}
+    </div>
+    ${field('العنوان', 'address', getSetting('identity', 'address', ''), { placeholder: 'العنوان الكامل' })}
+    ${field('الرقم الضريبي', 'tax_id', getSetting('identity', 'tax_id', ''), { placeholder: '123-456-789' })}
+    ${saveBar('identity')}`;
+  }
+
+  function buildThemePanel() {
+    const activeSlug = companyThemeInfo?.active_theme_slug || 'default-blue';
+    const activeCustomId = companyThemeInfo?.active_custom_theme_id;
+
+    const themesHtml = themesList.map(t => {
+      const c = t.config || {};
+      const isActive = !activeCustomId && t.slug === activeSlug;
+      return `
+        <div class="theme-card ${isActive ? 'active' : ''}" data-theme-slug="${esc(t.slug)}">
+          <div class="theme-preview" style="background:${esc(c.bg || '#f8fafc')}">
+            <div class="theme-preview-sidebar" style="background:${esc(c.bgSidebar || '#0B2C4D')}"></div>
+            <div class="theme-preview-main">
+              <div class="theme-preview-bar" style="background:${esc(c.primary || '#0B2C4D')};width:60%"></div>
+              <div class="theme-preview-bar" style="background:${esc(c.accent || '#14B8A6')};width:40%"></div>
+              <div class="theme-preview-cards">
+                <div style="background:${esc(c.bgCard || '#fff')};border:1px solid ${esc(c.border || '#e2e8f0')}"></div>
+                <div style="background:${esc(c.bgCard || '#fff')};border:1px solid ${esc(c.border || '#e2e8f0')}"></div>
+                <div style="background:${esc(c.bgCard || '#fff')};border:1px solid ${esc(c.border || '#e2e8f0')}"></div>
+                <div style="background:${esc(c.bgCard || '#fff')};border:1px solid ${esc(c.border || '#e2e8f0')}"></div>
+              </div>
+            </div>
+          </div>
+          <div class="theme-card-info">
+            <div class="theme-card-name">${esc(t.name_ar || t.name || t.slug)}</div>
+            <div class="theme-card-desc">${esc(t.name || '')}</div>
+            ${isActive ? '<span class="theme-card-badge">✓ مفعّل</span>' : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `<div class="panel-header">
+      <h2><i data-lucide="palette"></i>المظهر</h2>
+      <p>اختر ثيم النظام — سيُطبَّق على جميع المستخدمين في شركتك تلقائياً</p>
+    </div>
+
+    <div class="warning-banner">
+      <i data-lucide="alert-triangle"></i>
+      <div>
+        <strong>تنبيه:</strong> تغيير الثيم يؤثر على كل المستخدمين فوراً.
+        ${activeCustomId ? '<br>لديك <b>ثيم مخصص</b> مفعّل حالياً.' : ''}
+      </div>
+    </div>
+
+    <div class="themes-grid" id="themesGrid">
+      ${themesHtml || '<div class="empty-state">لا توجد ثيمات — تأكد من جدول themes</div>'}
+    </div>
+
+    <div style="margin-top:20px;padding:16px;background:var(--bg-soft);border-radius:10px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">🎨 إنشاء ثيم مخصص</div>
+      <div class="form-row three">
+        <div class="form-group">
+          <label class="form-label">اللون الأساسي</label>
+          <input type="color" id="customPrimary" value="#0B2C4D" style="width:100%;height:44px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;padding:4px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">لون التمييز</label>
+          <input type="color" id="customAccent" value="#14B8A6" style="width:100%;height:44px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;padding:4px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">الخلفية</label>
+          <input type="color" id="customBg" value="#f8fafc" style="width:100%;height:44px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;padding:4px">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="createCustomThemeBtn" ${!canEdit ? 'disabled' : ''}>
+        <i data-lucide="plus"></i>إنشاء وتطبيق ثيم مخصص
+      </button>
+    </div>
+
+    ${saveBar('theme')}`;
+  }
+
+  function buildAccountingPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="book-open"></i>المحاسبة</h2>
+      <p>إعدادات الحسابات والقيود</p>
+    </div>
+    <div class="info-banner">
+      <i data-lucide="info"></i>
+      <div>تم إنشاء شجرة الحسابات تلقائياً عند إنشاء الشركة (28 حساباً أساسياً). يمكنك تعديل أرقام الحسابات الافتراضية هنا.</div>
+    </div>
+    ${checkField('ترحيل الفواتير تلقائياً إلى القيود', 'auto_post_invoices', getSetting('accounting', 'auto_post_invoices', true))}
+    <div class="form-row">
+      ${field('بداية السنة المالية (MM-DD)', 'fiscal_year_start', getSetting('accounting', 'fiscal_year_start', '01-01'), { placeholder: '01-01', hint: 'مثال: 01-01 = أول يناير' })}
+      ${field('حساب العملاء (كود)', 'default_receivable_account', getSetting('accounting', 'default_receivable_account', '1200'), { hint: 'الافتراضي: 1200' })}
+    </div>
+    <div class="form-row">
+      ${field('حساب الموردين (كود)', 'default_payable_account', getSetting('accounting', 'default_payable_account', '2100'), { hint: 'الافتراضي: 2100' })}
+      ${field('حساب ضريبة القيمة المضافة', 'default_vat_account', getSetting('accounting', 'default_vat_account', '2200'), { hint: 'الافتراضي: 2200' })}
+    </div>
+    <div class="form-row">
+      ${field('حساب تكلفة المبيعات (COGS)', 'default_cogs_account', getSetting('accounting', 'default_cogs_account', '5000'), { hint: 'الافتراضي: 5000' })}
+      ${field('حساب المخزون', 'default_inventory_account', getSetting('accounting', 'default_inventory_account', '1300'), { hint: 'الافتراضي: 1300' })}
+    </div>
+    ${field('حساب المبيعات (إيرادات)', 'default_sales_account', getSetting('accounting', 'default_sales_account', '4000'), { hint: 'الافتراضي: 4000' })}
+
+    <div style="margin-top:20px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">📋 شجرة الحسابات (معاينة)</div>
+      <div class="coa-preview" id="coaPreview">
+        <div class="loading-state" style="padding:20px"><div class="spinner" style="width:20px;height:20px"></div>جاري التحميل...</div>
+      </div>
+    </div>
+    ${saveBar('accounting')}`;
+  }
+
+  function buildLocalePanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="globe"></i>اللغة والعملة</h2>
+      <p>إعدادات اللغة والعملة والتوقيت</p>
+    </div>
+    <div class="form-row">
+      ${selectField('العملة', 'currency', getSetting('locale', 'currency', 'EGP'), [
+        { value: 'EGP', label: 'EGP - جنيه مصري' },
+        { value: 'SAR', label: 'SAR - ريال سعودي' },
+        { value: 'AED', label: 'AED - درهم إماراتي' },
+        { value: 'USD', label: 'USD - دولار' }
+      ])}
+      ${selectField('اللغة', 'locale', getSetting('locale', 'locale', 'ar-EG'), [
+        { value: 'ar-EG', label: 'العربية (مصر)' },
+        { value: 'ar-SA', label: 'العربية (السعودية)' },
+        { value: 'en-US', label: 'English (US)' }
+      ])}
+    </div>
+    <div class="form-row">
+      ${selectField('المنطقة الزمنية', 'timezone', getSetting('locale', 'timezone', 'Africa/Cairo'), [
+        { value: 'Africa/Cairo', label: 'Africa/Cairo' },
+        { value: 'Asia/Riyadh', label: 'Asia/Riyadh' },
+        { value: 'Asia/Dubai', label: 'Asia/Dubai' }
+      ])}
+      ${selectField('اتجاه الواجهة', 'direction', getSetting('locale', 'direction', 'rtl'), [
+        { value: 'rtl', label: 'يمين ← يسار (RTL)' },
+        { value: 'ltr', label: 'يسار ← يمين (LTR)' }
+      ])}
+    </div>
+    ${saveBar('locale')}`;
+  }
+
+  function buildBarcodePanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="barcode"></i>الباركود</h2>
+      <p>إعدادات الباركود والموازين</p>
+    </div>
+    ${selectField('نوع الباركود الافتراضي', 'default_type', getSetting('barcode', 'default_type', 'EAN13'), [
+      { value: 'EAN13', label: 'EAN-13 (13 رقم)' },
+      { value: 'EAN8', label: 'EAN-8 (8 أرقام)' },
+      { value: 'UPC', label: 'UPC-A (12 رقم)' },
+      { value: 'CODE128', label: 'Code-128 (أي طول)' }
+    ])}
+    ${field('بادئة الباركود', 'prefix', getSetting('barcode', 'prefix', '200'), { hint: '2-5 أرقام، تستخدم عند التوليد التلقائي', placeholder: '200' })}
+    ${checkField('توليد باركود تلقائياً عند إضافة منتج جديد', 'auto_generate', getSetting('barcode', 'auto_generate', true))}
+    ${selectField('صيغة ميزان الباركود', 'scale_format', getSetting('barcode', 'scale_format', 'weight'), [
+      { value: 'weight', label: 'وزن (2 PPPPP WWWWW C)' },
+      { value: 'price', label: 'سعر (2 PPPP PPPPP C)' }
+    ], 'يستخدم مع باركود يبدأ بـ 2 للمنتجات الموزونة')}
+    ${saveBar('barcode')}`;
+  }
+
+  function buildPosPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="shopping-cart"></i>نقطة البيع</h2>
+      <p>إعدادات شاشة الكاشير</p>
+    </div>
+    ${selectField('طريقة الدفع الافتراضية', 'default_payment', getSetting('pos', 'default_payment', 'cash'), [
+      { value: 'cash', label: 'نقدي' },
+      { value: 'card', label: 'بطاقة' },
+      { value: 'credit', label: 'آجل' }
+    ])}
+    ${checkField('السماح بالبيع الآجل', 'allow_credit', getSetting('pos', 'allow_credit', true))}
+    ${checkField('إلزام اختيار عميل لكل فاتورة', 'require_customer', getSetting('pos', 'require_customer', false))}
+    ${checkField('طباعة الإيصال تلقائياً بعد الدفع', 'auto_print', getSetting('pos', 'auto_print', false))}
+    ${checkField('صوت عند مسح الباركود', 'sound_scan', getSetting('pos', 'sound_scan', true))}
+    ${checkField('تكبير واجهة POS للأجهزة الصغيرة', 'big_ui', getSetting('pos', 'big_ui', false))}
+    ${checkField('تفعيل الدفع المختلط (Split Payment)', 'enable_split_payment', getSetting('pos', 'enable_split_payment', true))}
+    ${checkField('تفعيل تعليق الطلبات (Held Orders)', 'enable_held_orders', getSetting('pos', 'enable_held_orders', true))}
+    ${saveBar('pos')}`;
+  }
+
+  function buildTaxPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="percent"></i>الضريبة</h2>
+      <p>إعدادات ضريبة القيمة المضافة</p>
+    </div>
+    ${checkField('تفعيل الضريبة', 'enabled', getSetting('tax', 'enabled', false))}
+    ${field('نسبة الضريبة الافتراضية (%)', 'default_rate', getSetting('tax', 'default_rate', 0), { type: 'number', min: 0, max: 100, step: 0.01, hint: '0 إلى 100' })}
+    ${checkField('السعر شامل الضريبة', 'inclusive', getSetting('tax', 'inclusive', false))}
+    <div class="warning-banner">
+      <i data-lucide="alert-triangle"></i>
+      <div><strong>ملاحظة:</strong> لمزيد من التحكم في نسب الضريبة (VAT 14%، Zero-rated، Exempt) استخدم صفحة <code>tax-rates.html</code> بعد تفعيلها.</div>
+    </div>
+    ${saveBar('tax')}`;
+  }
+
+  function buildPurchasePanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="truck"></i>المشتريات</h2>
+      <p>إعدادات أوامر الشراء والاستلام</p>
+    </div>
+    ${checkField('اعتماد أوامر الشراء تلقائياً', 'auto_approve', getSetting('purchase', 'auto_approve', false))}
+    ${checkField('إلزام إدخال تاريخ صلاحية عند الاستلام', 'require_expiry', getSetting('purchase', 'require_expiry', true))}
+    ${checkField('إلزام رقم فاتورة المورد', 'require_supplier_invoice', getSetting('purchase', 'require_supplier_invoice', false))}
+    ${field('شروط الدفع الافتراضية (أيام)', 'payment_terms', getSetting('purchase', 'payment_terms', 30), { type: 'number', min: 0, hint: 'عدد الأيام المسموح بها للسداد' })}
+    ${saveBar('purchase')}`;
+  }
+
+  function buildSalesPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="receipt"></i>المبيعات</h2>
+      <p>إعدادات الفواتير والمرتجعات</p>
+    </div>
+    ${checkField('السماح بالمرتجعات', 'allow_returns', getSetting('sales', 'allow_returns', true))}
+    ${field('فترة المرتجع (أيام)', 'return_days', getSetting('sales', 'return_days', 14), { type: 'number', min: 0, hint: 'خلال كام يوم يمكن إرجاع الفاتورة' })}
+    ${checkField('السماح بتعديل السعر في الكاشير', 'allow_price_override', getSetting('sales', 'allow_price_override', false))}
+    ${checkField('طلب موافقة المدير على الخصومات الكبيرة', 'require_discount_approval', getSetting('sales', 'require_discount_approval', false))}
+    ${saveBar('sales')}`;
+  }
+
+  function buildInventoryPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="boxes"></i>المخزون</h2>
+      <p>إعدادات الجرد والحركات</p>
+    </div>
+    ${checkField('صرف المخزون FEFO (الأقرب انتهاءً أولاً)', 'fefo', getSetting('inventory', 'fefo', true))}
+    ${checkField('تسويات المخزون تلقائياً عند البيع', 'auto_adjust', getSetting('inventory', 'auto_adjust', false))}
+    ${checkField('إلزام الجرد الدوري', 'require_count', getSetting('inventory', 'require_count', false))}
+    ${field('فترة الجرد (أيام)', 'count_frequency', getSetting('inventory', 'count_frequency', 30), { type: 'number', min: 1, hint: 'كل كام يوم يتم الجرد الدوري' })}
+    ${saveBar('inventory')}`;
+  }
+
+  function buildAlertsPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="bell"></i>التنبيهات</h2>
+      <p>تنبيهات المخزون والصلاحية</p>
+    </div>
+    ${checkField('تنبيه عند انخفاض المخزون', 'low_stock', getSetting('alerts', 'low_stock', true))}
+    ${checkField('تنبيه المنتجات قريبة الانتهاء', 'expiry', getSetting('alerts', 'expiry', true))}
+    ${field('عدد الأيام للتنبيه قبل الانتهاء', 'expiry_days', getSetting('alerts', 'expiry_days', 30), { type: 'number', min: 1, hint: 'التنبيه قبل كام يوم من انتهاء الصلاحية' })}
+    ${checkField('تنبيه عند نفاد المخزون', 'out_of_stock', getSetting('alerts', 'out_of_stock', true))}
+    ${saveBar('alerts')}`;
+  }
+
+  function buildPromotionsPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="tag"></i>العروض</h2>
+      <p>إعدادات العروض والخصومات</p>
+    </div>
+    ${checkField('تفعيل نظام العروض', 'enabled', getSetting('promotions', 'enabled', true))}
+    ${checkField('السماح بتراكم العروض', 'stackable', getSetting('promotions', 'stackable', false))}
+    ${checkField('السماح بالعروض في أوقات محددة', 'time_limited', getSetting('promotions', 'time_limited', false))}
+    ${saveBar('promotions')}`;
+  }
+
+  function buildLoyaltyPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="award"></i>الولاء</h2>
+      <p>برنامج نقاط الولاء للعملاء</p>
+    </div>
+    ${checkField('تفعيل نظام الولاء', 'enabled', getSetting('loyalty', 'enabled', false))}
+    <div class="form-row">
+      ${field('نقاط لكل 1 ج.م', 'points_per_egp', getSetting('loyalty', 'points_per_egp', 1), { type: 'number', min: 0, step: 0.01, hint: 'كم نقطة يحصل عليها العميل لكل جنيه' })}
+      ${field('قيمة النقطة (ج.م)', 'point_value', getSetting('loyalty', 'point_value', 0.1), { type: 'number', min: 0, step: 0.01, hint: 'قيمة النقطة عند الاستبدال' })}
+    </div>
+    ${field('صلاحية النقاط (أيام)', 'expiry_days', getSetting('loyalty', 'expiry_days', 365), { type: 'number', min: 0, hint: '0 = بدون انتهاء' })}
+    ${checkField('تفعيل مستويات الولاء (Bronze/Silver/Gold)', 'tiers_enabled', getSetting('loyalty', 'tiers_enabled', false))}
+    ${saveBar('loyalty')}`;
+  }
+
+  function buildSecurityPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="shield"></i>الأمان</h2>
+      <p>إعدادات كلمات المرور والجلسات</p>
+    </div>
+    <div class="warning-banner">
+      <i data-lucide="alert-triangle"></i>
+      <div><strong>تنبيه:</strong> إعدادات الأمان تؤثر على كل المستخدمين. تأكد قبل التغيير.</div>
+    </div>
+    ${field('الحد الأدنى لطول كلمة المرور', 'min_password_length', getSetting('security', 'min_password_length', 8), { type: 'number', min: 6, max: 32, hint: '6-32 حرف' })}
+    ${checkField('إلزام كلمة مرور قوية (حروف + أرقام + رموز)', 'require_strong', getSetting('security', 'require_strong', true))}
+    ${field('مهلة الجلسة (دقائق)', 'session_timeout', getSetting('security', 'session_timeout', 480), { type: 'number', min: 5, hint: 'بعد كام دقيقة من عدم النشاط يتم تسجيل الخروج' })}
+    ${checkField('تفعيل المصادقة الثنائية (2FA) للمدراء', 'two_factor', getSetting('security', 'two_factor', false))}
+    ${checkField('تسجيل كل العمليات في Audit Log', 'audit_enabled', getSetting('security', 'audit_enabled', true))}
+    ${saveBar('security')}`;
+  }
+
+  function buildNotificationsPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="message-circle"></i>الإشعارات</h2>
+      <p>قنوات إرسال الإشعارات</p>
+    </div>
+    ${checkField('إشعارات بالبريد الإلكتروني', 'email', getSetting('notifications', 'email', true))}
+    ${checkField('إشعارات واتساب', 'whatsapp', getSetting('notifications', 'whatsapp', false))}
+    ${checkField('إشعارات SMS', 'sms', getSetting('notifications', 'sms', false))}
+    ${checkField('إرسال تقرير يومي تلقائي', 'daily_report', getSetting('notifications', 'daily_report', false))}
+    ${field('إيميل التقرير اليومي', 'report_email', getSetting('notifications', 'report_email', ''), { type: 'email', placeholder: 'report@example.com' })}
+    ${saveBar('notifications')}`;
+  }
+
+  function buildAIPanel() {
+    return `<div class="panel-header">
+      <h2><i data-lucide="sparkles"></i>الذكاء الاصطناعي</h2>
+      <p>ميزات AI (قريباً)</p>
+    </div>
+    ${checkField('تفعيل ميزات AI', 'enabled', getSetting('ai', 'enabled', false))}
+    <div style="padding:24px;background:var(--bg-soft);border-radius:10px;margin-top:16px;text-align:center">
+      <div style="width:56px;height:56px;border-radius:14px;background:var(--accent-soft);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px">
+        <i data-lucide="sparkles" style="width:28px;height:28px;color:var(--accent)"></i>
+      </div>
+      <h3 style="font-size:15px;font-weight:800;margin-bottom:6px">ميزات AI قادمة</h3>
+      <p style="font-size:12.5px;color:var(--text-muted);line-height:1.7">
+        🤖 توقع الطلب التلقائي<br>
+        📊 تحليل أنماط المبيعات<br>
+        🎯 اقتراح طلبات الشراء الذكية<br>
+        💡 اكتشاف المنتجات الراكدة
+      </p>
+    </div>
+    ${saveBar('ai')}`;
+  }
+
+  const PANEL_BUILDERS = {
+    identity: buildIdentityPanel,
+    theme: buildThemePanel,
+    locale: buildLocalePanel,
+    barcode: buildBarcodePanel,
+    pos: buildPosPanel,
+    tax: buildTaxPanel,
+    accounting: buildAccountingPanel,
+    purchase: buildPurchasePanel,
+    sales: buildSalesPanel,
+    inventory: buildInventoryPanel,
+    alerts: buildAlertsPanel,
+    promotions: buildPromotionsPanel,
+    loyalty: buildLoyaltyPanel,
+    security: buildSecurityPanel,
+    notifications: buildNotificationsPanel,
+    ai: buildAIPanel
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  function renderPanel(section) {
+    currentSection = section;
+    const panel = document.getElementById('settingsPanel');
+    const builder = PANEL_BUILDERS[section];
+
+    if (!builder) {
+      panel.innerHTML = '<div class="loading-state">القسم غير موجود</div>';
+      return;
+    }
+
+    panel.innerHTML = builder();
+    if (window.lucide) lucide.createIcons();
+
+    if (section === 'theme') bindThemeEvents(panel);
+    if (section === 'accounting') loadCOAPreview();
+
+    panel.querySelectorAll('[data-setting]').forEach(input => {
+      input.addEventListener('input', checkDirty);
+      input.addEventListener('change', checkDirty);
+    });
+
+    checkDirty();
+
+    const saveBtn = panel.querySelector(`[data-save-section="${section}"]`);
+    if (saveBtn) saveBtn.onclick = () => saveCurrentSection();
+
+    const resetBtn = panel.querySelector(`[data-reset-section="${section}"]`);
+    if (resetBtn) resetBtn.onclick = () => resetCurrentSection();
+  }
+
+  function bindThemeEvents(panel) {
+    panel.querySelectorAll('.theme-card[data-theme-slug]').forEach(card => {
+      card.onclick = async () => {
+        if (!canEdit) return toast('warning', 'لا تملك صلاحية التعديل');
+        const slug = card.dataset.themeSlug;
+        if (slug === companyThemeInfo.active_theme_slug && !companyThemeInfo.active_custom_theme_id) return;
+
+        if (!confirm('سيتم تطبيق هذا الثيم على جميع المستخدمين. متابعة؟')) return;
+
+        try {
+          const { error } = await sb.rpc('set_company_theme', {
+            p_company_id: session.company_id,
+            p_theme_slug: slug,
+            p_custom_theme_id: null,
+            p_overrides: null
+          });
+          if (error) throw error;
+
+          companyThemeInfo.active_theme_slug = slug;
+          companyThemeInfo.active_custom_theme_id = null;
+
+          if (window.RefadTheme) {
+            const themes = await sb.from('themes').select('config').eq('slug', slug).maybeSingle();
+            if (themes.data?.config) window.RefadTheme.apply(themes.data.config);
+          }
+
+          toast('success', '✅ تم تطبيق الثيم على كل المستخدمين');
+          renderPanel('theme');
+        } catch (e) {
+          toast('error', 'خطأ: ' + e.message);
+        }
+      };
+    });
+
+    const createBtn = document.getElementById('createCustomThemeBtn');
+    if (createBtn) {
+      createBtn.onclick = async () => {
+        if (!canEdit) return;
+
+        const primary = document.getElementById('customPrimary').value;
+        const accent = document.getElementById('customAccent').value;
+        const bg = document.getElementById('customBg').value;
+
+        const isDark = bg.startsWith('#0') || bg.startsWith('#1') || bg.startsWith('#2');
+        const config = {
+          primary, primaryLight: primary, primaryDark: primary,
+          accent, accentDark: accent, gold: '#F59E0B',
+          bg, bgCard: isDark ? '#1e293b' : '#ffffff',
+          bgSidebar: primary,
+          text: isDark ? '#f1f5f9' : '#1e293b',
+          textMuted: isDark ? '#94a3b8' : '#64748b',
+          border: isDark ? '#334155' : '#e2e8f0',
+          success: '#10b981', danger: '#ef4444', warning: '#f59e0b', info: '#3b82f6',
+          sidebarStyle: isDark ? 'darker' : 'dark',
+          radius: '14px', fontFamily: 'Cairo, sans-serif',
+          mode: isDark ? 'dark' : 'light'
+        };
+
+        try {
+          const { data, error } = await sb.from('company_themes').insert({
+            company_id: session.company_id,
+            name: 'ثيم مخصص ' + new Date().toLocaleDateString('ar'),
+            config
+          }).select().single();
+          if (error) throw error;
+
+          const { error: e2 } = await sb.rpc('set_company_theme', {
+            p_company_id: session.company_id,
+            p_theme_slug: null,
+            p_custom_theme_id: data.id,
+            p_overrides: null
+          });
+          if (e2) throw e2;
+
+          if (window.RefadTheme) window.RefadTheme.apply(config);
+          toast('success', '✅ تم إنشاء وتطبيق الثيم المخصص');
+          await loadThemes();
+          renderPanel('theme');
+        } catch (e) {
+          toast('error', e.message);
+        }
+      };
+    }
+  }
+
+  async function loadCOAPreview() {
+    const container = document.getElementById('coaPreview');
+    if (!container) return;
+    try {
+      const { data, error } = await sb.from('chart_of_accounts')
+        .select('code, name_ar, account_type, is_postable')
+        .eq('company_id', session.company_id)
+        .order('code');
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted)">لا توجد حسابات — نفّذ bootstrap_company لهذه الشركة</div>';
+        return;
+      }
+      container.innerHTML = data.map(a => `
+        <div class="coa-row">
+          <span class="coa-code">${esc(a.code)}</span>
+          <span class="coa-name">${esc(a.name_ar)}</span>
+          <span class="coa-type">${esc(a.account_type)}</span>
+        </div>
+      `).join('');
+    } catch (e) {
+      container.innerHTML = '<div style="color:var(--danger)">خطأ: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  function checkDirty() {
+    const panel = document.getElementById('settingsPanel');
+    let isDirty = false;
+
+    panel.querySelectorAll('[data-setting]').forEach(input => {
+      const key = input.dataset.setting;
+      const currentValue = input.type === 'checkbox' ? input.checked : input.value;
+      const savedValue = getSetting(currentSection, key, '');
+
+      if (input.type === 'number') {
+        if (Number(currentValue) !== Number(savedValue)) isDirty = true;
+      } else if (input.type === 'checkbox') {
+        if (Boolean(currentValue) !== Boolean(savedValue)) isDirty = true;
+      } else {
+        if (String(currentValue) !== String(savedValue)) isDirty = true;
+      }
+    });
+
+    currentSectionDirty = isDirty;
+
+    const status = document.getElementById('saveStatus');
+    if (status) {
+      if (isDirty) {
+        status.className = 'save-status changed';
+        status.innerHTML = '<i data-lucide="alert-circle"></i><span>لديك تغييرات غير محفوظة</span>';
+      } else {
+        status.className = 'save-status';
+        status.innerHTML = '<i data-lucide="check-circle"></i><span>كل التغييرات محفوظة</span>';
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    const navItem = document.querySelector(`[data-section="${currentSection}"]`);
+    if (navItem) navItem.classList.toggle('changed', isDirty);
+  }
+
+  async function saveCurrentSection() {
+    if (!canEdit) return toast('warning', 'لا تملك صلاحية التعديل');
+    if (!validateSection()) return;
+
+    const panel = document.getElementById('settingsPanel');
+    const settings = {};
+
+    panel.querySelectorAll('[data-setting]').forEach(input => {
+      const key = input.dataset.setting;
+      let val;
+      if (input.type === 'checkbox') val = input.checked;
+      else if (input.type === 'number') val = Number(input.value) || 0;
+      else val = input.value;
+      settings[key] = val;
+    });
+
+    const saveBtn = panel.querySelector(`[data-save-section="${currentSection}"]`);
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري الحفظ...</span>';
+    }
+
+    try {
+      await saveSection(currentSection, settings);
+      await syncWithCompanyTable(currentSection, settings);
+
+      if (currentSection === 'locale') {
+        if (settings.direction) document.documentElement.dir = settings.direction;
+        if (settings.locale) document.documentElement.lang = settings.locale;
+      }
+
+      toast('success', '✅ تم حفظ الإعدادات — ستُطبّق على جميع المستخدمين');
+      checkDirty();
+    } catch (e) {
+      console.error(e);
+      toast('error', 'فشل الحفظ: ' + (e.message || 'خطأ'));
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i data-lucide="save"></i>حفظ';
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+  }
+
+  function resetCurrentSection() {
+    if (!canEdit) return;
+    if (!confirm('إعادة تعيين هذا القسم إلى القيم المحفوظة؟')) return;
+
+    const panel = document.getElementById('settingsPanel');
+    panel.querySelectorAll('[data-setting]').forEach(input => {
+      const key = input.dataset.setting;
+      const savedValue = getSetting(currentSection, key, '');
+      if (input.type === 'checkbox') input.checked = Boolean(savedValue);
+      else input.value = savedValue !== null && savedValue !== undefined ? savedValue : '';
+    });
+
+    checkDirty();
+    toast('info', 'تم إعادة التعيين');
+  }
+
+  function switchSection(section) {
+    if (currentSectionDirty) {
+      if (!confirm('لديك تغييرات غير محفوظة. هل تريد المتابعة بدون حفظ؟')) return;
+    }
+    document.querySelectorAll('.settings-nav-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.section === section);
+    });
+    renderPanel(section);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    if (window.Refad && Refad.requireSession) {
+      session = await Refad.requireSession();
+    }
+    if (!session) { location.href = 'index.html'; return; }
+
+    canEdit = !!(session.is_owner || (session.permissions && (
+      session.permissions.includes('admin.full') ||
+      session.permissions.includes('settings.edit')
+    )));
+
+    const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+    const branchName = session.branch_name || '';
+    document.getElementById('branchName').textContent = branchName ? (companyName + ' — ' + branchName) : companyName;
+
+    await loadSettings();
+    renderPanel('identity');
+
+    document.querySelectorAll('.settings-nav-item').forEach(item => {
+      item.onclick = () => switchSection(item.dataset.section);
+    });
+
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await loadSettings();
+      renderPanel(currentSection);
+      toast('success', 'تم التحديث');
+    };
+
+    document.getElementById('resetAllBtn').onclick = async () => {
+      if (!canEdit) { toast('warning', 'لا تملك صلاحية التعديل'); return; }
+      if (!confirm('إعادة تعيين كل الإعدادات إلى القيم المحفوظة؟')) return;
+      await loadSettings();
+      renderPanel(currentSection);
+      toast('success', 'تم إعادة التعيين');
+    };
+
+    window.addEventListener('beforeunload', (e) => {
+      if (currentSectionDirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    window.addEventListener('refad:settings-changed', () => {
+      const cName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      const bName = session.branch_name || '';
+      const el = document.getElementById('branchName');
+      if (el) el.textContent = bName ? (cName + ' — ' + bName) : cName;
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

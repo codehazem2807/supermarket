@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الاشتراكات — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="config.js"></script>
+<style>
+:root{--primary:#0B2C4D;--accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,0.1);--gold:#F59E0B;--gold-soft:rgba(245,158,11,0.1);--danger:#ef4444;--danger-soft:rgba(239,68,68,0.1);--success:#10b981;--success-soft:rgba(16,185,129,0.1);--info:#3b82f6;--info-soft:rgba(59,130,246,0.1);--purple:#8b5cf6;--purple-soft:rgba(139,92,246,0.1);--bg:#F1F5F9;--bg-soft:#f8fafc;--card:#fff;--text:#0f172a;--text-muted:#64748b;--border:#e2e8f0;--border-soft:#f1f5f9;--radius:14px;--radius-sm:10px;--radius-xs:8px;--sidebar-w:260px;--topbar-h:64px}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:var(--primary);position:fixed;top:0;right:0;bottom:0;display:flex;flex-direction:column;z-index:100;color:#fff;transition:transform .3s}
+.sidebar-brand{padding:22px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sidebar-logo svg{width:22px;height:22px;color:#fff}
+.sidebar-brand-text h2{font-size:15px;font-weight:800}
+.sidebar-brand-text p{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px}
+.sidebar-nav{flex:1;overflow-y:auto;padding:14px 10px}
+.nav-section{font-size:10.5px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.8px;padding:12px 12px 6px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:var(--radius-sm);color:rgba(255,255,255,.7);text-decoration:none;font-size:13.5px;font-weight:600;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:right}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:var(--accent);color:#fff;font-weight:700}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.sidebar-footer{padding:14px;border-top:1px solid rgba(255,255,255,.1)}
+.user-card{display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,.06);border-radius:var(--radius-sm)}
+.user-avatar{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-info h4{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-info p{font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logout-btn{background:rgba(239,68,68,.2);border:none;color:#fca5a5;padding:6px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logout-btn:hover{background:var(--danger);color:#fff}
+.logout-btn svg{width:16px;height:16px}
+.main{flex:1;margin-right:var(--sidebar-w);min-height:100vh}
+.topbar{height:var(--topbar-h);background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar h1{font-size:19px;font-weight:800}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.content{padding:24px;max-width:1400px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-body{padding:24px}
+/* Current plan hero */
+.current-plan{background:linear-gradient(135deg,var(--primary),#1e4a73);color:#fff;border-radius:var(--radius);padding:32px;margin-bottom:20px;position:relative;overflow:hidden}
+.current-plan::before{content:'';position:absolute;top:-100px;left:-100px;width:300px;height:300px;background:radial-gradient(circle,rgba(20,184,166,.3),transparent 70%);pointer-events:none}
+.current-plan::after{content:'';position:absolute;bottom:-150px;right:10%;width:300px;height:300px;background:radial-gradient(circle,rgba(245,158,11,.15),transparent 70%);pointer-events:none}
+.current-plan-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;position:relative;margin-bottom:20px}
+.current-plan-info h2{font-size:24px;font-weight:800;margin-bottom:4px}
+.current-plan-info p{font-size:13px;opacity:.85}
+.current-plan-badge{background:var(--accent);padding:8px 16px;border-radius:20px;font-size:13px;font-weight:800;display:inline-flex;align-items:center;gap:6px}
+.current-plan-badge svg{width:16px;height:16px}
+.current-plan-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;position:relative}
+.plan-stat{background:rgba(255,255,255,.1);padding:14px;border-radius:10px;backdrop-filter:blur(10px)}
+.plan-stat-label{font-size:11.5px;opacity:.75;margin-bottom:4px;font-weight:600}
+.plan-stat-value{font-size:20px;font-weight:800}
+.plan-stat-bar{height:6px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden;margin-top:8px}
+.plan-stat-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .5s}
+.plan-stat-bar-fill.warn{background:var(--gold)}
+.plan-stat-bar-fill.danger{background:var(--danger)}
+/* Plans grid */
+.plans-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:24px}
+.plan-card{background:var(--card);border:2px solid var(--border);border-radius:var(--radius);padding:24px;transition:all .2s;position:relative;display:flex;flex-direction:column}
+.plan-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 12px 40px rgba(11,44,77,.12)}
+.plan-card.current{border-color:var(--accent);background:linear-gradient(180deg,var(--card),var(--accent-soft))}
+.plan-card.current::before{content:'خطتك الحالية';position:absolute;top:-12px;right:20px;background:var(--accent);color:#fff;padding:4px 14px;border-radius:12px;font-size:11px;font-weight:800}
+.plan-card.featured{border-color:var(--gold)}
+.plan-card.featured::after{content:'الأفضل';position:absolute;top:-12px;left:20px;background:linear-gradient(135deg,var(--gold),#d97706);color:#fff;padding:4px 14px;border-radius:12px;font-size:11px;font-weight:800}
+.plan-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.plan-icon svg{width:26px;height:26px}
+.plan-icon.trial{background:var(--bg-soft);color:var(--text-muted)}
+.plan-icon.basic{background:var(--info-soft);color:var(--info)}
+.plan-icon.pro{background:var(--purple-soft);color:var(--purple)}
+.plan-icon.enterprise{background:var(--gold-soft);color:var(--gold)}
+.plan-name{font-size:20px;font-weight:800;margin-bottom:6px}
+.plan-desc{font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}
+.plan-price{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.plan-price-value{font-size:32px;font-weight:800;color:var(--accent)}
+.plan-price-value small{font-size:14px;color:var(--text-muted);font-weight:600}
+.plan-features{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;flex:1}
+.plan-feature{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.5}
+.plan-feature-icon{width:20px;height:20px;border-radius:50%;background:var(--success-soft);color:var(--success);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.plan-feature-icon svg{width:12px;height:12px}
+.plan-feature-icon.disabled{background:var(--bg-soft);color:var(--text-muted)}
+.plan-feature.disabled{color:var(--text-muted);text-decoration:line-through}
+.plan-action{width:100%;padding:12px;justify-content:center}
+/* Usage rows */
+.usage-list{display:flex;flex-direction:column;gap:16px}
+.usage-item{padding:16px;background:var(--bg-soft);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.usage-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.usage-label{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.usage-label svg{width:16px;height:16px;color:var(--accent)}
+.usage-value{font-size:13px;font-weight:700;color:var(--text-muted)}
+.usage-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.usage-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-dark));border-radius:4px;transition:width .5s}
+.usage-bar-fill.warn{background:linear-gradient(90deg,var(--gold),#d97706)}
+.usage-bar-fill.danger{background:linear-gradient(90deg,var(--danger),#dc2626)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+/* Invoices list */
+.invoice-row{display:flex;align-items:center;justify-content:space-between;padding:14px;border-bottom:1px solid var(--border-soft);gap:12px;flex-wrap:wrap}
+.invoice-row:last-child{border-bottom:none}
+.invoice-info{flex:1;min-width:200px}
+.invoice-number{font-size:13px;font-weight:700;font-family:monospace;margin-bottom:2px}
+.invoice-date{font-size:11.5px;color:var(--text-muted)}
+.invoice-amount{font-size:16px;font-weight:800;color:var(--accent)}
+.loading-state{padding:60px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.2);max-width:400px}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}
+.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}
+.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}
+.toast.info svg{color:var(--info)}
+.mobile-menu-btn{display:none;width:40px;height:40px;border-radius:var(--radius-sm);background:var(--bg-soft);border:1px solid var(--border);align-items:center;justify-content:center;color:var(--text)}
+.mobile-menu-btn svg{width:20px;height:20px}
+@media (max-width:1024px){.sidebar{transform:translateX(100%)}.sidebar.open{transform:translateX(0)}.main{margin-right:0}.mobile-menu-btn{display:flex}}
+@media (max-width:768px){.content{padding:16px}.topbar{padding:0 16px}.current-plan{padding:24px}.plans-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo"><i data-lucide="shopping-cart"></i></div>
+      <div class="sidebar-brand-text"><h2 id="brandName">رفاد</h2><p>سوبرماركت</p></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">الرئيسية</div>
+      <a class="nav-item" href="dashboard.html"><i data-lucide="layout-dashboard"></i><span>لوحة التحكم</span></a>
+      <a class="nav-item" href="pos.html"><i data-lucide="shopping-cart"></i><span>نقطة البيع</span></a>
+      <div class="nav-section">المخزون</div>
+      <a class="nav-item" href="products.html"><i data-lucide="package"></i><span>المنتجات</span></a>
+      <a class="nav-item" href="inventory.html"><i data-lucide="boxes"></i><span>المخزون</span></a>
+      <a class="nav-item" href="purchases.html"><i data-lucide="truck"></i><span>المشتريات</span></a>
+      <div class="nav-section">المبيعات</div>
+      <a class="nav-item" href="sales.html"><i data-lucide="receipt"></i><span>المبيعات</span></a>
+      <a class="nav-item" href="customers.html"><i data-lucide="users"></i><span>العملاء</span></a>
+      <a class="nav-item" href="suppliers.html"><i data-lucide="building-2"></i><span>الموردون</span></a>
+      <div class="nav-section">الإدارة</div>
+      <a class="nav-item" href="reports.html"><i data-lucide="bar-chart-3"></i><span>التقارير</span></a>
+      <a class="nav-item" href="barcode.html"><i data-lucide="barcode"></i><span>الباركود</span></a>
+      <a class="nav-item" href="users.html"><i data-lucide="user-cog"></i><span>المستخدمون</span></a>
+      <a class="nav-item" href="roles.html"><i data-lucide="shield"></i><span>الأدوار</span></a>
+      <a class="nav-item" href="branches.html"><i data-lucide="git-branch"></i><span>الفروع</span></a>
+      <a class="nav-item" href="company.html"><i data-lucide="building-2"></i><span>الشركة</span></a>
+      <a class="nav-item" href="audit_log.html"><i data-lucide="file-text"></i><span>سجل النشاط</span></a>
+      <a class="nav-item active" href="subscriptions.html"><i data-lucide="credit-card"></i><span>الاشتراكات</span></a>
+      <a class="nav-item" href="settings.html"><i data-lucide="settings"></i><span>الإعدادات</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div class="user-info"><h4 id="userName">—</h4><p id="userRole">—</p></div>
+        <button class="logout-btn" id="logoutBtn"><i data-lucide="log-out"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn"><i data-lucide="menu"></i></button>
+        <div><h1>الاشتراكات</h1><div class="topbar-subtitle">إدارة الخطة والحدود</div></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-icon" id="refreshBtn"><i data-lucide="refresh-cw"></i></button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="loadingArea" class="loading-state"><div class="spinner"></div>جاري التحميل...</div>
+
+      <div id="mainArea" style="display:none">
+
+        <!-- Current plan -->
+        <div class="current-plan">
+          <div class="current-plan-header">
+            <div class="current-plan-info">
+              <h2 id="currentPlanName">—</h2>
+              <p id="currentPlanStatus">—</p>
+            </div>
+            <div class="current-plan-badge" id="currentPlanBadge">
+              <i data-lucide="check-circle"></i>
+              <span>نشط</span>
+            </div>
+          </div>
+          <div class="current-plan-stats">
+            <div class="plan-stat">
+              <div class="plan-stat-label">المستخدمون</div>
+              <div class="plan-stat-value" id="usersUsed">—</div>
+              <div class="plan-stat-bar"><div class="plan-stat-bar-fill" id="usersBar" style="width:0%"></div></div>
+            </div>
+            <div class="plan-stat">
+              <div class="plan-stat-label">الفروع</div>
+              <div class="plan-stat-value" id="branchesUsed">—</div>
+              <div class="plan-stat-bar"><div class="plan-stat-bar-fill" id="branchesBar" style="width:0%"></div></div>
+            </div>
+            <div class="plan-stat">
+              <div class="plan-stat-label">المنتجات</div>
+              <div class="plan-stat-value" id="productsUsed">—</div>
+              <div class="plan-stat-bar"><div class="plan-stat-bar-fill" id="productsBar" style="width:0%"></div></div>
+            </div>
+            <div class="plan-stat">
+              <div class="plan-stat-label">تاريخ البدء</div>
+              <div class="plan-stat-value" id="startedAt" style="font-size:14px">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Plans -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i data-lucide="layers"></i><span>الخطط المتاحة</span></div>
+          </div>
+          <div class="card-body">
+            <div class="plans-grid" id="plansGrid">
+              <div class="loading-state"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Usage details -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i data-lucide="activity"></i><span>تفاصيل الاستخدام</span></div>
+          </div>
+          <div class="card-body">
+            <div class="usage-list" id="usageList">
+              <div class="loading-state"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Invoices history -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i data-lucide="receipt"></i><span>سجل الفواتير</span></div>
+          </div>
+          <div id="invoicesList">
+            <div class="loading-state"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  if (!window.REFAD_CONFIG || !window.supabase) {
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#ef4444"><h2>خطأ في التحميل</h2></div>';
+    return;
+  }
+
+  var cfg = window.REFAD_CONFIG;
+  var sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  var session = null;
+  var subscription = null;
+  var usageStats = { users: 0, branches: 0, products: 0, invoices: 0 };
+  var invoices = [];
+
+  // ============ PLANS ============
+  var PLANS = {
+    trial: {
+      name: 'تجريبي',
+      icon: 'clock',
+      iconClass: 'trial',
+      price: 0,
+      desc: 'للتجربة قبل الاشتراك',
+      features: [
+        { text: '5 مستخدمين', enabled: true },
+        { text: 'فرع واحد', enabled: true },
+        { text: '100 منتج', enabled: true },
+        { text: 'دعم بالبريد', enabled: true },
+        { text: 'تقارير أساسية', enabled: true },
+        { text: 'API Access', enabled: false }
+      ],
+      limits: { users: 5, branches: 1, products: 100 }
+    },
+    basic: {
+      name: 'أساسي',
+      icon: 'package',
+      iconClass: 'basic',
+      price: 299,
+      desc: 'للأعمال الصغيرة',
+      features: [
+        { text: '10 مستخدمين', enabled: true },
+        { text: 'فرعان', enabled: true },
+        { text: '1000 منتج', enabled: true },
+        { text: 'دعم فني', enabled: true },
+        { text: 'تقارير متقدمة', enabled: true },
+        { text: 'API Access', enabled: false }
+      ],
+      limits: { users: 10, branches: 2, products: 1000 }
+    },
+    pro: {
+      name: 'احترافي',
+      icon: 'crown',
+      iconClass: 'pro',
+      price: 799,
+      desc: 'للأعمال المتوسطة',
+      features: [
+        { text: '50 مستخدم', enabled: true },
+        { text: '10 فروع', enabled: true },
+        { text: '10000 منتج', enabled: true },
+        { text: 'دعم أولوية', enabled: true },
+        { text: 'تقارير مخصصة', enabled: true },
+        { text: 'API Access', enabled: true }
+      ],
+      limits: { users: 50, branches: 10, products: 10000 }
+    },
+    enterprise: {
+      name: 'مؤسسي',
+      icon: 'sparkles',
+      iconClass: 'enterprise',
+      price: 0,
+      desc: 'حلول مخصصة',
+      features: [
+        { text: 'مستخدمون غير محدودين', enabled: true },
+        { text: 'فروع غير محدودة', enabled: true },
+        { text: 'منتجات غير محدودة', enabled: true },
+        { text: 'دعم 24/7', enabled: true },
+        { text: 'تقارير مخصصة', enabled: true },
+        { text: 'API Access + Webhooks', enabled: true }
+      ],
+      limits: { users: 9999, branches: 9999, products: 999999 }
+    }
+  };
+
+  function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  function money(v) {
+    return Number(v || 0).toLocaleString('ar-EG') + ' ج.م';
+  }
+
+  function toast(type, msg) {
+    var icons = { error: 'alert-circle', success: 'check-circle', info: 'info' };
+    var el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.innerHTML = '<i data-lucide="' + (icons[type] || 'info') + '"></i><span>' + esc(msg) + '</span>';
+    document.getElementById('toastContainer').appendChild(el);
+    if (window.lucide) lucide.createIcons();
+    setTimeout(function () {
+      el.style.opacity = '0';
+      el.style.transition = 'opacity 0.3s';
+      setTimeout(function () { el.remove(); }, 300);
+    }, 3500);
+  }
+
+  function getSession() {
+    var token = localStorage.getItem(cfg.SESSION_KEY);
+    if (!token) return Promise.resolve(null);
+
+    return sb.auth.getUser(token).then(function (res) {
+      if (res.error || !res.data.user) return null;
+      var user = res.data.user;
+
+      return sb.from('users')
+        .select('id, company_id, branch_id, full_name, email, is_owner, is_active, deleted_at, roles(name, is_owner)')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(function (pRes) {
+          var profile = pRes.data;
+          if (!profile || profile.is_active === false || profile.deleted_at) return null;
+          var isOwner = !!(profile.is_owner || (profile.roles && profile.roles.is_owner));
+          if (!isOwner) return null;
+
+          return {
+            user_id: user.id,
+            company_id: profile.company_id,
+            full_name: profile.full_name,
+            email: profile.email,
+            is_owner: isOwner,
+            role_name: (profile.roles && profile.roles.name) || 'مالك'
+          };
+        });
+    });
+  }
+
+  function loadSubscription() {
+    return sb.from('subscriptions')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(function (res) {
+        if (res.error && res.error.code !== 'PGRST116') {
+          console.warn('subscription load error', res.error);
+        }
+        subscription = res.data;
+      });
+  }
+
+  function loadUsage() {
+    return Promise.all([
+      sb.from('users').select('*', { count: 'exact', head: true }).eq('company_id', session.company_id).is('deleted_at', null),
+      sb.from('branches').select('*', { count: 'exact', head: true }).eq('company_id', session.company_id).is('deleted_at', null),
+      sb.from('products').select('*', { count: 'exact', head: true }).eq('company_id', session.company_id).is('deleted_at', null),
+      sb.from('sales_invoices').select('*', { count: 'exact', head: true }).eq('company_id', session.company_id)
+    ]).then(function (results) {
+      usageStats.users = results[0].count || 0;
+      usageStats.branches = results[1].count || 0;
+      usageStats.products = results[2].count || 0;
+      usageStats.invoices = results[3].count || 0;
+    });
+  }
+
+  function loadInvoices() {
+    return sb.from('sales_invoices')
+      .select('id, invoice_number, invoice_date, total, status')
+      .eq('company_id', session.company_id)
+      .order('invoice_date', { ascending: false })
+      .limit(10)
+      .then(function (res) {
+        invoices = res.data || [];
+      });
+  }
+
+  function getPlanKey() {
+    if (!subscription) return 'trial';
+    return subscription.plan || 'trial';
+  }
+
+  function getPlan() {
+    return PLANS[getPlanKey()] || PLANS.trial;
+  }
+
+  function getLimit(limitKey) {
+    if (subscription) {
+      if (limitKey === 'users' && subscription.max_users) return subscription.max_users;
+      if (limitKey === 'branches' && subscription.max_branches) return subscription.max_branches;
+    }
+    return getPlan().limits[limitKey] || 0;
+  }
+
+  function renderCurrentPlan() {
+    var plan = getPlan();
+    var planKey = getPlanKey();
+
+    document.getElementById('currentPlanName').textContent = plan.name;
+    document.getElementById('currentPlanStatus').textContent = plan.desc;
+
+    var badge = document.getElementById('currentPlanBadge');
+    var status = (subscription && subscription.status) || 'active';
+    var statusMap = {
+      active: { cls: 'active', icon: 'check-circle', text: 'نشط' },
+      trial: { cls: 'active', icon: 'clock', text: 'تجريبي' },
+      expired: { cls: 'expired', icon: 'x-circle', text: 'منتهي' },
+      suspended: { cls: 'expired', icon: 'alert-triangle', text: 'موقوف' },
+      cancelled: { cls: 'expired', icon: 'x-circle', text: 'ملغى' }
+    };
+    var s = statusMap[status] || statusMap.active;
+    badge.innerHTML = '<i data-lucide="' + s.icon + '"></i><span>' + s.text + '</span>';
+    if (s.cls === 'expired') badge.style.background = 'var(--danger)';
+
+    // Stats
+    var usersLimit = getLimit('users');
+    var branchesLimit = getLimit('branches');
+    var productsLimit = getLimit('products');
+
+    document.getElementById('usersUsed').textContent = usageStats.users + ' / ' + usersLimit;
+    document.getElementById('branchesUsed').textContent = usageStats.branches + ' / ' + branchesLimit;
+    document.getElementById('productsUsed').textContent = usageStats.products + ' / ' + productsLimit;
+    document.getElementById('startedAt').textContent = subscription ? fmtDate(subscription.started_at) : '—';
+
+    // Bars
+    function barPct(used, limit) {
+      if (limit === 0) return 0;
+      var pct = Math.min((used / limit) * 100, 100);
+      return pct;
+    }
+    function barClass(pct) {
+      if (pct >= 90) return 'danger';
+      if (pct >= 75) return 'warn';
+      return '';
+    }
+
+    var upct = barPct(usageStats.users, usersLimit);
+    document.getElementById('usersBar').style.width = upct + '%';
+    document.getElementById('usersBar').className = 'plan-stat-bar-fill ' + barClass(upct);
+
+    var bpct = barPct(usageStats.branches, branchesLimit);
+    document.getElementById('branchesBar').style.width = bpct + '%';
+    document.getElementById('branchesBar').className = 'plan-stat-bar-fill ' + barClass(bpct);
+
+    var ppct = barPct(usageStats.products, productsLimit);
+    document.getElementById('productsBar').style.width = ppct + '%';
+    document.getElementById('productsBar').className = 'plan-stat-bar-fill ' + barClass(ppct);
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderPlans() {
+    var currentKey = getPlanKey();
+    var grid = document.getElementById('plansGrid');
+    var html = '';
+
+    var keys = ['trial', 'basic', 'pro', 'enterprise'];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var plan = PLANS[key];
+      var isCurrent = key === currentKey;
+      var isFeatured = key === 'pro';
+
+      var classes = 'plan-card';
+      if (isCurrent) classes += ' current';
+      if (isFeatured && !isCurrent) classes += ' featured';
+
+      html += '<div class="' + classes + '">';
+      html += '<div class="plan-icon ' + plan.iconClass + '"><i data-lucide="' + plan.icon + '"></i></div>';
+      html += '<div class="plan-name">' + plan.name + '</div>';
+      html += '<div class="plan-desc">' + plan.desc + '</div>';
+      html += '<div class="plan-price">';
+      if (key === 'enterprise') {
+        html += '<div class="plan-price-value">اتصل بنا</div>';
+      } else if (plan.price === 0) {
+        html += '<div class="plan-price-value">مجاناً</div>';
+      } else {
+        html += '<div class="plan-price-value">' + plan.price + ' <small>ج.م/شهر</small></div>';
+      }
+      html += '</div>';
+      html += '<div class="plan-features">';
+      for (var f = 0; f < plan.features.length; f++) {
+        var feat = plan.features[f];
+        html += '<div class="plan-feature' + (feat.enabled ? '' : ' disabled') + '">';
+        html += '<div class="plan-feature-icon' + (feat.enabled ? '' : ' disabled') + '"><i data-lucide="' + (feat.enabled ? 'check' : 'x') + '"></i></div>';
+        html += '<span>' + feat.text + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      if (isCurrent) {
+        html += '<button class="btn btn-ghost plan-action" disabled><i data-lucide="check-circle"></i>خطتك الحالية</button>';
+      } else if (key === 'enterprise') {
+        html += '<button class="btn btn-primary plan-action" data-upgrade="enterprise"><i data-lucide="message-circle"></i>تواصل معنا</button>';
+      } else {
+        html += '<button class="btn btn-primary plan-action" data-upgrade="' + key + '"><i data-lucide="arrow-up-circle"></i>ترقية</button>';
+      }
+      html += '</div>';
+    }
+
+    grid.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+
+    var upBtns = grid.querySelectorAll('[data-upgrade]');
+    for (var u = 0; u < upBtns.length; u++) {
+      upBtns[u].onclick = function () {
+        var targetPlan = this.dataset.upgrade;
+        if (targetPlan === 'enterprise') {
+          toast('info', 'سيتواصل معك فريق المبيعات قريباً');
+          return;
+        }
+        upgradePlan(targetPlan);
+      };
+    }
+  }
+
+  function renderUsageList() {
+    var listEl = document.getElementById('usageList');
+    var usersLimit = getLimit('users');
+    var branchesLimit = getLimit('branches');
+    var productsLimit = getLimit('products');
+
+    function pct(used, limit) {
+      if (limit === 0) return 0;
+      return Math.min((used / limit) * 100, 100);
+    }
+    function cls(p) {
+      if (p >= 90) return 'danger';
+      if (p >= 75) return 'warn';
+      return '';
+    }
+
+    var html = '';
+    html += renderUsageItem('users', 'المستخدمون', usageStats.users, usersLimit);
+    html += renderUsageItem('git-branch', 'الفروع', usageStats.branches, branchesLimit);
+    html += renderUsageItem('package', 'المنتجات', usageStats.products, productsLimit);
+    listEl.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+
+    function renderUsageItem(icon, label, used, limit) {
+      var p = pct(used, limit);
+      var c = cls(p);
+      var warnText = '';
+      if (p >= 90) warnText = ' <span class="badge badge-danger">قريب من الحد</span>';
+      else if (p >= 75) warnText = ' <span class="badge badge-warning">استخدام مرتفع</span>';
+
+      return '<div class="usage-item">' +
+        '<div class="usage-header">' +
+          '<div class="usage-label"><i data-lucide="' + icon + '"></i>' + label + warnText + '</div>' +
+          '<div class="usage-value">' + used + ' / ' + limit + '</div>' +
+        '</div>' +
+        '<div class="usage-bar"><div class="usage-bar-fill ' + c + '" style="width:' + p + '%"></div></div>' +
+      '</div>';
+    }
+  }
+
+  function renderInvoices() {
+    var el = document.getElementById('invoicesList');
+    if (invoices.length === 0) {
+      el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><i data-lucide="receipt" style="width:40px;height:40px;opacity:.5;margin-bottom:10px"></i><p>لا توجد فواتير</p></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < invoices.length; i++) {
+      var inv = invoices[i];
+      var statusMap = {
+        paid: 'badge-success',
+        partial: 'badge-warning',
+        voided: 'badge-danger',
+        returned: 'badge-danger'
+      };
+      var statusLabel = {
+        paid: 'مدفوعة',
+        partial: 'جزئية',
+        voided: 'ملغاة',
+        returned: 'مرتجعة'
+      };
+      var cls = statusMap[inv.status] || 'badge-gray';
+      var txt = statusLabel[inv.status] || inv.status;
+
+      html += '<div class="invoice-row">';
+      html += '<div class="invoice-info">';
+      html += '<div class="invoice-number">' + esc(inv.invoice_number) + '</div>';
+      html += '<div class="invoice-date">' + fmtDate(inv.invoice_date) + '</div>';
+      html += '</div>';
+      html += '<span class="badge ' + cls + '">' + txt + '</span>';
+      html += '<div class="invoice-amount">' + money(inv.total) + '</div>';
+      html += '</div>';
+    }
+    el.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function upgradePlan(planKey) {
+    var plan = PLANS[planKey];
+    if (!plan) return;
+
+    if (!confirm('ترقية الخطة إلى "' + plan.name + '"؟\n\nسيتم تحويلك لصفحة الدفع.')) return;
+
+    // Simulate upgrade
+    var btn = event.target;
+    btn.disabled = true;
+
+    var updates = {
+      plan: planKey,
+      status: 'active',
+      max_users: plan.limits.users,
+      max_branches: plan.limits.branches,
+      updated_at: new Date().toISOString()
+    };
+
+    var promise;
+    if (subscription) {
+      promise = sb.from('subscriptions').update(updates).eq('id', subscription.id);
+    } else {
+      updates.company_id = session.company_id;
+      updates.started_at = new Date().toISOString();
+      promise = sb.from('subscriptions').insert(updates);
+    }
+
+    promise.then(function (res) {
+      if (res.error) throw res.error;
+      toast('success', 'تم ترقية الخطة إلى ' + plan.name);
+      return sb.from('audit_log').insert({
+        company_id: session.company_id,
+        user_id: session.user_id,
+        user_email: session.email,
+        action: 'subscription.upgrade',
+        entity_type: 'subscription',
+        new_values: { plan: planKey }
+      });
+    }).then(function () {
+      return loadSubscription();
+    }).then(function () {
+      renderCurrentPlan();
+      renderPlans();
+      renderUsageList();
+    }).catch(function (e) {
+      toast('error', 'فشل: ' + (e.message || 'خطأ'));
+      btn.disabled = false;
+    });
+  }
+
+  function loadAll() {
+    return loadSubscription().then(function () {
+      return Promise.all([loadUsage(), loadInvoices()]);
+    }).then(function () {
+      document.getElementById('loadingArea').style.display = 'none';
+      document.getElementById('mainArea').style.display = 'block';
+      renderCurrentPlan();
+      renderPlans();
+      renderUsageList();
+      renderInvoices();
+    });
+  }
+
+  function init() {
+    getSession().then(function (s) {
+      if (!s) {
+        toast('error', 'غير مصرح — يجب أن تكون مالكاً');
+        setTimeout(function () { location.href = 'dashboard.html'; }, 1000);
+        return;
+      }
+      session = s;
+
+      document.getElementById('userName').textContent = session.full_name || 'مستخدم';
+      document.getElementById('userAvatar').textContent = (session.full_name || 'U').charAt(0).toUpperCase();
+      document.getElementById('userRole').textContent = session.role_name;
+
+      loadAll();
+
+      document.getElementById('refreshBtn').onclick = function () {
+        toast('info', 'جاري التحديث...');
+        loadAll().then(function () { toast('success', 'تم'); });
+      };
+      document.getElementById('logoutBtn').onclick = function () {
+        sb.auth.signOut().then(function () {
+          localStorage.clear();
+          location.href = 'index.html';
+        });
+      };
+      document.getElementById('mobileMenuBtn').onclick = function () {
+        document.getElementById('sidebar').classList.toggle('open');
+      };
+
+      if (window.lucide) lucide.createIcons();
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>الباركود — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<!-- ⭐ ترتيب السكربتات -->
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root {
+  --primary:#0B2C4D; --primary-light:#1e4a73; --primary-dark:#061a2e;
+  --accent:#14B8A6; --accent-dark:#0d9488; --accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B; --gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981; --success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6; --info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6; --purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9; --bg-soft:#f8fafc; --bg-card:#ffffff;
+  --card:#ffffff;
+  --text:#0f172a; --text-muted:#64748b;
+  --border:#e2e8f0; --border-soft:#f1f5f9;
+  --radius:14px; --radius-sm:10px; --radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  font-family:var(--font-family);
+  background:var(--bg);color:var(--text);
+  min-height:100vh;font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  transition:background 0.2s,color 0.2s;
+}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:white}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:white}
+.btn-warning{background:var(--gold-soft);color:var(--gold)}
+.btn-warning:hover{background:var(--gold);color:white}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1400px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-body{padding:20px}
+
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.form-label .required{color:var(--danger)}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;transition:all 0.15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-input.error{border-color:var(--danger)}
+.form-input::placeholder{color:var(--text-muted);opacity:0.6}
+.form-hint{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.form-error{background:var(--danger-soft);color:var(--danger);padding:11px 14px;border-radius:var(--radius-xs);font-size:12.5px;font-weight:600;margin-bottom:14px;display:none;border-right:3px solid var(--danger)}
+.form-error.show{display:block}
+
+.barcode-preview{background:white;border:2px dashed var(--border);border-radius:var(--radius-sm);padding:24px;text-align:center;min-height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;position:relative}
+.barcode-preview svg{max-width:100%;height:auto}
+.barcode-preview.empty{color:var(--text-muted);font-size:13px}
+.barcode-preview .corner-badge{position:absolute;top:8px;left:8px;background:var(--accent);color:white;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800}
+
+.qr-preview{background:white;border:2px dashed var(--border);border-radius:var(--radius-sm);padding:24px;text-align:center;min-height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px}
+.qr-preview img{max-width:200px}
+.qr-preview.empty{color:var(--text-muted);font-size:13px}
+
+.result-box{background:var(--success-soft);border-right:4px solid var(--success);padding:14px 16px;border-radius:var(--radius-xs);font-size:13px;color:var(--success);font-weight:600;margin-top:12px;display:none;line-height:1.6}
+.result-box.error{background:var(--danger-soft);border-right-color:var(--danger);color:var(--danger)}
+.result-box.show{display:block}
+.result-box svg{width:16px;height:16px;vertical-align:middle;margin-left:6px}
+
+.quick-types{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.quick-type-btn{padding:10px 8px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:12px;font-weight:700;color:var(--text);transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:3px}
+.quick-type-btn:hover{border-color:var(--accent);background:var(--card)}
+.quick-type-btn.active{background:var(--accent);color:white;border-color:var(--accent)}
+.quick-type-btn small{font-size:9.5px;opacity:0.8;font-weight:600}
+
+.product-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border-soft);transition:background 0.15s;cursor:pointer}
+.product-item:hover{background:var(--bg-soft)}
+.product-item.selected{background:var(--accent-soft)}
+.product-item input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.product-item-info{flex:1;min-width:0}
+.product-item-name{font-size:13px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.product-item-barcode{font-size:11px;color:var(--text-muted);font-family:monospace}
+.product-item-price{font-size:12.5px;font-weight:800;color:var(--accent);flex-shrink:0}
+.product-item.no-barcode{opacity:0.5;cursor:not-allowed}
+
+.labels-preview-container{background:var(--bg-soft);padding:20px;border-radius:var(--radius-sm);margin-top:16px}
+.print-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:white;padding:16px;border-radius:8px}
+.print-label{background:white;border:1px dashed #cbd5e1;padding:10px;text-align:center;page-break-inside:avoid;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:90px;justify-content:center}
+.print-label-name{font-size:10px;font-weight:700;margin-bottom:2px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.print-label-price{font-size:12px;font-weight:800;margin-top:2px;color:#0d9488}
+.print-label svg{max-width:100%;height:auto;display:block}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast 0.3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}
+.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}
+.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}
+.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}
+.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+.loading-state{padding:40px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media print {
+  body *{visibility:hidden}
+  .labels-preview-container, .labels-preview-container *{visibility:visible}
+  .labels-preview-container{position:absolute;left:0;top:0;width:100%;padding:0;background:white}
+  .no-print{display:none!important}
+  .print-label{border:1px solid #ccc;page-break-inside:avoid}
+  .print-grid{gap:2mm}
+  @page{margin:10mm}
+}
+
+@media (max-width:1024px){.refad-main-content{margin-right:0!important}}
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+  .form-row.three{grid-template-columns:1fr}
+  .print-grid{grid-template-columns:repeat(2,1fr)}
+  .quick-types{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div><h1>الباركود</h1><div class="topbar-subtitle" id="branchName">—</div></div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="barcode"></i><span>مولد الباركود</span></div>
+        </div>
+        <div class="card-body">
+          <div class="quick-types">
+            <button class="quick-type-btn active" data-format="EAN13">EAN-13<small>13 رقم</small></button>
+            <button class="quick-type-btn" data-format="EAN8">EAN-8<small>8 أرقام</small></button>
+            <button class="quick-type-btn" data-format="UPC">UPC-A<small>12 رقم</small></button>
+            <button class="quick-type-btn" data-format="CODE128">Code-128<small>أي نص</small></button>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">القيمة <span class="required">*</span></label>
+            <input type="text" class="form-input" id="barcodeValue" placeholder="مثال: 6221001234567" dir="ltr" style="text-align:center;font-family:monospace;font-size:16px;letter-spacing:1px">
+            <div class="form-hint" id="barcodeHint">EAN-13 يتطلب 12 أو 13 رقم</div>
+          </div>
+
+          <div class="form-row">
+            <button class="btn btn-ghost" id="genRandomBtn"><i data-lucide="shuffle"></i>توليد عشوائي</button>
+            <button class="btn btn-primary" id="generateBtn"><i data-lucide="sparkles"></i>توليد</button>
+          </div>
+
+          <div class="barcode-preview empty" id="barcodePreview" style="margin-top:16px">
+            <span class="corner-badge" id="barcodeFormatBadge" style="display:none">EAN-13</span>
+            <svg id="barcodeSvg" style="display:none"></svg>
+            <span id="barcodeEmptyText">اكتب قيمة واضغط "توليد"</span>
+          </div>
+
+          <div class="form-row" style="margin-top:14px">
+            <button class="btn btn-ghost" id="downloadBarcodeBtn" disabled><i data-lucide="download"></i>تنزيل SVG</button>
+            <button class="btn btn-ghost" id="copyBarcodeBtn" disabled><i data-lucide="copy"></i>نسخ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="shield-check"></i><span>التحقق من الباركود</span></div>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">أدخل الباركود للتحقق</label>
+            <input type="text" class="form-input" id="validateValue" placeholder="مثال: 6221001234567" dir="ltr" style="text-align:center;font-family:monospace;font-size:16px;letter-spacing:1px">
+          </div>
+          <button class="btn btn-primary" id="validateBtn" style="width:100%"><i data-lucide="check-circle"></i>تحقق</button>
+          <div class="result-box" id="validateResult"></div>
+
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+            <h4 style="font-size:13px;font-weight:800;margin-bottom:10px">أنواع الباركود المدعومة</h4>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.9">
+              <div>• <strong style="color:var(--text)">EAN-13</strong>: 13 رقم (أوروبا/دولي)</div>
+              <div>• <strong style="color:var(--text)">EAN-8</strong>: 8 أرقام (منتجات صغيرة)</div>
+              <div>• <strong style="color:var(--text)">UPC-A</strong>: 12 رقم (أمريكا)</div>
+              <div>• <strong style="color:var(--text)">Code-128</strong>: أي نص (داخلي)</div>
+              <div>• <strong style="color:var(--text)">Scale Label</strong>: يبدأ بـ 2 (وزن/سعر مدمج)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="qr-code"></i><span>QR Code</span></div>
+      </div>
+      <div class="card-body">
+        <div class="grid-2" style="gap:20px">
+          <div>
+            <div class="form-group">
+              <label class="form-label">النص أو الرابط</label>
+              <textarea class="form-textarea" id="qrValue" placeholder="https://example.com أو أي نص" rows="3"></textarea>
+            </div>
+            <div class="form-row">
+              <button class="btn btn-ghost" id="clearQrBtn"><i data-lucide="x"></i>مسح</button>
+              <button class="btn btn-primary" id="generateQrBtn"><i data-lucide="sparkles"></i>توليد QR</button>
+            </div>
+            <div class="form-row" style="margin-top:10px">
+              <button class="btn btn-ghost" id="downloadQrBtn" disabled><i data-lucide="download"></i>تنزيل PNG</button>
+              <button class="btn btn-ghost" id="printQrBtn" disabled><i data-lucide="printer"></i>طباعة</button>
+            </div>
+          </div>
+          <div class="qr-preview empty" id="qrPreview" style="min-height:220px">
+            <span>سيظهر QR هنا</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="printer"></i><span>طباعة ملصقات منتجات</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" id="selectAllProductsBtn"><i data-lucide="check-square"></i>تحديد الكل</button>
+          <button class="btn btn-ghost btn-sm" id="clearSelectionBtn"><i data-lucide="square"></i>مسح</button>
+        </div>
+      </div>
+      <div class="card-body no-print">
+        <div class="form-row three">
+          <div class="form-group">
+            <label class="form-label">عدد الملصقات لكل منتج</label>
+            <input type="number" class="form-input" id="labelCount" value="3" min="1" max="50">
+          </div>
+          <div class="form-group">
+            <label class="form-label">صيغة الباركود</label>
+            <select class="form-select" id="labelFormat">
+              <option value="auto">تلقائي (حسب الطول)</option>
+              <option value="EAN13">EAN-13</option>
+              <option value="CODE128">Code-128</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">الإجراء</label>
+            <button class="btn btn-primary" id="generateLabelsBtn" style="width:100%"><i data-lucide="sparkles"></i>توليد معاينة</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">بحث في المنتجات</label>
+          <input type="text" class="form-input" id="productSearch" placeholder="بحث بالاسم أو الباركود...">
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <button class="btn btn-ghost" id="loadProductsBtn"><i data-lucide="refresh-cw"></i>تحميل المنتجات</button>
+          <span style="font-size:12.5px;color:var(--text-muted)">محدد: <strong id="selectedCount">0</strong></span>
+        </div>
+
+        <div id="productsList" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--card)">
+          <p style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:40px 20px">اضغط "تحميل المنتجات" لعرض القائمة</p>
+        </div>
+
+        <div class="form-row" style="margin-top:14px">
+          <button class="btn btn-ghost" id="printLabelsBtn" disabled><i data-lucide="printer"></i>طباعة</button>
+          <button class="btn btn-ghost" id="downloadPdfBtn" disabled><i data-lucide="download"></i>تنزيل (طباعة كـ PDF)</button>
+        </div>
+      </div>
+
+      <div class="labels-preview-container" id="labelsPreview" style="display:none">
+        <div class="print-grid" id="printGrid"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let selectedFormat = 'EAN13';
+  let currentBarcodeValue = '';
+  let currentQrDataUrl = '';
+  let products = [];
+  let selectedProducts = {};
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  function computeEAN13CheckDigit(base12) {
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      const digit = parseInt(base12.charAt(i), 10);
+      sum += digit * (i % 2 === 0 ? 1 : 3);
+    }
+    return String((10 - (sum % 10)) % 10);
+  }
+
+  function isValidEAN13(code) {
+    if (String(code).length !== 13) return false;
+    return computeEAN13CheckDigit(code.slice(0, 12)) === code.charAt(12);
+  }
+
+  function computeUPCACheckDigit(base11) {
+    let sum = 0;
+    for (let i = 0; i < 11; i++) {
+      const digit = parseInt(base11.charAt(i), 10);
+      sum += digit * (i % 2 === 0 ? 3 : 1);
+    }
+    return String((10 - (sum % 10)) % 10);
+  }
+
+  function isValidUPCA(code) {
+    if (String(code).length !== 12) return false;
+    return computeUPCACheckDigit(code.slice(0, 11)) === code.charAt(11);
+  }
+
+  function isValidEAN8(code) {
+    if (String(code).length !== 8) return false;
+    let sum = 0;
+    for (let i = 0; i < 7; i++) {
+      sum += parseInt(code.charAt(i), 10) * (i % 2 === 0 ? 3 : 1);
+    }
+    return String((10 - (sum % 10)) % 10) === code.charAt(7);
+  }
+
+  function parseScaleLabel(code) {
+    if (!code || code.length !== 13 || code.charAt(0) !== '2') return null;
+    return {
+      plu: code.slice(1, 6),
+      weight_g: parseInt(code.slice(6, 11), 10),
+      checkDigit: code.charAt(12),
+      weight_kg: parseInt(code.slice(6, 11), 10) / 1000
+    };
+  }
+
+  function generateBarcode() {
+    let value = document.getElementById('barcodeValue').value.trim();
+    const errEl = document.getElementById('barcodeValue');
+    errEl.classList.remove('error');
+
+    if (!value) {
+      errEl.classList.add('error');
+      toast('error', 'أدخل قيمة أولاً');
+      return;
+    }
+
+    if (selectedFormat === 'EAN13') {
+      if (value.length === 12) {
+        value = value + computeEAN13CheckDigit(value);
+        document.getElementById('barcodeValue').value = value;
+      } else if (value.length !== 13) {
+        errEl.classList.add('error');
+        toast('error', 'EAN-13 يتطلب 12 أو 13 رقم');
+        return;
+      }
+    } else if (selectedFormat === 'UPC') {
+      if (value.length === 11) {
+        value = value + computeUPCACheckDigit(value);
+        document.getElementById('barcodeValue').value = value;
+      } else if (value.length !== 12) {
+        errEl.classList.add('error');
+        toast('error', 'UPC-A يتطلب 11 أو 12 رقم');
+        return;
+      }
+    } else if (selectedFormat === 'EAN8') {
+      if (value.length !== 8) {
+        errEl.classList.add('error');
+        toast('error', 'EAN-8 يتطلب 8 أرقام');
+        return;
+      }
+    }
+
+    const svg = document.getElementById('barcodeSvg');
+    const preview = document.getElementById('barcodePreview');
+    const emptyText = document.getElementById('barcodeEmptyText');
+    const badge = document.getElementById('barcodeFormatBadge');
+
+    try {
+      JsBarcode(svg, value, {
+        format: selectedFormat,
+        lineColor: '#000',
+        width: 2,
+        height: 80,
+        displayValue: true,
+        fontSize: 14,
+        font: 'monospace',
+        margin: 10
+      });
+      preview.classList.remove('empty');
+      emptyText.style.display = 'none';
+      svg.style.display = 'block';
+      badge.textContent = selectedFormat;
+      badge.style.display = 'block';
+      currentBarcodeValue = value;
+      document.getElementById('downloadBarcodeBtn').disabled = false;
+      document.getElementById('copyBarcodeBtn').disabled = false;
+      toast('success', 'تم توليد الباركود');
+    } catch (e) {
+      toast('error', 'فشل التوليد: ' + e.message);
+      svg.innerHTML = '';
+      svg.style.display = 'none';
+      preview.classList.add('empty');
+      emptyText.style.display = 'block';
+      emptyText.textContent = 'قيمة غير صالحة للنوع المختار';
+      badge.style.display = 'none';
+    }
+  }
+
+  function generateRandom() {
+    let value = '';
+    if (selectedFormat === 'EAN13') {
+      for (let i = 0; i < 12; i++) value += Math.floor(Math.random() * 10);
+      value = '2' + value.slice(1);
+      value = value + computeEAN13CheckDigit(value);
+    } else if (selectedFormat === 'UPC') {
+      for (let j = 0; j < 11; j++) value += Math.floor(Math.random() * 10);
+      value = value + computeUPCACheckDigit(value);
+    } else if (selectedFormat === 'EAN8') {
+      for (let k = 0; k < 7; k++) value += Math.floor(Math.random() * 10);
+      let sum = 0;
+      for (let m = 0; m < 7; m++) sum += parseInt(value.charAt(m), 10) * (m % 2 === 0 ? 3 : 1);
+      value = value + String((10 - (sum % 10)) % 10);
+    } else {
+      for (let n = 0; n < 10; n++) value += Math.floor(Math.random() * 10);
+    }
+    document.getElementById('barcodeValue').value = value;
+    generateBarcode();
+  }
+
+  function validateBarcode() {
+    const value = document.getElementById('validateValue').value.trim();
+    const resultEl = document.getElementById('validateResult');
+    resultEl.classList.remove('show', 'error');
+
+    if (!value) {
+      resultEl.innerHTML = '<i data-lucide="alert-circle"></i>أدخل قيمة';
+      resultEl.classList.add('show', 'error');
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const result = { valid: false, type: 'unknown', message: '' };
+
+    if (value.length === 13 && value.charAt(0) === '2') {
+      const scale = parseScaleLabel(value);
+      if (scale) {
+        result.valid = true;
+        result.type = 'ميزان (وزن)';
+        result.message = 'PLU: ' + scale.plu + ' — الوزن: ' + scale.weight_kg.toFixed(3) + ' كجم';
+      }
+    } else if (value.length === 13 && /^\d+$/.test(value)) {
+      if (isValidEAN13(value)) {
+        result.valid = true;
+        result.type = 'EAN-13';
+        result.message = 'باركود EAN-13 صالح';
+      } else {
+        result.message = 'Check digit غير صحيح (المتوقع: ' + computeEAN13CheckDigit(value.slice(0, 12)) + ')';
+      }
+    } else if (value.length === 12 && /^\d+$/.test(value)) {
+      if (isValidUPCA(value)) {
+        result.valid = true;
+        result.type = 'UPC-A';
+        result.message = 'باركود UPC-A صالح';
+      } else {
+        result.message = 'Check digit غير صحيح (المتوقع: ' + computeUPCACheckDigit(value.slice(0, 11)) + ')';
+      }
+    } else if (value.length === 8 && /^\d+$/.test(value)) {
+      if (isValidEAN8(value)) {
+        result.valid = true;
+        result.type = 'EAN-8';
+        result.message = 'باركود EAN-8 صالح';
+      } else {
+        result.message = 'EAN-8 Check digit غير صحيح';
+      }
+    } else {
+      result.valid = value.length > 0;
+      result.type = 'Code-128 / عام';
+      result.message = 'باركود بأي طول (Code-128)';
+    }
+
+    if (result.valid) {
+      resultEl.innerHTML = '<i data-lucide="check-circle"></i><strong>صالح</strong> — ' + esc(result.type) + '<br><small>' + esc(result.message) + '</small>';
+      resultEl.classList.add('show');
+    } else {
+      resultEl.innerHTML = '<i data-lucide="x-circle"></i><strong>غير صالح</strong><br><small>' + esc(result.message) + '</small>';
+      resultEl.classList.add('show', 'error');
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function generateQR() {
+    const value = document.getElementById('qrValue').value.trim();
+    if (!value) {
+      toast('error', 'أدخل نصاً أولاً');
+      return;
+    }
+    const preview = document.getElementById('qrPreview');
+    preview.innerHTML = '';
+    preview.classList.remove('empty');
+
+    try {
+      new QRCode(preview, {
+        text: value,
+        width: 220,
+        height: 220,
+        colorDark: '#0B2C4D',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      setTimeout(() => {
+        const img = preview.querySelector('img');
+        const canvas = preview.querySelector('canvas');
+        if (canvas) {
+          currentQrDataUrl = canvas.toDataURL('image/png');
+        } else if (img) {
+          currentQrDataUrl = img.src;
+        }
+        document.getElementById('downloadQrBtn').disabled = !currentQrDataUrl;
+        document.getElementById('printQrBtn').disabled = false;
+      }, 100);
+      toast('success', 'تم توليد QR');
+    } catch (e) {
+      preview.innerHTML = '<span style="color:var(--danger)">فشل: ' + esc(e.message) + '</span>';
+      preview.classList.add('empty');
+    }
+  }
+
+  function clearQr() {
+    document.getElementById('qrValue').value = '';
+    const preview = document.getElementById('qrPreview');
+    preview.innerHTML = '<span>سيظهر QR هنا</span>';
+    preview.classList.add('empty');
+    currentQrDataUrl = '';
+    document.getElementById('downloadQrBtn').disabled = true;
+    document.getElementById('printQrBtn').disabled = true;
+  }
+
+  function downloadQr() {
+    if (!currentQrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = currentQrDataUrl;
+    a.download = 'qrcode-' + Date.now() + '.png';
+    a.click();
+    toast('success', 'تم التنزيل');
+  }
+
+  function printQr() {
+    if (!currentQrDataUrl) return;
+    const w = window.open('', '_blank');
+    if (!w) { toast('error', 'المتصفح منع النافذة'); return; }
+    w.document.write('<html dir="rtl"><head><title>QR Code</title><style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:Tahoma}img{max-width:80vw;max-height:80vh}</style></head><body><img src="' + currentQrDataUrl + '" onload="window.print();window.close()"></body></html>');
+    w.document.close();
+  }
+
+  function downloadBarcode() {
+    if (!currentBarcodeValue) return;
+    const svg = document.getElementById('barcodeSvg');
+    const clone = svg.cloneNode(true);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const data = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([data], { type: 'image/svg+xml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'barcode-' + currentBarcodeValue + '.svg';
+    a.click();
+    toast('success', 'تم التنزيل');
+  }
+
+  function copyBarcode() {
+    if (!currentBarcodeValue) return;
+    navigator.clipboard.writeText(currentBarcodeValue).then(() => {
+      toast('success', 'تم النسخ');
+    }).catch(() => {
+      toast('error', 'فشل النسخ');
+    });
+  }
+
+  async function loadProductsForLabels() {
+    const listEl = document.getElementById('productsList');
+    listEl.innerHTML = '<div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>';
+
+    const res = await sb.from('products')
+      .select('id, name, barcode, plu_code, sale_price')
+      .eq('company_id', session.company_id)
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('name')
+      .limit(500);
+
+    products = res.data || [];
+    if (products.length === 0) {
+      listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px 20px;font-size:12.5px">لا توجد منتجات</p>';
+      return;
+    }
+    renderProductsList();
+  }
+
+  function renderProductsList() {
+    const listEl = document.getElementById('productsList');
+    const q = document.getElementById('productSearch').value.toLowerCase().trim();
+    let filtered = products;
+    if (q) {
+      filtered = products.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.barcode || '').includes(q) ||
+        (p.plu_code || '').includes(q)
+      );
+    }
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:30px 20px;font-size:12.5px">لا نتائج</p>';
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(p => {
+      const isChecked = selectedProducts[p.id];
+      const hasBarcode = !!(p.barcode || p.plu_code);
+      return '<div class="product-item' + (isChecked ? ' selected' : '') + (hasBarcode ? '' : ' no-barcode') + '" data-product-id="' + p.id + '">' +
+        '<input type="checkbox" data-check-id="' + p.id + '"' + (isChecked ? ' checked' : '') + (hasBarcode ? '' : ' disabled') + '>' +
+        '<div class="product-item-info">' +
+          '<div class="product-item-name">' + esc(p.name) + '</div>' +
+          '<div class="product-item-barcode">' + esc(p.barcode || p.plu_code || 'لا يوجد باركود') + '</div>' +
+        '</div>' +
+        '<div class="product-item-price">' + Number(p.sale_price || 0).toFixed(2) + ' ج.م</div>' +
+      '</div>';
+    }).join('');
+
+    listEl.querySelectorAll('.product-item').forEach(item => {
+      const cb = item.querySelector('input[type="checkbox"]');
+      if (cb.disabled) return;
+      item.onclick = (e) => {
+        if (e.target !== cb) cb.checked = !cb.checked;
+        toggleProduct(cb.dataset.checkId, cb.checked);
+      };
+    });
+    updateSelectedCount();
+  }
+
+  function toggleProduct(pid, checked) {
+    if (checked) selectedProducts[pid] = true;
+    else delete selectedProducts[pid];
+    updateSelectedCount();
+    const item = document.querySelector('.product-item[data-product-id="' + pid + '"]');
+    if (item) item.classList.toggle('selected', checked);
+  }
+
+  function updateSelectedCount() {
+    const count = Object.keys(selectedProducts).length;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('printLabelsBtn').disabled = count === 0;
+    document.getElementById('downloadPdfBtn').disabled = count === 0;
+  }
+
+  function selectAllProducts() {
+    products.forEach(p => {
+      if (p.barcode || p.plu_code) selectedProducts[p.id] = true;
+    });
+    renderProductsList();
+    toast('success', 'تم تحديد كل المنتجات ذات الباركود');
+  }
+
+  function clearSelection() {
+    selectedProducts = {};
+    renderProductsList();
+    toast('info', 'تم مسح التحديد');
+  }
+
+  function generateLabelsPreview() {
+    const count = Math.max(1, Math.min(50, Number(document.getElementById('labelCount').value) || 3));
+    const format = document.getElementById('labelFormat').value;
+    const selectedIds = Object.keys(selectedProducts);
+    if (selectedIds.length === 0) {
+      toast('warning', 'اختر منتجات أولاً');
+      return;
+    }
+
+    const grid = document.getElementById('printGrid');
+    grid.innerHTML = '';
+    let index = 0;
+
+    selectedIds.forEach(pid => {
+      const p = products.find(x => x.id === pid);
+      if (!p) return;
+      const barcodeValue = p.barcode || p.plu_code;
+      if (!barcodeValue) return;
+
+      let actualFormat = format;
+      if (format === 'auto') {
+        if (barcodeValue.length === 13 && isValidEAN13(barcodeValue)) actualFormat = 'EAN13';
+        else if (barcodeValue.length === 12 && isValidUPCA(barcodeValue)) actualFormat = 'UPC';
+        else if (barcodeValue.length === 8 && isValidEAN8(barcodeValue)) actualFormat = 'EAN8';
+        else actualFormat = 'CODE128';
+      }
+
+      for (let c = 0; c < count; c++) {
+        const label = document.createElement('div');
+        label.className = 'print-label';
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'print-label-name';
+        nameDiv.textContent = p.name;
+        label.appendChild(nameDiv);
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        label.appendChild(svg);
+
+        const priceDiv = document.createElement('div');
+        priceDiv.className = 'print-label-price';
+        priceDiv.textContent = Number(p.sale_price || 0).toFixed(2) + ' ج.م';
+        label.appendChild(priceDiv);
+
+        grid.appendChild(label);
+
+        try {
+          JsBarcode(svg, barcodeValue, {
+            format: actualFormat,
+            lineColor: '#000',
+            width: 1.2,
+            height: 35,
+            displayValue: true,
+            fontSize: 9,
+            font: 'monospace',
+            margin: 2
+          });
+        } catch (e) {
+          svg.style.display = 'none';
+        }
+        index++;
+      }
+    });
+
+    document.getElementById('labelsPreview').style.display = 'block';
+    if (window.lucide) lucide.createIcons();
+    toast('success', 'تم إنشاء ' + index + ' ملصق');
+  }
+
+  function printLabels() {
+    if (document.getElementById('labelsPreview').style.display === 'none') {
+      generateLabelsPreview();
+      setTimeout(() => window.print(), 400);
+    } else {
+      window.print();
+    }
+  }
+
+  function downloadPdf() {
+    if (document.getElementById('labelsPreview').style.display === 'none') {
+      generateLabelsPreview();
+    }
+    toast('info', 'اختر "Save as PDF" في نافذة الطباعة');
+    setTimeout(() => window.print(), 400);
+  }
+
+  async function init() {
+    // ⭐ كشف platform admin
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) {
+          console.log('[Barcode] Platform admin — redirecting to admin.html');
+          location.href = 'admin.html';
+          return;
+        }
+      }
+    } catch (e) { console.warn('[Barcode] admin check failed:', e); }
+
+    if (window.Refad && Refad.requireSession) {
+      session = await Refad.requireSession();
+    }
+    if (!session) { location.href = 'index.html'; return; }
+    if (!session.company_id) {
+      console.warn('[Barcode] No company_id');
+      location.href = 'index.html';
+      return;
+    }
+
+    const branchNameEl = document.getElementById('branchName');
+    if (branchNameEl) {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+
+    // Format buttons
+    document.querySelectorAll('[data-format]').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('[data-format]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedFormat = btn.dataset.format;
+        const hint = document.getElementById('barcodeHint');
+        if (selectedFormat === 'EAN13') hint.textContent = 'EAN-13 يتطلب 12 أو 13 رقم';
+        else if (selectedFormat === 'UPC') hint.textContent = 'UPC-A يتطلب 11 أو 12 رقم';
+        else if (selectedFormat === 'EAN8') hint.textContent = 'EAN-8 يتطلب 8 أرقام';
+        else hint.textContent = 'Code-128 يقبل أي نص';
+
+        if (document.getElementById('barcodeValue').value.trim()) {
+          generateBarcode();
+        }
+      };
+    });
+
+    // Barcode events
+    document.getElementById('generateBtn').onclick = generateBarcode;
+    document.getElementById('genRandomBtn').onclick = generateRandom;
+    document.getElementById('downloadBarcodeBtn').onclick = downloadBarcode;
+    document.getElementById('copyBarcodeBtn').onclick = copyBarcode;
+    document.getElementById('barcodeValue').addEventListener('keydown', e => {
+      if (e.key === 'Enter') generateBarcode();
+    });
+
+    // Validator events
+    document.getElementById('validateBtn').onclick = validateBarcode;
+    document.getElementById('validateValue').addEventListener('keydown', e => {
+      if (e.key === 'Enter') validateBarcode();
+    });
+
+    // QR events
+    document.getElementById('generateQrBtn').onclick = generateQR;
+    document.getElementById('clearQrBtn').onclick = clearQr;
+    document.getElementById('downloadQrBtn').onclick = downloadQr;
+    document.getElementById('printQrBtn').onclick = printQr;
+
+    // Products events
+    document.getElementById('loadProductsBtn').onclick = loadProductsForLabels;
+    document.getElementById('productSearch').oninput = renderProductsList;
+    document.getElementById('selectAllProductsBtn').onclick = selectAllProducts;
+    document.getElementById('clearSelectionBtn').onclick = clearSelection;
+    document.getElementById('generateLabelsBtn').onclick = generateLabelsPreview;
+    document.getElementById('printLabelsBtn').onclick = printLabels;
+    document.getElementById('downloadPdfBtn').onclick = downloadPdf;
+
+    // Refresh
+    document.getElementById('refreshBtn').onclick = () => {
+      toast('info', 'جاري التحديث...');
+      loadProductsForLabels();
+      toast('success', 'تم التحديث');
+    };
+
+    // ⭐ settings-changed listener
+    window.addEventListener('refad:settings-changed', () => {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      if (branchNameEl) branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

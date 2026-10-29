@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>التقارير — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root {
+  --primary:#0B2C4D; --primary-light:#1e4a73; --primary-dark:#061a2e;
+  --accent:#14B8A6; --accent-dark:#0d9488; --accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B; --gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981; --success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6; --info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6; --purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9; --bg-soft:#f8fafc; --bg-card:#ffffff;
+  --card:#ffffff;
+  --text:#0f172a; --text-muted:#64748b;
+  --border:#e2e8f0; --border-soft:#f1f5f9;
+  --radius:14px; --radius-sm:10px; --radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  font-family:var(--font-family);
+  background:var(--bg);color:var(--text);
+  min-height:100vh;font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  transition:background 0.2s,color 0.2s;
+}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:white}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1600px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.info::before{background:var(--info)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-card.purple::before{background:var(--purple)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.stat-label svg{width:14px;height:14px;opacity:0.6}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11.5px;color:var(--text-muted);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.trend{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px}
+.trend.up{background:var(--success-soft);color:var(--success)}
+.trend.down{background:var(--danger-soft);color:var(--danger)}
+.trend.flat{background:var(--bg-soft);color:var(--text-muted)}
+.trend svg{width:12px;height:12px}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-title .count-badge{background:var(--accent-soft);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:800}
+.card-body{padding:20px}
+
+.tabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--border);overflow-x:auto;background:var(--card)}
+.tab{padding:14px 18px;background:none;border:none;color:var(--text-muted);font-size:13px;font-weight:700;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;display:flex;align-items:center;gap:6px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab svg{width:15px;height:15px}
+.tab .count-badge{background:var(--bg-soft);color:var(--text-muted);font-size:10px;padding:2px 6px;border-radius:8px;font-weight:800}
+.tab.active .count-badge{background:var(--accent-soft);color:var(--accent)}
+
+.date-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 20px;background:var(--bg-soft);border-bottom:1px solid var(--border)}
+.date-filters input{padding:9px 12px;font-size:13px;border-radius:var(--radius-xs);border:1.5px solid var(--border);background:var(--card);color:var(--text)}
+.date-filters input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.quick-ranges{display:flex;gap:4px;flex-wrap:wrap}
+.quick-range-btn{padding:6px 12px;font-size:12px;font-weight:700;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;transition:all 0.15s}
+.quick-range-btn:hover{border-color:var(--accent);color:var(--accent)}
+.quick-range-btn.active{background:var(--accent);color:white;border-color:var(--accent)}
+
+.chart-container{height:280px;position:relative;padding:20px 0 40px}
+.chart-bars{display:flex;align-items:flex-end;justify-content:space-around;height:100%;gap:6px;padding:0 10px;overflow-x:auto}
+.chart-bar-wrap{flex:1;min-width:24px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;position:relative}
+.chart-bar{width:100%;max-width:50px;background:linear-gradient(180deg,var(--accent),var(--accent-dark));border-radius:6px 6px 0 0;transition:all 0.3s;min-height:4px;cursor:pointer;position:relative}
+.chart-bar:hover{filter:brightness(1.15);transform:scaleY(1.02)}
+.chart-bar-value{font-size:10px;font-weight:700;color:var(--text)}
+.chart-label{font-size:10px;color:var(--text-muted);font-weight:600;white-space:nowrap}
+.chart-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--primary);color:white;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 0.15s;margin-bottom:4px;z-index:10}
+.chart-bar:hover .chart-tooltip{opacity:1}
+
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg-soft)}
+th{padding:12px 16px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tbody tr{transition:background 0.15s}
+tbody tr:hover{background:var(--bg-soft)}
+tbody tr:last-child td{border-bottom:none}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+.badge-accent{background:var(--accent-soft);color:var(--accent)}
+
+.rank{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:12px;font-weight:800;background:var(--bg-soft);color:var(--text-muted)}
+.rank.top1{background:linear-gradient(135deg,#FFD700,var(--gold));color:white;box-shadow:0 2px 8px var(--gold-soft)}
+.rank.top2{background:linear-gradient(135deg,#E5E7EB,#94a3b8);color:white;box-shadow:0 2px 8px rgba(148,163,184,0.4)}
+.rank.top3{background:linear-gradient(135deg,#CD7F32,#b45309);color:white;box-shadow:0 2px 8px rgba(180,83,9,0.4)}
+
+/* ═══ HOUR COMPARE ═══ */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.compare-card{background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
+.compare-card-title{font-size:12px;font-weight:800;margin-bottom:8px;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+.compare-card-title svg{width:14px;height:14px}
+.compare-card-value{font-size:20px;font-weight:800;margin-bottom:4px}
+.compare-card-sub{font-size:11.5px;color:var(--text-muted)}
+
+.compare-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11.5px}
+.compare-bar-label{min-width:60px;font-weight:700;font-family:monospace}
+.compare-bar-track{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;position:relative;display:flex;gap:2px}
+.compare-bar-current{height:100%;background:var(--accent);border-radius:4px 0 0 4px;transition:width 0.3s}
+.compare-bar-prev{height:100%;background:var(--info);border-radius:0 4px 4px 0;transition:width 0.3s;opacity:0.7}
+.compare-bar-val{min-width:70px;text-align:left;font-weight:700;font-family:monospace;font-size:11px}
+.compare-bar-change{min-width:50px;text-align:left;font-size:11px;font-weight:800}
+.compare-bar-change.up{color:var(--success)}
+.compare-bar-change.down{color:var(--danger)}
+.compare-bar-change.flat{color:var(--text-muted)}
+
+/* ═══ HEATMAP ═══ */
+.heatmap-wrap{overflow-x:auto;padding:4px}
+.heatmap-table{border-collapse:separate;border-spacing:3px;width:100%;min-width:700px}
+.heatmap-table th{padding:6px 4px;font-size:10.5px;font-weight:800;color:var(--text-muted);text-align:center;background:none;border:none;white-space:nowrap}
+.heatmap-table th.day-label{text-align:right;padding-right:8px;min-width:70px}
+.heatmap-cell{width:24px;height:24px;border-radius:5px;cursor:pointer;transition:all 0.15s;position:relative;border:none;padding:0}
+.heatmap-cell:hover{transform:scale(1.15);box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:2}
+.heatmap-cell[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--primary);color:white;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;white-space:nowrap;margin-bottom:4px;z-index:10}
+.heatmap-legend{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:var(--text-muted)}
+.heatmap-legend-gradient{display:flex;height:12px;border-radius:6px;overflow:hidden;flex:1;max-width:200px}
+.heatmap-legend-gradient>div{flex:1}
+
+/* ═══ BEST HOURS ═══ */
+.best-hours-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.best-hour-card{background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;position:relative;overflow:hidden}
+.best-hour-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.best-hour-card.rank-1::before{background:var(--gold)}
+.best-hour-card.rank-2::before{background:#94a3b8}
+.best-hour-card.rank-3::before{background:#b45309}
+.best-hour-rank{position:absolute;top:8px;left:10px;font-size:22px;font-weight:900;opacity:0.15}
+.best-hour-label{font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:4px}
+.best-hour-time{font-size:18px;font-weight:800;margin-bottom:4px}
+.best-hour-value{font-size:12.5px;color:var(--text-muted);font-weight:600}
+.best-hour-days{font-size:11px;color:var(--text-muted);margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+.best-hour-day{background:var(--bg);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:48px;height:48px;margin-bottom:12px;opacity:0.5}
+.empty-state h3{font-size:15px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:12.5px}
+.loading-state{padding:40px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px;border-top:1px solid var(--border);background:var(--bg-soft);flex-wrap:wrap}
+.pagination button{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+.pagination button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pagination button.active{background:var(--accent);color:white;border-color:var(--accent)}
+.pagination button:disabled{opacity:0.4;cursor:not-allowed}
+.pagination .page-info{font-size:12px;color:var(--text-muted);margin:0 8px}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast 0.3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}
+.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}
+.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}
+.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}
+.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+@media (max-width:1024px){.refad-main-content{margin-right:0!important}}
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .date-filters{flex-direction:column;align-items:stretch}
+  .chart-container{height:220px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .compare-grid{grid-template-columns:1fr}
+}
+@media (max-width:480px){
+  .stat-value{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div><h1>التقارير</h1><div class="topbar-subtitle" id="branchName">—</div></div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-ghost" id="exportBtn"><i data-lucide="download"></i><span>تصدير CSV</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label"><i data-lucide="banknote"></i>إجمالي المبيعات</div>
+        <div class="stat-value" id="statSales" style="color:var(--accent)">—</div>
+        <div class="stat-sub" id="statSalesSub">—</div>
+      </div>
+      <div class="stat-card info">
+        <div class="stat-label"><i data-lucide="receipt"></i>عدد الفواتير</div>
+        <div class="stat-value" id="statInvoices" style="color:var(--info)">—</div>
+        <div class="stat-sub" id="statInvoicesSub">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label"><i data-lucide="trending-up"></i>متوسط الفاتورة</div>
+        <div class="stat-value" id="statAvg">—</div>
+        <div class="stat-sub" id="statAvgSub">لكل فاتورة</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label"><i data-lucide="percent"></i>هامش الربح الفعلي</div>
+        <div class="stat-value" id="statProfit" style="color:var(--success)">—</div>
+        <div class="stat-sub" id="statProfitSub">من الأصناف المباعة</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" data-tab="sales"><i data-lucide="receipt"></i>المبيعات اليومية</button>
+        <button class="tab" data-tab="hourly"><i data-lucide="clock"></i>المبيعات بالساعة</button>
+        <button class="tab" data-tab="products"><i data-lucide="flame"></i>المنتجات الأكثر مبيعاً</button>
+        <button class="tab" data-tab="lowstock"><i data-lucide="alert-triangle"></i>مخزون منخفض <span class="count-badge" id="tabCountLow">0</span></button>
+        <button class="tab" data-tab="expiring"><i data-lucide="calendar-clock"></i>قرب الانتهاء <span class="count-badge" id="tabCountExp">0</span></button>
+        <button class="tab" data-tab="balances"><i data-lucide="wallet"></i>الأرصدة</button>
+      </div>
+
+      <div class="date-filters" id="dateFilters">
+        <div class="quick-ranges">
+          <button class="quick-range-btn" data-range="7">آخر 7 أيام</button>
+          <button class="quick-range-btn active" data-range="30">آخر 30 يوم</button>
+          <button class="quick-range-btn" data-range="90">آخر 3 شهور</button>
+          <button class="quick-range-btn" data-range="this_month">هذا الشهر</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:250px">
+          <label style="font-size:12.5px;font-weight:700;white-space:nowrap">من:</label>
+          <input type="date" id="dateFrom" style="flex:1">
+          <label style="font-size:12.5px;font-weight:700;white-space:nowrap">إلى:</label>
+          <input type="date" id="dateTo" style="flex:1">
+          <button class="btn btn-primary btn-sm" id="applyFilter"><i data-lucide="filter"></i>تطبيق</button>
+        </div>
+      </div>
+
+      <!-- ═══ PANEL: SALES ═══ -->
+      <div data-panel="sales">
+        <div class="card-body">
+          <div class="chart-container">
+            <div class="chart-bars" id="salesChart">
+              <div class="loading-state" style="width:100%"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap" style="border-top:1px solid var(--border)">
+          <table>
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>عدد الفواتير</th>
+                <th>المجموع الفرعي</th>
+                <th>الخصم</th>
+                <th>الإجمالي</th>
+                <th>المدفوع</th>
+                <th>الربح</th>
+              </tr>
+            </thead>
+            <tbody id="salesTable">
+              <tr><td colspan="7" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ PANEL: HOURLY ═══ -->
+      <div data-panel="hourly" style="display:none">
+
+        <!-- Stats -->
+        <div class="card-body" style="padding:20px 20px 0">
+          <div class="stats-grid" style="margin-bottom:16px">
+            <div class="stat-card gold">
+              <div class="stat-label"><i data-lucide="zap"></i>أعلى ساعة</div>
+              <div class="stat-value" id="hourPeak" style="color:var(--gold)">—</div>
+              <div class="stat-sub" id="hourPeakSub">—</div>
+            </div>
+            <div class="stat-card info">
+              <div class="stat-label"><i data-lucide="bar-chart-3"></i>متوسط/ساعة</div>
+              <div class="stat-value" id="hourAvg" style="color:var(--info)">—</div>
+              <div class="stat-sub">خلال الساعات النشطة</div>
+            </div>
+            <div class="stat-card success">
+              <div class="stat-label"><i data-lucide="receipt"></i>إجمالي الفواتير</div>
+              <div class="stat-value" id="hourTotalInvoices" style="color:var(--success)">—</div>
+              <div class="stat-sub" id="hourTotalInvoicesSub">—</div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-label"><i data-lucide="flame"></i>ساعات الذروة</div>
+              <div class="stat-value" id="hourBusyCount" style="color:var(--purple)">—</div>
+              <div class="stat-sub" id="hourBusySub">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="card-body" style="padding:0 20px">
+          <div style="font-size:13px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+            <i data-lucide="bar-chart-3" style="width:16px;height:16px;color:var(--accent)"></i>
+            توزيع المبيعات على الساعات
+          </div>
+          <div class="chart-container" style="height:240px">
+            <div class="chart-bars" id="hourlyChart">
+              <div class="loading-state" style="width:100%"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Compare -->
+        <div class="card-body" style="padding:0 20px 20px">
+          <div style="font-size:13px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            <i data-lucide="git-compare" style="width:16px;height:16px;color:var(--info)"></i>
+            مقارنة الفترة الحالية بالفترة السابقة (لكل ساعة)
+            <span style="font-size:11px;color:var(--text-muted);font-weight:600" id="comparePeriodLabel"></span>
+          </div>
+          <div class="compare-grid">
+            <div class="compare-card">
+              <div class="compare-card-title"><i data-lucide="calendar" style="color:var(--accent)"></i>الفترة الحالية</div>
+              <div class="compare-card-value" id="compareCurrentTotal" style="color:var(--accent)">—</div>
+              <div class="compare-card-sub" id="compareCurrentSub">—</div>
+            </div>
+            <div class="compare-card">
+              <div class="compare-card-title"><i data-lucide="calendar" style="color:var(--info)"></i>الفترة السابقة</div>
+              <div class="compare-card-value" id="comparePrevTotal" style="color:var(--info)">—</div>
+              <div class="compare-card-sub" id="comparePrevSub">—</div>
+            </div>
+          </div>
+          <div id="compareBars">
+            <div class="loading-state"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Heatmap أسبوعي -->
+        <div class="card-body" style="padding:0 20px 20px">
+          <div style="font-size:13px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            <i data-lucide="grid-3x3" style="width:16px;height:16px;color:var(--purple)"></i>
+            Heatmap أسبوعي (اليوم × الساعة)
+          </div>
+          <div class="heatmap-wrap" id="heatmapWrap">
+            <div class="loading-state"><div class="spinner"></div></div>
+          </div>
+          <div class="heatmap-legend">
+            <span>أقل</span>
+            <div class="heatmap-legend-gradient">
+              <div style="background:var(--bg-soft)"></div>
+              <div style="background:rgba(20,184,166,0.2)"></div>
+              <div style="background:rgba(20,184,166,0.4)"></div>
+              <div style="background:rgba(20,184,166,0.6)"></div>
+              <div style="background:rgba(20,184,166,0.8)"></div>
+              <div style="background:var(--accent)"></div>
+            </div>
+            <span>أكثر</span>
+          </div>
+        </div>
+
+        <!-- Best Hours -->
+        <div class="card-body" style="padding:0 20px 20px">
+          <div style="font-size:13px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            <i data-lucide="crown" style="width:16px;height:16px;color:var(--gold)"></i>
+            أفضل 3 ساعات في الأسبوع
+          </div>
+          <div class="best-hours-grid" id="bestHoursGrid">
+            <div class="loading-state" style="grid-column:1/-1"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap" style="border-top:1px solid var(--border)">
+          <table>
+            <thead>
+              <tr>
+                <th>الساعة</th>
+                <th>عدد الفواتير</th>
+                <th>إجمالي المبيعات</th>
+                <th>متوسط الفاتورة</th>
+                <th>النسبة من الإجمالي</th>
+                <th>التغيير عن السابق</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="hourlyTable">
+              <tr><td colspan="7" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ PANEL: PRODUCTS ═══ -->
+      <div data-panel="products" style="display:none">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>المنتج</th>
+                <th>الكمية المباعة</th>
+                <th>سعر الوحدة (متوسط)</th>
+                <th>إجمالي الإيراد</th>
+                <th>الربح التقديري</th>
+              </tr>
+            </thead>
+            <tbody id="productsTable">
+              <tr><td colspan="6" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="productsPagination" style="display:none"></div>
+      </div>
+
+      <!-- ═══ PANEL: LOW STOCK ═══ -->
+      <div data-panel="lowstock" style="display:none">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>المنتج</th>
+                <th>المخزون</th>
+                <th>الحد الأدنى</th>
+                <th>النقص</th>
+                <th>تكلفة إعادة الطلب التقديرية</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="lowStockTable">
+              <tr><td colspan="6" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ PANEL: EXPIRING ═══ -->
+      <div data-panel="expiring" style="display:none">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>المنتج</th>
+                <th>رقم الدفعة</th>
+                <th>الكمية</th>
+                <th>سعر البيع</th>
+                <th>القيمة المعرضة للخطر</th>
+                <th>تاريخ الانتهاء</th>
+                <th>الأيام المتبقية</th>
+              </tr>
+            </thead>
+            <tbody id="expiringTable">
+              <tr><td colspan="7" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ PANEL: BALANCES ═══ -->
+      <div data-panel="balances" style="display:none">
+        <div class="tabs" style="padding:0;border-bottom:1px solid var(--border);background:var(--bg-soft)">
+          <button class="tab active" data-subtab="customers"><i data-lucide="users"></i>العملاء <span class="count-badge" id="subCountCustomers">0</span></button>
+          <button class="tab" data-subtab="suppliers"><i data-lucide="building-2"></i>الموردون <span class="count-badge" id="subCountSuppliers">0</span></button>
+        </div>
+        <div data-subpanel="customers">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>العميل</th>
+                  <th>الهاتف</th>
+                  <th>الرصيد</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody id="customersBalTable">
+                <tr><td colspan="4" class="loading-state"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div data-subpanel="suppliers" style="display:none">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>المورد</th>
+                  <th>الهاتف</th>
+                  <th>الرصيد</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody id="suppliersBalTable">
+                <tr><td colspan="4" class="loading-state"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let currentTab = 'sales';
+  let currentBalSubtab = 'customers';
+  let dataCache = {};
+  let productsPage = 1;
+  const PRODUCTS_PAGE_SIZE = 25;
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
+  const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // DATE HELPERS
+  // ═══════════════════════════════════════════════════════════
+  function setRangePreset(preset) {
+    const today = new Date();
+    let from, to = today.toISOString().slice(0, 10);
+
+    if (preset === 'this_month') {
+      const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      from = firstOfMonth.toISOString().slice(0, 10);
+    } else {
+      const days = Number(preset) || 30;
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      from = d.toISOString().slice(0, 10);
+    }
+
+    document.getElementById('dateFrom').value = from;
+    document.getElementById('dateTo').value = to;
+  }
+
+  function getDateRange() {
+    let from = document.getElementById('dateFrom').value;
+    let to = document.getElementById('dateTo').value;
+    if (!from) {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      from = d.toISOString().slice(0, 10);
+      document.getElementById('dateFrom').value = from;
+    }
+    if (!to) {
+      to = new Date().toISOString().slice(0, 10);
+      document.getElementById('dateTo').value = to;
+    }
+    return { from, to };
+  }
+
+  function getPreviousRange(range) {
+    const from = new Date(range.from);
+    const to = new Date(range.to);
+    const days = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+    const prevTo = new Date(from.getTime() - 24 * 60 * 60 * 1000);
+    const prevFrom = new Date(prevTo.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+    return {
+      from: prevFrom.toISOString().slice(0, 10),
+      to: prevTo.toISOString().slice(0, 10)
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FORMAT HELPERS
+  // ═══════════════════════════════════════════════════════════
+  function fmtHour(h) {
+    return String(h).padStart(2, '0') + ':00';
+  }
+  function fmtHour12(h) {
+    const period = h < 12 ? 'ص' : 'م';
+    const hh = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+    return hh + ':00 ' + period;
+  }
+  const DAY_NAMES = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const DAY_SHORT = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+
+  // ═══════════════════════════════════════════════════════════
+  // LOADERS
+  // ═══════════════════════════════════════════════════════════
+  async function loadSales(range) {
+    const res = await sb.from('sales_invoices')
+      .select('id, invoice_date, subtotal, discount, total, paid, status')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id)
+      .gte('invoice_date', range.from + 'T00:00:00')
+      .lte('invoice_date', range.to + 'T23:59:59')
+      .neq('status', 'voided');
+    if (res.error) { toast('error', 'فشل تحميل المبيعات'); return []; }
+    return res.data || [];
+  }
+
+  async function loadSalesForRange(range) {
+    return loadSales(range);
+  }
+
+  async function loadTopProducts(range) {
+    const invRes = await sb.from('sales_invoices')
+      .select('id')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id)
+      .gte('invoice_date', range.from + 'T00:00:00')
+      .lte('invoice_date', range.to + 'T23:59:59')
+      .in('status', ['paid', 'partial', 'credit']);
+    if (invRes.error) return [];
+
+    const invoiceIds = (invRes.data || []).map(i => i.id);
+    if (invoiceIds.length === 0) return [];
+
+    const itemsRes = await sb.from('sales_invoice_items')
+      .select('product_id, quantity, total')
+      .in('invoice_id', invoiceIds);
+    if (itemsRes.error) return [];
+
+    const items = itemsRes.data || [];
+
+    const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))];
+    let productMap = {};
+    if (productIds.length > 0) {
+      const prodRes = await sb.from('products')
+        .select('id, name, cost_price, sale_price')
+        .in('id', productIds);
+      (prodRes.data || []).forEach(p => { productMap[p.id] = p; });
+    }
+
+    const map = {};
+    items.forEach(row => {
+      const pid = row.product_id;
+      if (!pid) return;
+      const product = productMap[pid] || {};
+      if (!map[pid]) {
+        map[pid] = {
+          product_id: pid,
+          name: product.name || 'منتج',
+          cost_price: Number(product.cost_price || 0),
+          qty: 0,
+          revenue: 0
+        };
+      }
+      map[pid].qty += Number(row.quantity || 0);
+      map[pid].revenue += Number(row.total || 0);
+    });
+
+    return Object.values(map)
+      .map(p => ({
+        ...p,
+        avg_price: p.qty > 0 ? p.revenue / p.qty : 0,
+        profit: p.revenue - (p.qty * p.cost_price)
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }
+
+  async function loadLowStock() {
+    const res = await sb.from('v_low_stock')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .order('on_hand', { ascending: true });
+    return res.data || [];
+  }
+
+  async function loadExpiring() {
+    const res = await sb.from('v_expiring_lots')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id)
+      .order('expiry_date', { ascending: true });
+
+    const lots = res.data || [];
+    if (lots.length === 0) return [];
+
+    const productIds = [...new Set(lots.map(l => l.product_id).filter(Boolean))];
+    if (productIds.length === 0) return lots;
+
+    const prodRes = await sb.from('products')
+      .select('id, name, sale_price, cost_price')
+      .in('id', productIds);
+    const productMap = {};
+    (prodRes.data || []).forEach(p => { productMap[p.id] = p; });
+
+    return lots.map(l => ({
+      ...l,
+      products: productMap[l.product_id] || null
+    }));
+  }
+
+  async function loadBalances(type) {
+    const res = await sb.from('v_party_balances')
+      .select('party_id, name, phone, balance')
+      .eq('party_type', type)
+      .eq('company_id', session.company_id)
+      .order('balance', { ascending: false });
+    return res.data || [];
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HOURLY HELPERS
+  // ═══════════════════════════════════════════════════════════
+  function aggregateByHour(sales) {
+    const map = {};
+    for (let h = 0; h < 24; h++) {
+      map[h] = { hour: h, count: 0, total: 0, subtotal: 0, discount: 0, paid: 0 };
+    }
+    sales.forEach(s => {
+      if (!s.invoice_date) return;
+      const h = new Date(s.invoice_date).getHours();
+      map[h].count++;
+      map[h].total += Number(s.total || 0);
+      map[h].subtotal += Number(s.subtotal || 0);
+      map[h].discount += Number(s.discount || 0);
+      map[h].paid += Number(s.paid || 0);
+    });
+    return map;
+  }
+
+  function aggregateByDayHour(sales) {
+    // map[dayIndex][hour] = { count, total }
+    const map = {};
+    for (let d = 0; d < 7; d++) {
+      map[d] = {};
+      for (let h = 0; h < 24; h++) {
+        map[d][h] = { count: 0, total: 0 };
+      }
+    }
+    sales.forEach(s => {
+      if (!s.invoice_date) return;
+      const dt = new Date(s.invoice_date);
+      const d = dt.getDay(); // 0=Sun..6=Sat
+      const h = dt.getHours();
+      map[d][h].count++;
+      map[d][h].total += Number(s.total || 0);
+    });
+    return map;
+  }
+
+  function findBestHours(dayHourMap) {
+    // أفضل 3 ساعات عبر الأسبوع (مجموع كل الأيام لكل ساعة)
+    const hourTotals = {};
+    for (let h = 0; h < 24; h++) {
+      let total = 0, count = 0;
+      const days = [];
+      for (let d = 0; d < 7; d++) {
+        const v = dayHourMap[d][h];
+        if (v.count > 0) days.push({ day: d, total: v.total, count: v.count });
+        total += v.total;
+        count += v.count;
+      }
+      hourTotals[h] = { hour: h, total, count, days };
+    }
+    const sorted = Object.values(hourTotals).filter(x => x.count > 0).sort((a, b) => b.total - a.total);
+    return sorted.slice(0, 3).map((x, idx) => ({
+      ...x,
+      rank: idx + 1,
+      topDay: x.days.sort((a, b) => b.total - a.total)[0]
+    }));
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER STATS
+  // ═══════════════════════════════════════════════════════════
+  function renderStats(sales, topProducts, prevSales) {
+    let total = 0, count = 0, totalDiscount = 0;
+    sales.forEach(s => {
+      total += Number(s.total || 0);
+      count++;
+      totalDiscount += Number(s.discount || 0);
+    });
+
+    let prevTotal = 0;
+    (prevSales || []).forEach(s => { prevTotal += Number(s.total || 0); });
+
+    const avg = count > 0 ? total / count : 0;
+
+    let totalProfit = 0;
+    (topProducts || []).forEach(p => {
+      totalProfit += Number(p.profit || 0);
+    });
+
+    const profitMargin = total > 0 ? (totalProfit / total) * 100 : 0;
+
+    document.getElementById('statSales').textContent = money(total);
+    document.getElementById('statSalesSub').innerHTML = (prevTotal > 0 ? (function() {
+      const diff = ((total - prevTotal) / prevTotal) * 100;
+      const cls = diff >= 0 ? 'up' : 'down';
+      const icon = diff >= 0 ? 'trending-up' : 'trending-down';
+      return '<span class="trend ' + cls + '"><i data-lucide="' + icon + '"></i>' + Math.abs(diff).toFixed(1) + '%</span>';
+    })() : '') + ' خصومات: ' + money(totalDiscount);
+
+    document.getElementById('statInvoices').textContent = count;
+    document.getElementById('statInvoicesSub').textContent = 'من ' + fmtDate(document.getElementById('dateFrom').value) + ' إلى ' + fmtDate(document.getElementById('dateTo').value);
+
+    document.getElementById('statAvg').textContent = money(avg);
+    document.getElementById('statAvgSub').textContent = 'قيمة الفاتورة الواحدة';
+
+    document.getElementById('statProfit').textContent = money(totalProfit);
+    document.getElementById('statProfitSub').textContent = 'هامش ' + profitMargin.toFixed(1) + '%';
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER DAILY CHART
+  // ═══════════════════════════════════════════════════════════
+  function renderSalesChart(sales) {
+    const chart = document.getElementById('salesChart');
+    if (sales.length === 0) {
+      chart.innerHTML = '<div class="empty-state" style="width:100%"><i data-lucide="bar-chart-3"></i><h3>لا توجد مبيعات</h3><p>في هذه الفترة</p></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const dailyMap = {};
+    sales.forEach(s => {
+      const d = s.invoice_date.slice(0, 10);
+      dailyMap[d] = (dailyMap[d] || 0) + Number(s.total || 0);
+    });
+
+    let days = Object.keys(dailyMap).sort();
+    if (days.length > 20) days = days.slice(-20);
+
+    const max = Math.max(...days.map(d => dailyMap[d]), 1);
+
+    chart.innerHTML = days.map(day => {
+      const val = dailyMap[day] || 0;
+      const pct = (val / max) * 100;
+      const shortDate = new Date(day).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
+      return '<div class="chart-bar-wrap">' +
+        '<div class="chart-bar-value">' + (val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val)) + '</div>' +
+        '<div class="chart-bar" style="height:' + Math.max(pct, 3) + '%">' +
+          '<div class="chart-tooltip">' + money(val) + '</div>' +
+        '</div>' +
+        '<div class="chart-label">' + shortDate + '</div>' +
+      '</div>';
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER SALES TABLE
+  // ═══════════════════════════════════════════════════════════
+  function renderSalesTable(sales, topProducts) {
+    const tbody = document.getElementById('salesTable');
+    if (sales.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i data-lucide="receipt"></i><h3>لا توجد مبيعات</h3></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const profitByProduct = {};
+    (topProducts || []).forEach(p => { profitByProduct[p.product_id] = p; });
+
+    const dailyMap = {};
+    sales.forEach(s => {
+      const d = s.invoice_date.slice(0, 10);
+      if (!dailyMap[d]) dailyMap[d] = { count: 0, subtotal: 0, discount: 0, total: 0, paid: 0, profit: 0 };
+      dailyMap[d].count++;
+      dailyMap[d].subtotal += Number(s.subtotal || 0);
+      dailyMap[d].discount += Number(s.discount || 0);
+      dailyMap[d].total += Number(s.total || 0);
+      dailyMap[d].paid += Number(s.paid || 0);
+    });
+
+    const totalRevenue = sales.reduce((s, i) => s + Number(i.total || 0), 0);
+    const totalProfit = Object.values(profitByProduct).reduce((s, p) => s + Number(p.profit || 0), 0);
+    const profitRatio = totalRevenue > 0 ? totalProfit / totalRevenue : 0;
+
+    Object.keys(dailyMap).forEach(d => {
+      dailyMap[d].profit = dailyMap[d].total * profitRatio;
+    });
+
+    const days = Object.keys(dailyMap).sort().reverse();
+
+    tbody.innerHTML = days.map(day => {
+      const v = dailyMap[day];
+      return '<tr>' +
+        '<td><strong>' + fmtDate(day) + '</strong></td>' +
+        '<td>' + v.count + '</td>' +
+        '<td>' + money(v.subtotal) + '</td>' +
+        '<td style="color:var(--danger)">' + (v.discount > 0 ? '-' + money(v.discount) : '—') + '</td>' +
+        '<td><strong>' + money(v.total) + '</strong></td>' +
+        '<td>' + money(v.paid) + '</td>' +
+        '<td><strong style="color:var(--success)">' + money(v.profit) + '</strong></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER TOP PRODUCTS
+  // ═══════════════════════════════════════════════════════════
+  function renderTopProducts(products) {
+    const tbody = document.getElementById('productsTable');
+    if (products.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i data-lucide="package"></i><h3>لا توجد بيانات</h3></td></tr>';
+      document.getElementById('productsPagination').style.display = 'none';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const totalPages = Math.ceil(products.length / PRODUCTS_PAGE_SIZE);
+    if (productsPage > totalPages) productsPage = totalPages;
+    const pageItems = products.slice((productsPage-1)*PRODUCTS_PAGE_SIZE, productsPage*PRODUCTS_PAGE_SIZE);
+
+    tbody.innerHTML = pageItems.map((p, idx) => {
+      const globalIdx = (productsPage-1)*PRODUCTS_PAGE_SIZE + idx;
+      const rankCls = globalIdx === 0 ? 'top1' : (globalIdx === 1 ? 'top2' : (globalIdx === 2 ? 'top3' : ''));
+      return '<tr>' +
+        '<td><span class="rank ' + rankCls + '">' + (globalIdx + 1) + '</span></td>' +
+        '<td><strong>' + esc(p.name) + '</strong></td>' +
+        '<td>' + Number(p.qty).toFixed(2) + '</td>' +
+        '<td>' + money(p.avg_price) + '</td>' +
+        '<td><strong style="color:var(--accent)">' + money(p.revenue) + '</strong></td>' +
+        '<td><strong style="color:var(--success)">' + money(p.profit) + '</strong></td>' +
+      '</tr>';
+    }).join('');
+
+    const pagEl = document.getElementById('productsPagination');
+    if (totalPages <= 1) {
+      pagEl.style.display = 'none';
+    } else {
+      pagEl.style.display = 'flex';
+      let html = '<button ' + (productsPage <= 1 ? 'disabled' : '') + ' data-p="' + (productsPage-1) + '">‹ السابق</button>';
+      const start = Math.max(1, productsPage - 2);
+      const end = Math.min(totalPages, productsPage + 2);
+      for (let i = start; i <= end; i++) {
+        html += '<button class="' + (i === productsPage ? 'active' : '') + '" data-p="' + i + '">' + i + '</button>';
+      }
+      html += '<button ' + (productsPage >= totalPages ? 'disabled' : '') + ' data-p="' + (productsPage+1) + '">التالي ›</button>';
+      html += '<span class="page-info">' + products.length + ' منتج</span>';
+      pagEl.innerHTML = html;
+      pagEl.querySelectorAll('button[data-p]').forEach(btn => {
+        btn.onclick = () => {
+          productsPage = Number(btn.dataset.p);
+          renderTopProducts(products);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+      });
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER LOW STOCK
+  // ═══════════════════════════════════════════════════════════
+  function renderLowStock(list) {
+    const tbody = document.getElementById('lowStockTable');
+    document.getElementById('tabCountLow').textContent = list.length;
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i data-lucide="check-circle" style="color:var(--success)"></i><h3>ممتاز! لا يوجد نقص</h3></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = list.map(p => {
+      const shortage = Number(p.min_stock || 0) - Number(p.on_hand || 0);
+      const reorderCost = shortage * Number(p.cost_price || 0);
+      const cls = shortage > Number(p.min_stock || 0) * 0.5 ? 'danger' : 'warning';
+      return '<tr>' +
+        '<td><strong>' + esc(p.name) + '</strong></td>' +
+        '<td><span style="color:var(--danger);font-weight:800">' + Number(p.on_hand || 0) + '</span></td>' +
+        '<td>' + Number(p.min_stock || 0) + '</td>' +
+        '<td><span class="badge badge-' + cls + '">' + shortage.toFixed(0) + '</span></td>' +
+        '<td>' + money(reorderCost) + '</td>' +
+        '<td><span class="badge badge-' + cls + '">' + (cls === 'danger' ? 'حرج' : 'يحتاج طلب') + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER EXPIRING
+  // ═══════════════════════════════════════════════════════════
+  function renderExpiring(list) {
+    const tbody = document.getElementById('expiringTable');
+    document.getElementById('tabCountExp').textContent = list.length;
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i data-lucide="check-circle" style="color:var(--success)"></i><h3>لا توجد منتجات قريبة الانتهاء</h3></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = list.map(l => {
+      const days = Number(l.days_to_expiry);
+      const cls = days < 3 ? 'danger' : (days < 7 ? 'warning' : 'info');
+      const salePrice = Number((l.products && l.products.sale_price) || 0);
+      const riskValue = Number(l.quantity_left || 0) * salePrice;
+      return '<tr>' +
+        '<td><strong>' + esc((l.products && l.products.name) || 'منتج') + '</strong></td>' +
+        '<td style="font-family:monospace;font-size:11.5px">' + esc(l.lot_number || '—') + '</td>' +
+        '<td>' + Number(l.quantity_left || 0) + '</td>' +
+        '<td>' + money(salePrice) + '</td>' +
+        '<td><strong style="color:' + (riskValue > 1000 ? 'var(--danger)' : 'var(--gold)') + '">' + money(riskValue) + '</strong></td>' +
+        '<td>' + fmtDate(l.expiry_date) + '</td>' +
+        '<td><span class="badge badge-' + cls + '">' + (days < 0 ? 'منتهي' : days + ' يوم') + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER BALANCES
+  // ═══════════════════════════════════════════════════════════
+  function renderBalances(type, list) {
+    const tbodyId = type === 'customer' ? 'customersBalTable' : 'suppliersBalTable';
+    const countId = type === 'customer' ? 'subCountCustomers' : 'subCountSuppliers';
+    const tbody = document.getElementById(tbodyId);
+
+    document.getElementById(countId).textContent = list.length;
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><i data-lucide="users"></i><h3>لا توجد بيانات</h3></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = list.slice(0, 100).map(b => {
+      const bal = Number(b.balance || 0);
+      const isDebt = bal > 0;
+      const cls = isDebt ? 'danger' : (bal < 0 ? 'success' : 'gray');
+      const label = bal > 0 ? 'مديون' : (bal < 0 ? 'دائن' : 'متوازن');
+      return '<tr>' +
+        '<td><strong>' + esc(b.name) + '</strong></td>' +
+        '<td>' + esc(b.phone || '—') + '</td>' +
+        '<td><strong style="color:var(--' + cls + ')">' + money(Math.abs(bal)) + '</strong></td>' +
+        '<td><span class="badge badge-' + cls + '">' + label + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ⭐ RENDER HOURLY — MAIN
+  // ═══════════════════════════════════════════════════════════
+  function renderHourly(currentSales, prevSales) {
+    const hourlyMap = aggregateByHour(currentSales);
+    const prevHourlyMap = aggregateByHour(prevSales || []);
+    const hours = Object.values(hourlyMap);
+    const prevHours = Object.values(prevHourlyMap);
+
+    const totalSales = hours.reduce((s, h) => s + h.total, 0);
+    const totalInvoices = hours.reduce((s, h) => s + h.count, 0);
+    const prevTotalSales = prevHours.reduce((s, h) => s + h.total, 0);
+    const prevTotalInvoices = prevHours.reduce((s, h) => s + h.count, 0);
+    const activeHours = hours.filter(h => h.count > 0);
+    const maxTotal = Math.max(...hours.map(h => h.total), 1);
+    const peak = hours.reduce((max, h) => h.total > max.total ? h : max, hours[0]);
+    const avgPerHour = activeHours.length > 0 ? totalSales / activeHours.length : 0;
+
+    const hourTotalsSorted = hours
+      .filter(h => h.count > 0)
+      .sort((a, b) => b.total - a.total);
+    const busyHours = hourTotalsSorted.slice(0, 3);
+
+    // ═══ Stats ═══
+    document.getElementById('hourPeak').textContent = peak.count > 0 ? fmtHour12(peak.hour) : '—';
+    document.getElementById('hourPeakSub').textContent = peak.count > 0
+      ? money(peak.total) + ' • ' + peak.count + ' فاتورة'
+      : 'لا توجد مبيعات';
+
+    document.getElementById('hourAvg').textContent = money(avgPerHour);
+    document.getElementById('hourTotalInvoices').textContent = totalInvoices;
+    document.getElementById('hourTotalInvoicesSub').textContent = activeHours.length + ' ساعة نشطة';
+    document.getElementById('hourBusyCount').textContent = busyHours.length;
+    document.getElementById('hourBusySub').textContent = busyHours.map(h => fmtHour(h.hour)).join(' • ') || '—';
+
+    // ═══ Chart ═══
+    const chart = document.getElementById('hourlyChart');
+    if (totalInvoices === 0) {
+      chart.innerHTML = '<div class="empty-state" style="width:100%"><i data-lucide="clock"></i><h3>لا توجد مبيعات</h3><p>في هذه الفترة</p></div>';
+    } else {
+      const activeHourNums = hours.filter(h => h.count > 0).map(h => h.hour);
+      const minH = Math.min(...activeHourNums);
+      const maxH = Math.max(...activeHourNums);
+      const displayHours = hours.filter(h => h.hour >= minH && h.hour <= maxH);
+
+      chart.innerHTML = displayHours.map(h => {
+        const pct = (h.total / maxTotal) * 100;
+        const isPeak = h.hour === peak.hour && h.count > 0;
+        const barColor = isPeak
+          ? 'linear-gradient(180deg,var(--gold),#d97706)'
+          : 'linear-gradient(180deg,var(--accent),var(--accent-dark))';
+        return '<div class="chart-bar-wrap">' +
+          '<div class="chart-bar-value">' + (h.total >= 1000 ? (h.total/1000).toFixed(1) + 'k' : Math.round(h.total)) + '</div>' +
+          '<div class="chart-bar" style="height:' + Math.max(pct, 2) + '%;background:' + barColor + '">' +
+            '<div class="chart-tooltip">' + fmtHour12(h.hour) + ': ' + money(h.total) + ' (' + h.count + ' فاتورة)' + '</div>' +
+          '</div>' +
+          '<div class="chart-label">' + fmtHour(h.hour) + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ═══ Compare ═══
+    renderHourCompare(hours, prevHours, totalSales, prevTotalSales);
+
+    // ═══ Heatmap ═══
+    renderHeatmap(currentSales);
+
+    // ═══ Best Hours ═══
+    renderBestHours(currentSales);
+
+    // ═══ Table ═══
+    const tbody = document.getElementById('hourlyTable');
+    if (totalInvoices === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i data-lucide="clock"></i><h3>لا توجد بيانات</h3></td></tr>';
+    } else {
+      const activeHourNums = hours.filter(h => h.count > 0).map(h => h.hour);
+      const minH = Math.min(...activeHourNums);
+      const maxH = Math.max(...activeHourNums);
+      const displayHours = hours.filter(h => h.hour >= minH && h.hour <= maxH);
+
+      tbody.innerHTML = displayHours.map(h => {
+        const pct = totalSales > 0 ? (h.total / totalSales) * 100 : 0;
+        const avg = h.count > 0 ? h.total / h.count : 0;
+        const isPeak = h.hour === peak.hour && h.count > 0;
+        const isBusy = busyHours.some(b => b.hour === h.hour && b.count > 0);
+
+        let statusCls = 'gray', statusTxt = '—';
+        if (h.count > 0) {
+          if (isPeak) { statusCls = 'warning'; statusTxt = '🔥 ذروة'; }
+          else if (isBusy) { statusCls = 'info'; statusTxt = 'نشط'; }
+          else if (pct >= 5) { statusCls = 'success'; statusTxt = 'جيد'; }
+          else { statusCls = 'gray'; statusTxt = 'هادئ'; }
+        }
+
+        const barW = Math.min(pct * 3, 100);
+
+        // Compare
+        const prevH = prevHourlyMap[h.hour];
+        const prevTotal = prevH ? prevH.total : 0;
+        let changeHtml = '<span style="color:var(--text-muted)">—</span>';
+        if (prevTotal > 0 && h.total > 0) {
+          const diff = ((h.total - prevTotal) / prevTotal) * 100;
+          const cls = diff >= 0 ? 'up' : 'down';
+          const icon = diff >= 0 ? 'trending-up' : 'trending-down';
+          changeHtml = '<span class="trend ' + cls + '"><i data-lucide="' + icon + '"></i>' + Math.abs(diff).toFixed(1) + '%</span>';
+        } else if (prevTotal === 0 && h.total > 0) {
+          changeHtml = '<span class="trend up"><i data-lucide="trending-up"></i>جديد</span>';
+        } else if (prevTotal > 0 && h.total === 0) {
+          changeHtml = '<span class="trend down"><i data-lucide="trending-down"></i>-100%</span>';
+        }
+
+        return '<tr' + (isPeak ? ' style="background:var(--gold-soft)"' : '') + '>' +
+          '<td><strong style="font-family:monospace">' + fmtHour(h.hour) + '</strong> <span style="color:var(--text-muted);font-size:11px">' + fmtHour12(h.hour) + '</span></td>' +
+          '<td>' + (h.count > 0 ? '<strong>' + h.count + '</strong>' : '—') + '</td>' +
+          '<td>' + (h.total > 0 ? '<strong style="color:var(--accent)">' + money(h.total) + '</strong>' : '—') + '</td>' +
+          '<td>' + (avg > 0 ? money(avg) : '—') + '</td>' +
+          '<td>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+              '<div style="flex:1;height:6px;background:var(--bg-soft);border-radius:3px;overflow:hidden;max-width:80px">' +
+                '<div style="height:100%;width:' + barW + '%;background:' + (isPeak ? 'var(--gold)' : 'var(--accent)') + ';border-radius:3px"></div>' +
+              '</div>' +
+              '<span style="font-size:11.5px;font-weight:700;color:var(--text-muted)">' + pct.toFixed(1) + '%</span>' +
+            '</div>' +
+          '</td>' +
+          '<td>' + changeHtml + '</td>' +
+          '<td><span class="badge badge-' + statusCls + '">' + statusTxt + '</span></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══ Hour Compare ═══
+  function renderHourCompare(hours, prevHours, currentTotal, prevTotal) {
+    const change = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
+    const changeColor = change >= 0 ? 'var(--success)' : 'var(--danger)';
+    const changeIcon = change >= 0 ? 'trending-up' : 'trending-down';
+
+    document.getElementById('compareCurrentTotal').textContent = money(currentTotal);
+    document.getElementById('compareCurrentSub').innerHTML = '<span style="color:' + changeColor + ';font-weight:800;display:inline-flex;align-items:center;gap:3px"><i data-lucide="' + changeIcon + '" style="width:12px;height:12px"></i>' + (change >= 0 ? '+' : '') + change.toFixed(1) + '%</span>';
+
+    document.getElementById('comparePrevTotal').textContent = money(prevTotal);
+    document.getElementById('comparePrevSub').textContent = prevTotal > 0 ? 'فترة سابقة' : 'لا توجد بيانات';
+
+    const range = getDateRange();
+    const prevRange = getPreviousRange(range);
+    document.getElementById('comparePeriodLabel').textContent =
+      '(' + fmtDate(range.from) + ' → ' + fmtDate(range.to) + ') vs (' + fmtDate(prevRange.from) + ' → ' + fmtDate(prevRange.to) + ')';
+
+    // Bars
+    const container = document.getElementById('compareBars');
+    const maxVal = Math.max(
+      ...hours.map(h => h.total),
+      ...prevHours.map(h => h.total),
+      1
+    );
+
+    const activeHours = hours.filter(h => h.total > 0 || (prevHours[h.hour] && prevHours[h.hour].total > 0));
+
+    if (activeHours.length === 0) {
+      container.innerHTML = '<div class="empty-state" style="padding:20px"><p style="font-size:12px">لا توجد بيانات للمقارنة</p></div>';
+      return;
+    }
+
+    container.innerHTML = activeHours.map(h => {
+      const prev = prevHours[h.hour] || { total: 0 };
+      const curPct = (h.total / maxVal) * 100;
+      const prevPct = (prev.total / maxVal) * 100;
+      const diff = prev.total > 0 ? ((h.total - prev.total) / prev.total) * 100 : (h.total > 0 ? 100 : 0);
+      const diffCls = diff > 1 ? 'up' : (diff < -1 ? 'down' : 'flat');
+      const diffTxt = prev.total > 0 ? ((diff >= 0 ? '+' : '') + diff.toFixed(0) + '%') : (h.total > 0 ? 'جديد' : '—');
+
+      return `<div class="compare-bar-row">
+        <div class="compare-bar-label">${fmtHour(h.hour)}</div>
+        <div class="compare-bar-track">
+          <div class="compare-bar-current" style="width:${curPct}%"></div>
+          <div class="compare-bar-prev" style="width:${prevPct}%"></div>
+        </div>
+        <div class="compare-bar-val">${money(h.total)}</div>
+        <div class="compare-bar-change ${diffCls}">${diffTxt}</div>
+      </div>`;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══ Heatmap ═══
+  function renderHeatmap(sales) {
+    const container = document.getElementById('heatmapWrap');
+    if (sales.length === 0) {
+      container.innerHTML = '<div class="empty-state" style="padding:20px"><p style="font-size:12px">لا توجد بيانات</p></div>';
+      return;
+    }
+
+    const dayHourMap = aggregateByDayHour(sales);
+
+    // حساب max للـ color scale
+    let maxVal = 1;
+    for (let d = 0; d < 7; d++) {
+      for (let h = 0; h < 24; h++) {
+        if (dayHourMap[d][h].total > maxVal) maxVal = dayHourMap[d][h].total;
+      }
+    }
+
+    // الساعات النشطة فقط
+    const activeHours = [];
+    for (let h = 0; h < 24; h++) {
+      let hasData = false;
+      for (let d = 0; d < 7; d++) {
+        if (dayHourMap[d][h].count > 0) { hasData = true; break; }
+      }
+      if (hasData) activeHours.push(h);
+    }
+
+    if (activeHours.length === 0) {
+      container.innerHTML = '<div class="empty-state" style="padding:20px"><p style="font-size:12px">لا توجد بيانات</p></div>';
+      return;
+    }
+
+    // Header
+    let html = '<table class="heatmap-table"><thead><tr><th class="day-label">اليوم / الساعة</th>';
+    activeHours.forEach(h => {
+      html += '<th>' + h + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    // Days (نبدأ من السبت للجمعة أو حسب الترتيب العربي: السبت → الجمعة)
+    const dayOrder = [6, 0, 1, 2, 3, 4, 5]; // Sat, Sun, Mon, Tue, Wed, Thu, Fri
+    dayOrder.forEach(d => {
+      html += '<tr><th class="day-label">' + DAY_SHORT[d] + '</th>';
+      activeHours.forEach(h => {
+        const v = dayHourMap[d][h];
+        const intensity = maxVal > 0 ? v.total / maxVal : 0;
+        const alpha = intensity > 0 ? (0.15 + intensity * 0.85) : 0;
+        const bg = intensity > 0
+          ? `rgba(20,184,166,${alpha.toFixed(2)})`
+          : 'var(--bg-soft)';
+        const color = intensity > 0.5 ? 'white' : 'var(--text)';
+        const tooltip = DAY_NAMES[d] + ' ' + fmtHour12(h) + ': ' + money(v.total) + ' (' + v.count + ' فاتورة)';
+        html += `<td><button class="heatmap-cell" style="background:${bg};color:${color}" data-tip="${esc(tooltip)}">${v.count > 0 && intensity > 0.6 ? v.count : ''}</button></td>`;
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  // ═══ Best Hours ═══
+  function renderBestHours(sales) {
+    const container = document.getElementById('bestHoursGrid');
+    if (sales.length === 0) {
+      container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:20px"><p style="font-size:12px">لا توجد بيانات</p></div>';
+      return;
+    }
+
+    const dayHourMap = aggregateByDayHour(sales);
+    const best = findBestHours(dayHourMap);
+
+    if (best.length === 0) {
+      container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:20px"><p style="font-size:12px">لا توجد بيانات</p></div>';
+      return;
+    }
+
+    container.innerHTML = best.map(b => {
+      const totalSales = sales.reduce((s, x) => s + Number(x.total || 0), 0);
+      const pct = totalSales > 0 ? (b.total / totalSales) * 100 : 0;
+
+      return `<div class="best-hour-card rank-${b.rank}">
+        <div class="best-hour-rank">#${b.rank}</div>
+        <div class="best-hour-label">الساعة ${fmtHour12(b.hour)}</div>
+        <div class="best-hour-time" style="color:${b.rank === 1 ? 'var(--gold)' : (b.rank === 2 ? '#64748b' : '#b45309')}">${money(b.total)}</div>
+        <div class="best-hour-value">${b.count} فاتورة • ${pct.toFixed(1)}% من الإجمالي</div>
+        <div class="best-hour-days">
+          <span style="font-size:10px;color:var(--text-muted);font-weight:700">أكثر يوم:</span>
+          ${b.days.slice(0, 3).map(d => `<span class="best-hour-day">${DAY_SHORT[d.day]} (${money(d.total)})</span>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // EXPORT
+  // ═══════════════════════════════════════════════════════════
+  function exportCSV() {
+    let headers = [];
+    let rows = [];
+
+    if (currentTab === 'sales') {
+      headers = ['التاريخ', 'عدد الفواتير', 'المجموع الفرعي', 'الخصم', 'الإجمالي', 'المدفوع', 'الربح'];
+      const sales = dataCache.sales || [];
+      const dailyMap = {};
+      sales.forEach(s => {
+        const d = s.invoice_date.slice(0, 10);
+        if (!dailyMap[d]) dailyMap[d] = { count: 0, subtotal: 0, discount: 0, total: 0, paid: 0 };
+        dailyMap[d].count++;
+        dailyMap[d].subtotal += Number(s.subtotal || 0);
+        dailyMap[d].discount += Number(s.discount || 0);
+        dailyMap[d].total += Number(s.total || 0);
+        dailyMap[d].paid += Number(s.paid || 0);
+      });
+      Object.keys(dailyMap).sort().reverse().forEach(d => {
+        const v = dailyMap[d];
+        rows.push([d, v.count, v.subtotal.toFixed(2), v.discount.toFixed(2), v.total.toFixed(2), v.paid.toFixed(2)]);
+      });
+    } else if (currentTab === 'hourly') {
+      headers = ['الساعة', 'عدد الفواتير', 'إجمالي المبيعات', 'متوسط الفاتورة', 'النسبة %', 'الفترة السابقة', 'التغيير %'];
+      const sales = dataCache.sales || [];
+      const prevSales = dataCache.prevSales || [];
+      const hourlyMap = aggregateByHour(sales);
+      const prevHourlyMap = aggregateByHour(prevSales);
+      const total = Object.values(hourlyMap).reduce((s, h) => s + h.total, 0);
+      Object.keys(hourlyMap).forEach(h => {
+        const v = hourlyMap[h];
+        if (v.count > 0) {
+          const prev = prevHourlyMap[h];
+          const prevTotal = prev ? prev.total : 0;
+          const change = prevTotal > 0 ? ((v.total - prevTotal) / prevTotal) * 100 : 0;
+          rows.push([
+            h + ':00',
+            v.count,
+            v.total.toFixed(2),
+            (v.total / v.count).toFixed(2),
+            ((v.total / total) * 100).toFixed(1),
+            prevTotal.toFixed(2),
+            change.toFixed(1)
+          ]);
+        }
+      });
+    } else if (currentTab === 'products') {
+      headers = ['#', 'المنتج', 'الكمية المباعة', 'سعر الوحدة', 'الإيراد', 'الربح'];
+      (dataCache.products || []).forEach((p, i) => {
+        rows.push([i+1, p.name, p.qty.toFixed(2), p.avg_price.toFixed(2), p.revenue.toFixed(2), p.profit.toFixed(2)]);
+      });
+    } else if (currentTab === 'lowstock') {
+      headers = ['المنتج', 'المخزون', 'الحد الأدنى', 'النقص', 'تكلفة إعادة الطلب'];
+      (dataCache.lowStock || []).forEach(l => {
+        const shortage = Number(l.min_stock || 0) - Number(l.on_hand || 0);
+        rows.push([l.name, l.on_hand, l.min_stock, shortage.toFixed(0), (shortage * Number(l.cost_price || 0)).toFixed(2)]);
+      });
+    } else if (currentTab === 'expiring') {
+      headers = ['المنتج', 'الدفعة', 'الكمية', 'سعر البيع', 'القيمة المعرضة', 'الصلاحية', 'الأيام'];
+      (dataCache.expiring || []).forEach(e => {
+        const salePrice = Number((e.products && e.products.sale_price) || 0);
+        rows.push([
+          (e.products && e.products.name) || '—',
+          e.lot_number || '—',
+          e.quantity_left,
+          salePrice.toFixed(2),
+          (Number(e.quantity_left || 0) * salePrice).toFixed(2),
+          e.expiry_date,
+          e.days_to_expiry
+        ]);
+      });
+    } else if (currentTab === 'balances') {
+      headers = ['الاسم', 'الهاتف', 'الرصيد', 'النوع'];
+      const bals = currentBalSubtab === 'customers' ? (dataCache.customerBalances || []) : (dataCache.supplierBalances || []);
+      bals.forEach(b => {
+        const bal = Number(b.balance || 0);
+        rows.push([b.name, b.phone || '—', bal.toFixed(2), bal > 0 ? 'مديون' : (bal < 0 ? 'دائن' : 'متوازن')]);
+      });
+    }
+
+    if (rows.length === 0) { toast('error', 'لا توجد بيانات للتصدير'); return; }
+
+    const csv = [headers.join(',')];
+    rows.forEach(r => {
+      csv.push(r.map(x => '"' + String(x || '').replace(/"/g, '""') + '"').join(','));
+    });
+
+    const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'report-' + currentTab + '-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    toast('success', 'تم تصدير ' + rows.length + ' صف');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB SWITCHING
+  // ═══════════════════════════════════════════════════════════
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tabs [data-tab]').forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    document.querySelectorAll('[data-panel]').forEach(p => {
+      p.style.display = p.dataset.panel === tab ? 'block' : 'none';
+    });
+    document.getElementById('dateFilters').style.display =
+      (tab === 'lowstock' || tab === 'expiring' || tab === 'balances') ? 'none' : 'flex';
+
+    if (tab === 'lowstock' && !dataCache.lowStock) loadAndRenderLowStock();
+    if (tab === 'expiring' && !dataCache.expiring) loadAndRenderExpiring();
+    if (tab === 'balances') loadAndRenderBalances(currentBalSubtab);
+    if (tab === 'hourly') {
+      // نستخدم البيانات المخزنة أو نحمّل
+      if (dataCache.sales && dataCache.prevSales) {
+        renderHourly(dataCache.sales, dataCache.prevSales);
+      } else {
+        loadAndRenderHourly();
+      }
+    }
+  }
+
+  function switchBalSubtab(type) {
+    currentBalSubtab = type;
+    document.querySelectorAll('[data-subtab]').forEach(t => {
+      t.classList.toggle('active', t.dataset.subtab === type);
+    });
+    document.querySelectorAll('[data-subpanel]').forEach(p => {
+      p.style.display = p.dataset.subpanel === type ? 'block' : 'none';
+    });
+    loadAndRenderBalances(type);
+  }
+
+  async function loadAndRenderLowStock() {
+    const list = await loadLowStock();
+    dataCache.lowStock = list;
+    renderLowStock(list);
+  }
+
+  async function loadAndRenderExpiring() {
+    const list = await loadExpiring();
+    dataCache.expiring = list;
+    renderExpiring(list);
+  }
+
+  async function loadAndRenderBalances(type) {
+    const list = await loadBalances(type);
+    if (type === 'customer') dataCache.customerBalances = list;
+    else dataCache.supplierBalances = list;
+    renderBalances(type, list);
+  }
+
+  async function loadAndRenderHourly() {
+    const range = getDateRange();
+    const prevRange = getPreviousRange(range);
+    const [sales, prevSales] = await Promise.all([
+      loadSales(range),
+      loadSalesForRange(prevRange)
+    ]);
+    dataCache.sales = sales;
+    dataCache.prevSales = prevSales;
+    renderHourly(sales, prevSales);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOAD ALL
+  // ═══════════════════════════════════════════════════════════
+  async function loadAll() {
+    const range = getDateRange();
+    const prevRange = getPreviousRange(range);
+
+    try {
+      const [sales, topProducts, prevSales] = await Promise.all([
+        loadSales(range),
+        loadTopProducts(range),
+        loadSalesForRange(prevRange)
+      ]);
+
+      dataCache.sales = sales;
+      dataCache.products = topProducts;
+      dataCache.prevSales = prevSales;
+
+      renderStats(sales, topProducts, prevSales);
+      renderSalesChart(sales);
+      renderSalesTable(sales, topProducts);
+      renderTopProducts(topProducts);
+
+      if (currentTab === 'hourly') {
+        renderHourly(sales, prevSales);
+      }
+
+      toast('success', 'تم التحديث');
+    } catch (e) {
+      console.error('[Reports] loadAll error:', e);
+      toast('error', 'فشل التحميل: ' + e.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) {
+          console.log('[Reports] Platform admin — redirecting to admin.html');
+          location.href = 'admin.html';
+          return;
+        }
+      }
+    } catch (e) { console.warn('[Reports] admin check failed:', e); }
+
+    if (window.Refad && Refad.requireSession) {
+      session = await Refad.requireSession();
+    }
+    if (!session) { location.href = 'index.html'; return; }
+    if (!session.company_id) {
+      console.warn('[Reports] No company_id');
+      location.href = 'index.html';
+      return;
+    }
+
+    const branchNameEl = document.getElementById('branchName');
+    if (branchNameEl) {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+
+    setRangePreset('30');
+    await loadAll();
+
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      dataCache = {};
+      await loadAll();
+    };
+
+    document.getElementById('exportBtn').onclick = exportCSV;
+
+    document.getElementById('applyFilter').onclick = async () => {
+      dataCache = {};
+      await loadAll();
+    };
+
+    document.querySelectorAll('.quick-range-btn').forEach(btn => {
+      btn.onclick = async () => {
+        document.querySelectorAll('.quick-range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        setRangePreset(btn.dataset.range);
+        dataCache = {};
+        await loadAll();
+      };
+    });
+
+    document.querySelectorAll('[data-tab]').forEach(t => {
+      t.onclick = () => switchTab(t.dataset.tab);
+    });
+
+    document.querySelectorAll('[data-subtab]').forEach(t => {
+      t.onclick = () => switchBalSubtab(t.dataset.subtab);
+    });
+
+    window.addEventListener('refad:settings-changed', () => {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      if (branchNameEl) branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

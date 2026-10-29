@@ -1,0 +1,2105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>المحاسبة — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root{
+  --primary:#0B2C4D;--primary-light:#1e4a73;--primary-dark:#061a2e;
+  --accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B;--gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444;--danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981;--success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6;--info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6;--purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9;--bg-soft:#f8fafc;--bg-card:#ffffff;--card:#ffffff;
+  --text:#0f172a;--text-muted:#64748b;
+  --border:#e2e8f0;--border-soft:#f1f5f9;
+  --radius:14px;--radius-sm:10px;--radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-warning{background:var(--gold-soft);color:var(--gold)}
+.btn-warning:hover{background:var(--gold);color:#fff}
+.btn-success{background:var(--success-soft);color:var(--success)}
+.btn-success:hover{background:var(--success);color:#fff}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1600px}
+
+.accounting-tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:6px;margin-bottom:20px;overflow-x:auto;box-shadow:var(--shadow-xs)}
+.accounting-tab{padding:10px 16px;border-radius:var(--radius-sm);background:none;border:none;font-size:13px;font-weight:700;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s}
+.accounting-tab:hover{background:var(--bg-soft);color:var(--text)}
+.accounting-tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px var(--accent-soft)}
+.accounting-tab svg{width:16px;height:16px}
+
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;transition:all .15s}
+.stat-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:var(--shadow)}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.danger::before{background:var(--danger)}
+.stat-card.info::before{background:var(--info)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-card.purple::before{background:var(--purple)}
+.stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.stat-icon svg{width:18px;height:18px}
+.stat-icon.teal{background:var(--accent-soft);color:var(--accent)}
+.stat-icon.blue{background:var(--info-soft);color:var(--info)}
+.stat-icon.gold{background:var(--gold-soft);color:var(--gold)}
+.stat-icon.green{background:var(--success-soft);color:var(--success)}
+.stat-icon.red{background:var(--danger-soft);color:var(--danger)}
+.stat-icon.purple{background:var(--purple-soft);color:var(--purple)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-title .count-badge{background:var(--accent-soft);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:800}
+.card-body{padding:20px}
+
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 20px;background:var(--bg-soft);border-bottom:1px solid var(--border)}
+.filter-bar select,.filter-bar input[type="date"],.filter-bar input[type="text"]{padding:9px 12px;font-size:13px;border-radius:var(--radius-xs);border:1.5px solid var(--border);background:var(--card);color:var(--text);transition:all .15s}
+.filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg-soft)}
+th{padding:12px 16px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:var(--bg-soft)}
+tbody tr:last-child td{border-bottom:none}
+
+.code-cell{font-family:monospace;font-weight:800;color:var(--accent);font-size:13px}
+.num-cell{font-variant-numeric:tabular-nums;text-align:left;font-weight:700}
+.num-cell.debit{color:var(--success)}
+.num-cell.credit{color:var(--danger)}
+.num-cell.zero{color:var(--text-muted)}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+.badge-accent{background:var(--accent-soft);color:var(--accent)}
+
+.type-asset{color:var(--success)}
+.type-liability{color:var(--danger)}
+.type-equity{color:var(--purple)}
+.type-revenue{color:var(--accent)}
+.type-expense{color:var(--gold)}
+
+.tree-root{padding:0}
+.tree-group{margin-bottom:12px}
+.tree-group-header{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg-soft);border-radius:var(--radius-sm);cursor:pointer;user-select:none;font-weight:800;font-size:13px}
+.tree-group-header:hover{background:var(--bg)}
+.tree-group-header svg{width:16px;height:16px;transition:transform .2s;color:var(--accent)}
+.tree-group-header.expanded svg.chevron{transform:rotate(-90deg)}
+.tree-group-body{display:none;padding-right:24px;margin-top:6px}
+.tree-group-body.expanded{display:block}
+.tree-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-right:2px solid var(--border);border-radius:6px;font-size:12.5px;transition:all .15s;gap:10px;cursor:pointer}
+.tree-item:hover{background:var(--bg-soft);border-right-color:var(--accent)}
+.tree-item-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.tree-item-code{font-family:monospace;font-weight:800;color:var(--accent);font-size:11.5px;min-width:50px}
+.tree-item-name{font-weight:600;flex:1}
+.tree-item-balance{font-family:monospace;font-weight:800;font-variant-numeric:tabular-nums;font-size:12px}
+
+.journal-entry{background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px;transition:all .15s;cursor:pointer}
+.journal-entry:hover{border-color:var(--accent);background:var(--card)}
+.je-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.je-number{font-family:monospace;font-weight:800;color:var(--accent);font-size:13px}
+.je-date{font-size:12px;color:var(--text-muted)}
+.je-status{margin-right:auto}
+.je-desc{font-size:12.5px;color:var(--text-muted);margin-bottom:10px}
+.je-lines{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px}
+.je-line{padding:6px 10px;background:var(--card);border-radius:6px;border:1px solid var(--border-soft)}
+.je-line-account{font-weight:700;font-size:12px;margin-bottom:2px}
+.je-line-amount{font-family:monospace;font-variant-numeric:tabular-nums;font-size:11px}
+
+.progress{height:8px;background:var(--bg-soft);border-radius:4px;overflow:hidden;margin:8px 0}
+.progress-fill{height:100%;border-radius:4px;transition:width .3s}
+.progress-fill.good{background:var(--success)}
+.progress-fill.warn{background:var(--gold)}
+.progress-fill.danger{background:var(--danger)}
+.progress-fill.accent{background:var(--accent)}
+
+.income-section{margin-bottom:24px}
+.income-header{font-size:14px;font-weight:800;padding:12px 16px;background:var(--bg-soft);border-radius:var(--radius-sm) var(--radius-sm) 0 0;display:flex;justify-content:space-between;align-items:center}
+.income-header.revenue{color:var(--success)}
+.income-header.expense{color:var(--danger)}
+.income-header.total{background:var(--accent-soft);color:var(--accent)}
+.income-item{display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border-soft);font-size:12.5px}
+.income-item:last-child{border-bottom:none}
+.income-item .label{display:flex;gap:10px;align-items:center}
+.income-item .code{font-family:monospace;color:var(--accent);font-weight:700;font-size:11px}
+.income-item .amount{font-weight:800;font-variant-numeric:tabular-nums}
+.income-item .amount.positive{color:var(--success)}
+.income-item .amount.negative{color:var(--danger)}
+
+.statement-table{table-layout:fixed}
+.statement-table th:first-child,.statement-table td:first-child{width:100px}
+.statement-table th:last-child,.statement-table td:last-child{width:120px}
+.running-balance{font-weight:800;background:var(--bg-soft);padding:4px 8px;border-radius:4px;font-family:monospace}
+
+.chart-container{padding:10px 0;overflow-x:auto}
+.chart-bars{display:flex;align-items:flex-end;justify-content:space-around;height:220px;gap:4px;padding:0 10px;min-width:100%}
+.chart-bar-wrap{flex:1;min-width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;position:relative}
+.chart-bar{width:100%;max-width:40px;border-radius:4px 4px 0 0;transition:all .2s;min-height:2px;cursor:pointer;position:relative}
+.chart-bar:hover{filter:brightness(1.15);transform:scaleY(1.02)}
+.chart-label{font-size:10px;color:var(--text-muted);font-weight:600;white-space:nowrap}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:18px;width:100%;max-width:720px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn .25s cubic-bezier(0.4,0,0.2,1)}
+.modal.lg{max-width:900px}
+.modal.xl{max-width:1100px}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:2;gap:12px}
+.modal-header h3{font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px;flex:1}
+.modal-header h3 svg{width:20px;height:20px;color:var(--accent)}
+.modal-close{background:none;border:none;color:var(--text-muted);padding:6px;border-radius:8px;flex-shrink:0}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-close svg{width:20px;height:20px}
+.modal-body{padding:22px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card);flex-wrap:wrap}
+
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.form-label .required{color:var(--danger)}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;transition:all .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-input.error{border-color:var(--danger);background:rgba(239,68,68,0.03)}
+.form-textarea{resize:vertical;min-height:60px}
+.form-hint{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-error{background:var(--danger-soft);color:var(--danger);padding:11px 14px;border-radius:var(--radius-xs);font-size:12.5px;font-weight:600;margin-bottom:14px;display:none;border-right:3px solid var(--danger)}
+.form-error.show{display:block}
+
+.je-lines-editor{background:var(--bg-soft);border-radius:var(--radius-xs);padding:14px;margin-bottom:14px}
+.je-line-row{display:grid;grid-template-columns:2fr 1fr 1fr 40px;gap:8px;margin-bottom:8px;align-items:center}
+.je-line-row input,.je-line-row select{padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text)}
+.je-line-row input:focus,.je-line-row select:focus{outline:none;border-color:var(--accent)}
+.je-line-row .remove-line{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;background:var(--danger-soft);color:var(--danger);border:none;border-radius:6px;cursor:pointer}
+.je-line-row .remove-line:hover{background:var(--danger);color:#fff}
+.je-balance-indicator{padding:8px 12px;border-radius:6px;font-size:12.5px;font-weight:800;margin-top:10px;text-align:center}
+.je-balance-indicator.balanced{background:var(--success-soft);color:var(--success)}
+.je-balance-indicator.unbalanced{background:var(--danger-soft);color:var(--danger)}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast .3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+.loading-state{padding:60px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:48px;height:48px;margin-bottom:14px;opacity:.5}
+.empty-state h3{font-size:15px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:12.5px}
+
+.warning-banner{background:var(--gold-soft);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:12.5px;color:#92400e;display:flex;gap:10px;align-items:flex-start}
+.warning-banner svg{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+
+.info-banner{background:var(--info-soft);border:1px solid rgba(59,130,246,0.3);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:12.5px;color:var(--info);display:flex;gap:10px;align-items:flex-start}
+.info-banner svg{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+
+.sync-indicator{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-soft);border:1px solid var(--border);border-radius:20px;font-size:11.5px;font-weight:700;color:var(--text-muted)}
+.sync-indicator.active{background:var(--success-soft);color:var(--success);border-color:var(--success)}
+.sync-indicator.warning{background:var(--gold-soft);color:var(--gold);border-color:var(--gold)}
+.sync-indicator svg{width:12px;height:12px}
+.sync-indicator.syncing svg{animation:spin 1s linear infinite}
+
+/* ⭐ NEW: Cash movement type badges */
+.cash-type-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.cash-type-sale{background:var(--success-soft);color:var(--success)}
+.cash-type-return{background:var(--danger-soft);color:var(--danger)}
+.cash-type-expense{background:var(--danger-soft);color:var(--danger)}
+.cash-type-withdrawal{background:var(--gold-soft);color:var(--gold)}
+.cash-type-deposit{background:var(--success-soft);color:var(--success)}
+.cash-type-purchase-payment{background:var(--info-soft);color:var(--info)}
+.cash-type-opening,.cash-type-closing{background:var(--bg-soft);color:var(--text-muted)}
+
+@media (max-width:1024px){.refad-main-content{margin-right:0!important}}
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .form-row{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .je-lines{grid-template-columns:1fr 1fr}
+  .je-line-row{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div><h1>المحاسبة</h1><div class="topbar-subtitle" id="branchName">—</div></div>
+    </div>
+    <div class="topbar-actions">
+      <span class="sync-indicator" id="syncIndicator" title="حالة المزامنة">
+        <i data-lucide="refresh-cw"></i>
+        <span id="syncText">جاهز</span>
+      </span>
+      <button class="btn btn-warning btn-sm" id="generateEntriesBtn" title="توليد قيود من الفواتير">
+        <i data-lucide="sparkles"></i><span>توليد قيود</span>
+      </button>
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Warning banner لو فيه فواتير بدون قيود -->
+    <div class="warning-banner" id="unsyncedBanner" style="display:none">
+      <i data-lucide="alert-triangle"></i>
+      <div style="flex:1">
+        <strong>فيه <span id="unsyncedCount">0</span> فاتورة بدون قيد محاسبي!</strong>
+        <div style="margin-top:6px">اضغط <button class="btn btn-warning btn-sm" id="syncNowBtn" style="padding:4px 10px;font-size:11.5px"><i data-lucide="zap"></i>مزامنة الآن</button> لتوليد القيود تلقائياً.</div>
+      </div>
+    </div>
+
+    <!-- Info banner لو كله تمام -->
+    <div class="info-banner" id="syncedBanner" style="display:none">
+      <i data-lucide="check-circle"></i>
+      <div>
+        <strong>✅ كل الفواتير مربوطة بقيود محاسبية</strong>
+        <div style="margin-top:4px;font-size:11.5px">القيود اللي بتظهر في التقارير محدّثة</div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card success">
+        <div class="stat-icon green"><i data-lucide="trending-up"></i></div>
+        <div class="stat-label">إجمالي الإيرادات</div>
+        <div class="stat-value" id="statRevenue" style="color:var(--success)">—</div>
+        <div class="stat-sub" id="statRevenueSub">—</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-icon red"><i data-lucide="trending-down"></i></div>
+        <div class="stat-label">إجمالي المصروفات</div>
+        <div class="stat-value" id="statExpense" style="color:var(--danger)">—</div>
+        <div class="stat-sub" id="statExpenseSub">—</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-icon gold"><i data-lucide="wallet"></i></div>
+        <div class="stat-label">صافي الربح</div>
+        <div class="stat-value" id="statProfit" style="color:var(--gold)">—</div>
+        <div class="stat-sub" id="statProfitSub">—</div>
+      </div>
+      <div class="stat-card info">
+        <div class="stat-icon blue"><i data-lucide="scale"></i></div>
+        <div class="stat-label">الأصول</div>
+        <div class="stat-value" id="statAssets" style="color:var(--info)">—</div>
+        <div class="stat-sub" id="statAssetsSub">—</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon purple"><i data-lucide="book-open"></i></div>
+        <div class="stat-label">القيود</div>
+        <div class="stat-value" id="statEntries" style="color:var(--purple)">—</div>
+        <div class="stat-sub" id="statEntriesSub">—</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="accounting-tabs">
+      <button class="accounting-tab active" data-tab="coa"><i data-lucide="list-tree"></i>شجرة الحسابات</button>
+      <button class="accounting-tab" data-tab="journal"><i data-lucide="book-open"></i>القيود اليومية</button>
+      <button class="accounting-tab" data-tab="trial"><i data-lucide="scale"></i>ميزان المراجعة</button>
+      <button class="accounting-tab" data-tab="income"><i data-lucide="file-text"></i>قائمة الدخل</button>
+      <button class="accounting-tab" data-tab="pl"><i data-lucide="trending-up"></i>الأرباح والخسائر</button>
+      <button class="accounting-tab" data-tab="balance"><i data-lucide="file-bar-chart"></i>الميزانية</button>
+      <button class="accounting-tab" data-tab="statement"><i data-lucide="search"></i>كشف حساب</button>
+      <button class="accounting-tab" data-tab="tax"><i data-lucide="percent"></i>الضرائب</button>
+      <!-- ⭐ NEW: Cash Movements Tab -->
+      <button class="accounting-tab" data-tab="cash"><i data-lucide="banknote"></i>حركات الدرج</button>
+    </div>
+
+    <!-- TAB 1: CHART OF ACCOUNTS -->
+    <div class="tab-panel active" data-panel="coa">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="list-tree"></i><span>شجرة الحسابات</span><span class="count-badge" id="coaCount">0</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select id="coaTypeFilter" class="form-select" style="padding:8px 12px;font-size:12.5px;min-width:150px">
+              <option value="">كل الأنواع</option>
+              <option value="asset">أصول</option>
+              <option value="liability">التزامات</option>
+              <option value="equity">حقوق ملكية</option>
+              <option value="revenue">إيرادات</option>
+              <option value="expense">مصروفات</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" id="expandAllBtn"><i data-lucide="chevrons-down"></i>توسيع</button>
+            <button class="btn btn-ghost btn-sm" id="collapseAllBtn"><i data-lucide="chevrons-up"></i>طي</button>
+          </div>
+        </div>
+        <div class="card-body tree-root" id="coaTree">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: JOURNAL ENTRIES -->
+    <div class="tab-panel" data-panel="journal">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="book-open"></i><span>القيود اليومية</span><span class="count-badge" id="jeCount">0</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select id="jeStatusFilter" class="form-select" style="padding:8px 12px;font-size:12.5px;min-width:130px">
+              <option value="">كل الحالات</option>
+              <option value="draft">مسودة</option>
+              <option value="posted">مُرحّل</option>
+              <option value="reversed">معكوس</option>
+            </select>
+            <input type="date" id="jeDateFrom" class="form-input" style="padding:8px 12px;font-size:12.5px;width:auto">
+            <input type="date" id="jeDateTo" class="form-input" style="padding:8px 12px;font-size:12.5px;width:auto">
+            <button class="btn btn-primary btn-sm" id="newEntryBtn"><i data-lucide="plus"></i>قيد جديد</button>
+          </div>
+        </div>
+        <div class="card-body" id="journalList">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: TRIAL BALANCE -->
+    <div class="tab-panel" data-panel="trial">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="scale"></i><span>ميزان المراجعة</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="date" id="trialDateFrom" class="form-input" style="padding:8px 12px;font-size:12.5px;width:auto">
+            <input type="date" id="trialDateTo" class="form-input" style="padding:8px 12px;font-size:12.5px;width:auto">
+            <button class="btn btn-ghost btn-sm" id="exportTrialBtn"><i data-lucide="download"></i>تصدير</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>الكود</th><th>الحساب</th><th>النوع</th>
+              <th style="text-align:left">مدين</th>
+              <th style="text-align:left">دائن</th>
+              <th style="text-align:left">الرصيد</th>
+            </tr></thead>
+            <tbody id="trialTable">
+              <tr><td colspan="6" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: INCOME STATEMENT -->
+    <div class="tab-panel" data-panel="income">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="file-text"></i><span>قائمة الدخل (Income Statement)</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="date" id="incomeDateFrom" class="form-input" style="padding:8px 12px;font-size:12.5px;width:auto">
+            <input type="date" id="incomeDateTo" class="form-input" style="padding:8px 12px;font-size:12.5px;width:auto">
+            <button class="btn btn-primary btn-sm" id="incomeApplyBtn"><i data-lucide="filter"></i>تطبيق</button>
+            <button class="btn btn-ghost btn-sm" id="incomePrintBtn"><i data-lucide="printer"></i>طباعة</button>
+          </div>
+        </div>
+        <div class="card-body" id="incomeContent">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: P&L -->
+    <div class="tab-panel" data-panel="pl">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="trending-up"></i><span>الأرباح والخسائر (شهري)</span></div>
+          <div style="display:flex;gap:8px">
+            <select id="plPeriodFilter" class="form-select" style="padding:8px 12px;font-size:12.5px">
+              <option value="3">آخر 3 شهور</option>
+              <option value="6">آخر 6 شهور</option>
+              <option value="12" selected>آخر سنة</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body" id="plContent">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: BALANCE SHEET -->
+    <div class="tab-panel" data-panel="balance">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="file-bar-chart"></i><span>الميزانية العمومية</span></div>
+          <button class="btn btn-ghost btn-sm" id="balancePrintBtn"><i data-lucide="printer"></i>طباعة</button>
+        </div>
+        <div class="card-body" id="balanceContent">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: ACCOUNT STATEMENT -->
+    <div class="tab-panel" data-panel="statement">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="search"></i><span>كشف حساب مفصّل</span></div>
+        </div>
+        <div class="filter-bar">
+          <select id="stmtAccountSelect" class="form-select" style="min-width:250px">
+            <option value="">— اختر حساب —</option>
+          </select>
+          <input type="date" id="stmtDateFrom" class="form-input">
+          <input type="date" id="stmtDateTo" class="form-input">
+          <button class="btn btn-primary btn-sm" id="stmtApplyBtn"><i data-lucide="filter"></i>عرض</button>
+          <button class="btn btn-ghost btn-sm" id="stmtPrintBtn"><i data-lucide="printer"></i>طباعة</button>
+        </div>
+        <div class="card-body" id="statementContent">
+          <div class="empty-state">
+            <i data-lucide="search"></i>
+            <h3>اختر حساباً لعرض كشف الحساب</h3>
+            <p>سيظهر هنا كل الحركات والرصيد الجاري</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 8: TAX -->
+    <div class="tab-panel" data-panel="tax">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="percent"></i><span>نسب الضريبة</span></div>
+          <button class="btn btn-primary btn-sm" id="addTaxBtn"><i data-lucide="plus"></i>نسبة جديدة</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>الاسم</th><th>النسبة</th><th>الافتراضي</th><th>شامل</th><th>حالة</th><th>إجراءات</th>
+            </tr></thead>
+            <tbody id="taxTable">
+              <tr><td colspan="6" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⭐ NEW: TAB 9: CASH MOVEMENTS -->
+    <div class="tab-panel" data-panel="cash">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="banknote"></i><span>حركات الدرج</span><span class="count-badge" id="cashCount">0</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select id="cashTypeFilter" class="form-select" style="padding:8px 12px;font-size:12.5px;min-width:150px">
+              <option value="">كل الأنواع</option>
+              <option value="sale">بيع نقدي</option>
+              <option value="return">مرتجع</option>
+              <option value="expense">مصروف</option>
+              <option value="withdrawal">سحب</option>
+              <option value="deposit">إيداع</option>
+              <option value="purchase_payment">دفع مورد</option>
+            </select>
+            <input type="date" id="cashDateFrom" class="form-input" style="padding:8px 12px;font-size:12.5px;width:auto">
+            <input type="date" id="cashDateTo" class="form-input" style="padding:8px 12px;font-size:12.5px;width:auto">
+            <button class="btn btn-ghost btn-sm" id="cashExportBtn"><i data-lucide="download"></i>تصدير</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="cashStats" style="padding:16px 20px 0;margin-bottom:0"></div>
+        <div class="table-wrap" style="margin-top:16px">
+          <table>
+            <thead><tr>
+              <th>التاريخ</th>
+              <th>النوع</th>
+              <th>الوصف</th>
+              <th style="text-align:left">المبلغ</th>
+              <th>الوردية</th>
+            </tr></thead>
+            <tbody id="cashTable">
+              <tr><td colspan="5" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Modals -->
+<div class="modal-overlay" id="jeModal">
+  <div class="modal lg">
+    <div class="modal-header">
+      <h3><i data-lucide="book-open"></i><span id="jeModalTitle">قيد جديد</span></h3>
+      <button class="modal-close" data-close="jeModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="jeFormError"></div>
+      <input type="hidden" id="jeId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">رقم القيد <span class="required">*</span></label>
+          <input type="text" class="form-input" id="jeNumber" placeholder="JE-2025-0001" dir="ltr">
+        </div>
+        <div class="form-group">
+          <label class="form-label">التاريخ <span class="required">*</span></label>
+          <input type="date" class="form-input" id="jeDate">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">الوصف</label>
+        <input type="text" class="form-input" id="jeDescription" maxlength="200">
+      </div>
+      <div style="margin-top:16px">
+        <label class="form-label">السطور <span class="required">*</span></label>
+        <div class="je-lines-editor">
+          <div id="jeLinesContainer"></div>
+          <button class="btn btn-ghost btn-sm" id="addLineBtn" style="width:100%;margin-top:8px">
+            <i data-lucide="plus"></i>إضافة سطر
+          </button>
+          <div class="je-balance-indicator" id="jeBalanceIndicator">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="jeModal">إلغاء</button>
+      <button class="btn btn-primary" id="saveJeBtn"><i data-lucide="save"></i>حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="taxModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i data-lucide="percent"></i><span id="taxModalTitle">نسبة ضريبة جديدة</span></h3>
+      <button class="modal-close" data-close="taxModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="taxFormError"></div>
+      <input type="hidden" id="taxId">
+      <div class="form-group">
+        <label class="form-label">الاسم <span class="required">*</span></label>
+        <input type="text" class="form-input" id="taxName" placeholder="VAT 14%">
+      </div>
+      <div class="form-group">
+        <label class="form-label">النسبة % <span class="required">*</span></label>
+        <input type="number" class="form-input" id="taxRate" min="0" max="100" step="0.01" value="14">
+      </div>
+      <div class="form-group">
+        <label class="form-label">حساب الضريبة</label>
+        <select class="form-select" id="taxAccount"><option value="">— بدون —</option></select>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="taxIsDefault" style="width:18px;height:18px;accent-color:var(--accent)">
+          <span style="font-size:13px;font-weight:600">افتراضي</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="taxInclusive" style="width:18px;height:18px;accent-color:var(--accent)">
+          <span style="font-size:13px;font-weight:600">شامل الضريبة</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="taxModal">إلغاء</button>
+      <button class="btn btn-primary" id="saveTaxBtn"><i data-lucide="save"></i>حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="jeDetailsModal">
+  <div class="modal lg">
+    <div class="modal-header">
+      <h3><i data-lucide="file-text"></i><span>تفاصيل القيد</span></h3>
+      <button class="modal-close" data-close="jeDetailsModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="jeDetailsBody"></div>
+    <div class="modal-footer" id="jeDetailsFooter"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  (function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let accounts = [];
+  let accountMap = {};
+  let currentTab = 'coa';
+  let autoSyncTimer = null;
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
+  const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
+  const fmtDateTime = (window.Refad && Refad.fmtDateTime) || function(d){if(!d)return'—';return new Date(d).toLocaleString('ar-EG',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+  const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:2})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  const typeLabels = { asset: 'أصول', liability: 'التزامات', equity: 'حقوق ملكية', revenue: 'إيرادات', expense: 'مصروفات' };
+  const typeIcons = { asset: 'trending-up', liability: 'trending-down', equity: 'crown', revenue: 'plus-circle', expense: 'minus-circle' };
+  const typeColors = { asset: 'success', liability: 'danger', equity: 'purple', revenue: 'accent', expense: 'warning' };
+
+  function setSyncStatus(status, text) {
+    const indicator = document.getElementById('syncIndicator');
+    const textEl = document.getElementById('syncText');
+    if (!indicator || !textEl) return;
+    indicator.className = 'sync-indicator';
+    if (status === 'syncing') indicator.classList.add('syncing');
+    else if (status === 'success') indicator.classList.add('active');
+    else if (status === 'warning') indicator.classList.add('warning');
+    textEl.textContent = text;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOADERS
+  // ═══════════════════════════════════════════════════════════
+  async function loadAccounts() {
+    const res = await sb.from('chart_of_accounts')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .eq('is_active', true)
+      .order('code');
+    if (res.error) { toast('error', 'فشل تحميل الحسابات'); return; }
+    accounts = res.data || [];
+    accountMap = {};
+    accounts.forEach(a => { accountMap[a.id] = a; });
+  }
+
+  async function loadTrialBalance(fromDate, toDate) {
+    let q = sb.from('v_trial_balance')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .order('code');
+    const res = await q;
+    let rows = res.data || [];
+
+    if (fromDate || toDate) {
+      const stmtRes = await sb.from('v_account_statement')
+        .select('account_id, debit, credit')
+        .eq('company_id', session.company_id)
+        .gte('entry_date', fromDate || '1900-01-01')
+        .lte('entry_date', toDate || '2100-12-31');
+
+      const agg = {};
+      (stmtRes.data || []).forEach(r => {
+        if (!agg[r.account_id]) agg[r.account_id] = { debit: 0, credit: 0 };
+        agg[r.account_id].debit += Number(r.debit || 0);
+        agg[r.account_id].credit += Number(r.credit || 0);
+      });
+
+      rows = rows.map(r => {
+        const acc = accounts.find(a => a.code === r.code);
+        if (acc && agg[acc.id]) {
+          return {
+            ...r,
+            total_debit: agg[acc.id].debit,
+            total_credit: agg[acc.id].credit,
+            balance: agg[acc.id].debit - agg[acc.id].credit
+          };
+        }
+        return { ...r, total_debit: 0, total_credit: 0, balance: 0 };
+      });
+    }
+
+    return rows;
+  }
+
+  async function loadProfitLoss(months) {
+    const res = await sb.from('v_profit_loss')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .gte('period', new Date(Date.now() - months * 30 * 86400000).toISOString().slice(0,10))
+      .order('period');
+    return res.data || [];
+  }
+
+  async function loadBalanceSheet() {
+    const res = await sb.from('v_balance_sheet')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .maybeSingle();
+    return res.data;
+  }
+
+  async function loadIncomeStatement(fromDate, toDate) {
+    let q = sb.from('v_account_statement')
+      .select('account_code, account_name, account_type, debit, credit')
+      .eq('company_id', session.company_id)
+      .in('account_type', ['revenue', 'expense']);
+
+    if (fromDate) q = q.gte('entry_date', fromDate);
+    if (toDate) q = q.lte('entry_date', toDate);
+
+    const res = await q;
+    const rows = res.data || [];
+
+    const agg = {};
+    rows.forEach(r => {
+      if (!agg[r.account_code]) {
+        agg[r.account_code] = {
+          code: r.account_code,
+          name: r.account_name,
+          type: r.account_type,
+          amount: 0
+        };
+      }
+      const net = r.account_type === 'revenue'
+        ? Number(r.credit || 0) - Number(r.debit || 0)
+        : Number(r.debit || 0) - Number(r.credit || 0);
+      agg[r.account_code].amount += net;
+    });
+
+    return Object.values(agg);
+  }
+
+  async function loadJournalEntries() {
+    let q = sb.from('journal_entries')
+      .select('id, entry_number, entry_date, description, status, reference_type, reference_id, is_auto, created_at, posted_at')
+      .eq('company_id', session.company_id)
+      .order('entry_date', { ascending: false })
+      .limit(200);
+
+    const status = document.getElementById('jeStatusFilter')?.value;
+    if (status) q = q.eq('status', status);
+    const from = document.getElementById('jeDateFrom')?.value;
+    if (from) q = q.gte('entry_date', from);
+    const to = document.getElementById('jeDateTo')?.value;
+    if (to) q = q.lte('entry_date', to);
+
+    const res = await q;
+    return res.data || [];
+  }
+
+  async function loadJournalLines(entryIds) {
+    if (!entryIds.length) return {};
+    const res = await sb.from('journal_entry_lines')
+      .select('id, entry_id, account_id, debit, credit, description')
+      .in('entry_id', entryIds);
+    const map = {};
+    (res.data || []).forEach(l => {
+      if (!map[l.entry_id]) map[l.entry_id] = [];
+      map[l.entry_id].push(l);
+    });
+    return map;
+  }
+
+  async function loadAccountStatement(accountId, fromDate, toDate) {
+    let q = sb.from('v_account_statement')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .eq('account_id', accountId)
+      .order('entry_date', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (fromDate) q = q.gte('entry_date', fromDate);
+    if (toDate) q = q.lte('entry_date', toDate);
+
+    const res = await q;
+    return res.data || [];
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CHECK UNSYNCED INVOICES
+  // ═══════════════════════════════════════════════════════════
+  async function checkUnsyncedInvoices() {
+    try {
+      const { data: invoices } = await sb.from('sales_invoices')
+        .select('id, status, total')
+        .eq('company_id', session.company_id)
+        .neq('status', 'voided')
+        .gt('total', 0);
+
+      if (!invoices || invoices.length === 0) {
+        return { total: 0, unsynced: 0 };
+      }
+
+      const invoiceIds = invoices.map(i => i.id);
+      const { data: entries } = await sb.from('journal_entries')
+        .select('reference_id')
+        .eq('company_id', session.company_id)
+        .eq('reference_type', 'invoice')
+        .in('reference_id', invoiceIds);
+
+      const syncedSet = new Set((entries || []).map(e => e.reference_id));
+      const unsynced = invoices.filter(i => !syncedSet.has(i.id)).length;
+
+      return { total: invoices.length, unsynced };
+    } catch (e) {
+      console.warn('[Accounting] checkUnsyncedInvoices failed:', e);
+      return { total: 0, unsynced: 0 };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER STATS
+  // ═══════════════════════════════════════════════════════════
+  async function renderStats() {
+    try {
+      const [pl, bs, entriesRes, syncStatus] = await Promise.all([
+        loadProfitLoss(12),
+        loadBalanceSheet(),
+        sb.from('journal_entries').select('id', { count: 'exact', head: true })
+          .eq('company_id', session.company_id).eq('status', 'posted'),
+        checkUnsyncedInvoices()
+      ]);
+
+      const totalRev = pl.reduce((s, p) => s + Number(p.revenue || 0), 0);
+      const totalExp = pl.reduce((s, p) => s + Number(p.expense || 0), 0);
+      const netProfit = totalRev - totalExp;
+
+      document.getElementById('statRevenue').textContent = money(totalRev);
+      document.getElementById('statRevenueSub').textContent = pl.length + ' فترة';
+      document.getElementById('statExpense').textContent = money(totalExp);
+      document.getElementById('statExpenseSub').textContent = 'آخر 12 شهر';
+      document.getElementById('statProfit').textContent = money(netProfit);
+      document.getElementById('statProfitSub').textContent = netProfit >= 0 ? '✅ ربح' : '⚠️ خسارة';
+      document.getElementById('statProfit').style.color = netProfit >= 0 ? 'var(--success)' : 'var(--danger)';
+
+      const assets = bs?.total_assets || 0;
+      const liabilities = bs?.total_liabilities || 0;
+      document.getElementById('statAssets').textContent = money(assets);
+      document.getElementById('statAssetsSub').textContent = 'خصوم: ' + money(liabilities);
+
+      const entriesCount = entriesRes.count || 0;
+      document.getElementById('statEntries').textContent = entriesCount;
+      document.getElementById('statEntriesSub').textContent = 'قيد مُرحّل';
+
+      if (syncStatus.unsynced > 0) {
+        document.getElementById('unsyncedBanner').style.display = 'flex';
+        document.getElementById('unsyncedCount').textContent = syncStatus.unsynced;
+        document.getElementById('syncedBanner').style.display = 'none';
+        setSyncStatus('warning', syncStatus.unsynced + ' بدون قيد');
+      } else if (syncStatus.total > 0) {
+        document.getElementById('unsyncedBanner').style.display = 'none';
+        document.getElementById('syncedBanner').style.display = 'flex';
+        setSyncStatus('success', 'متزامن');
+      } else {
+        document.getElementById('unsyncedBanner').style.display = 'none';
+        document.getElementById('syncedBanner').style.display = 'none';
+        setSyncStatus('', 'جاهز');
+      }
+    } catch (e) {
+      console.warn('Stats failed:', e);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 1: CHART OF ACCOUNTS
+  // ═══════════════════════════════════════════════════════════
+  async function renderCOA() {
+    const container = document.getElementById('coaTree');
+    const filter = document.getElementById('coaTypeFilter').value;
+    const filtered = filter ? accounts.filter(a => a.account_type === filter) : accounts;
+
+    document.getElementById('coaCount').textContent = filtered.length;
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i data-lucide="list-tree"></i><h3>لا توجد حسابات</h3><p>نفّذ seed_chart_of_accounts لهذه الشركة</p></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const groups = { asset: [], liability: [], equity: [], revenue: [], expense: [] };
+    filtered.forEach(a => groups[a.account_type]?.push(a));
+
+    const trial = await loadTrialBalance();
+    const trialMap = {};
+    trial.forEach(t => { trialMap[t.code] = t; });
+
+    let html = '';
+    ['asset', 'liability', 'equity', 'revenue', 'expense'].forEach(type => {
+      const items = groups[type] || [];
+      if (items.length === 0) return;
+      const totalBalance = items.reduce((s, a) => s + Number(trialMap[a.code]?.balance || 0), 0);
+      html += `<div class="tree-group">
+        <div class="tree-group-header expanded" data-type="${type}">
+          <i data-lucide="chevron-down" class="chevron"></i>
+          <i data-lucide="${typeIcons[type]}"></i>
+          <span>${typeLabels[type]}</span>
+          <span style="margin-right:auto;font-family:monospace;font-size:12px;color:var(--${typeColors[type]})">${money(totalBalance)}</span>
+          <span class="count-badge" style="background:var(--${typeColors[type]}-soft);color:var(--${typeColors[type]})">${items.length}</span>
+        </div>
+        <div class="tree-group-body expanded">
+          ${items.map(a => {
+            const bal = Number(trialMap[a.code]?.balance || 0);
+            return `<div class="tree-item" data-account-id="${a.id}">
+              <div class="tree-item-info">
+                <span class="tree-item-code">${esc(a.code)}</span>
+                <span class="tree-item-name">${esc(a.name_ar)}</span>
+                ${a.is_postable ? '' : '<span class="badge badge-gray" style="font-size:9px">تجميعي</span>'}
+                ${a.is_system ? '<span class="badge badge-info" style="font-size:9px">نظام</span>' : ''}
+              </div>
+              <span class="tree-item-balance" style="color:${bal >= 0 ? 'var(--success)' : 'var(--danger)'}">${money(bal)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    });
+
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+
+    container.querySelectorAll('.tree-group-header').forEach(h => {
+      h.onclick = () => {
+        h.classList.toggle('expanded');
+        h.nextElementSibling.classList.toggle('expanded');
+      };
+    });
+
+    container.querySelectorAll('.tree-item[data-account-id]').forEach(el => {
+      el.onclick = () => {
+        const accId = el.dataset.accountId;
+        const acc = accountMap[accId];
+        if (!acc) return;
+        switchTab('statement');
+        document.getElementById('stmtAccountSelect').value = accId;
+        renderStatement();
+      };
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 2: JOURNAL
+  // ═══════════════════════════════════════════════════════════
+  async function renderJournal() {
+    const container = document.getElementById('journalList');
+    const entries = await loadJournalEntries();
+
+    document.getElementById('jeCount').textContent = entries.length;
+
+    if (entries.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i data-lucide="book-open"></i><h3>لا توجد قيود</h3><p>اضغط "قيد جديد" أو "توليد قيود" من الأعلى</p></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const linesMap = await loadJournalLines(entries.map(e => e.id));
+    const statusMap = {
+      draft: ['gray', 'مسودة'],
+      posted: ['success', 'مُرحّل'],
+      reversed: ['danger', 'معكوس']
+    };
+
+    container.innerHTML = entries.map(e => {
+      const lines = linesMap[e.id] || [];
+      const totalDebit = lines.reduce((s, l) => s + Number(l.debit || 0), 0);
+      const totalCredit = lines.reduce((s, l) => s + Number(l.credit || 0), 0);
+      const [cls, txt] = statusMap[e.status] || ['gray', e.status];
+
+      return `<div class="journal-entry" data-je-id="${e.id}">
+        <div class="je-header">
+          <span class="je-number">${esc(e.entry_number)}</span>
+          <span class="je-date">${fmtDate(e.entry_date)}</span>
+          <span class="je-status"><span class="badge badge-${cls}">${txt}</span></span>
+          ${e.is_auto ? '<span class="badge badge-purple" style="font-size:9px">تلقائي</span>' : ''}
+        </div>
+        ${e.description ? `<div class="je-desc">${esc(e.description)}</div>` : ''}
+        <div class="je-lines">
+          ${lines.slice(0, 6).map(l => {
+            const acc = accountMap[l.account_id];
+            return `<div class="je-line">
+              <div class="je-line-account">${esc(acc?.name_ar || '—')}</div>
+              <div class="je-line-amount" style="color:${Number(l.debit) > 0 ? 'var(--success)' : 'var(--danger)'}">
+                ${Number(l.debit) > 0 ? 'د ' + money(l.debit) : 'د ' + money(l.credit)}
+              </div>
+            </div>`;
+          }).join('')}
+          ${lines.length > 6 ? `<div class="je-line" style="text-align:center">+${lines.length - 6} سطر</div>` : ''}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-soft)">
+          <span>مدين: <strong style="color:var(--success)">${money(totalDebit)}</strong></span>
+          <span>دائن: <strong style="color:var(--danger)">${money(totalCredit)}</strong></span>
+          <span>${Math.abs(totalDebit - totalCredit) < 0.01 ? '<span class="badge badge-success">متوازن</span>' : '<span class="badge badge-danger">غير متوازن</span>'}</span>
+        </div>
+      </div>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+
+    container.querySelectorAll('[data-je-id]').forEach(el => {
+      el.onclick = () => showJEDetails(el.dataset.jeId, linesMap);
+    });
+  }
+
+  function showJEDetails(id, linesMap) {
+    sb.from('journal_entries').select('*').eq('id', id).maybeSingle().then(async ({ data: je }) => {
+      if (!je) return;
+      const lines = linesMap[id] || [];
+      const statusMap = { draft: ['gray', 'مسودة'], posted: ['success', 'مُرحّل'], reversed: ['danger', 'معكوس'] };
+      const [cls, txt] = statusMap[je.status] || ['gray', je.status];
+
+      let html = `
+        <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg-soft);border-radius:10px;margin-bottom:16px">
+          <div style="width:44px;height:44px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center">
+            <i data-lucide="book-open" style="width:22px;height:22px"></i>
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:800">${esc(je.entry_number)}</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">${fmtDate(je.entry_date)}</div>
+          </div>
+          <div style="margin-right:auto"><span class="badge badge-${cls}">${txt}</span></div>
+        </div>
+        ${je.description ? `<div style="margin-bottom:16px"><strong style="font-size:12px">الوصف:</strong> ${esc(je.description)}</div>` : ''}
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--bg-soft)">
+            <th style="padding:10px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted)">الحساب</th>
+            <th style="padding:10px;text-align:left;font-size:11px;font-weight:800;color:var(--text-muted)">مدين</th>
+            <th style="padding:10px;text-align:left;font-size:11px;font-weight:800;color:var(--text-muted)">دائن</th>
+          </tr></thead>
+          <tbody>
+            ${lines.map(l => {
+              const acc = accountMap[l.account_id];
+              return `<tr>
+                <td style="padding:10px;border-bottom:1px solid var(--border-soft)">
+                  <div style="font-weight:700">${esc(acc?.name_ar || '—')}</div>
+                  <div style="font-size:11px;color:var(--text-muted);font-family:monospace">${esc(acc?.code || '')}</div>
+                </td>
+                <td style="padding:10px;text-align:left;border-bottom:1px solid var(--border-soft);color:var(--success);font-weight:700">${Number(l.debit) > 0 ? money(l.debit) : '—'}</td>
+                <td style="padding:10px;text-align:left;border-bottom:1px solid var(--border-soft);color:var(--danger);font-weight:700">${Number(l.credit) > 0 ? money(l.credit) : '—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+
+      document.getElementById('jeDetailsBody').innerHTML = html;
+
+      const footer = document.getElementById('jeDetailsFooter');
+      let footerHtml = '<button class="btn btn-ghost" data-close="jeDetailsModal">إغلاق</button>';
+      if (je.status === 'draft') {
+        footerHtml = `<button class="btn btn-ghost" data-close="jeDetailsModal">إغلاق</button>
+          <button class="btn btn-primary" data-action="post"><i data-lucide="check"></i>ترحيل</button>`;
+      }
+      footer.innerHTML = footerHtml;
+      if (window.lucide) lucide.createIcons();
+
+      footer.querySelectorAll('[data-close]').forEach(el => {
+        el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+      });
+      footer.querySelectorAll('[data-action="post"]').forEach(el => {
+        el.onclick = async () => {
+          const res = await sb.from('journal_entries').update({
+            status: 'posted', posted_at: new Date().toISOString(), posted_by: session.user_id
+          }).eq('id', id);
+          if (res.error) { toast('error', res.error.message); return; }
+          toast('success', 'تم ترحيل القيد');
+          document.getElementById('jeDetailsModal').classList.remove('show');
+          await renderStats();
+          renderJournal();
+        };
+      });
+
+      document.getElementById('jeDetailsModal').classList.add('show');
+    });
+  }
+
+  function addJELine(accountId = '', debit = '', credit = '') {
+    const container = document.getElementById('jeLinesContainer');
+    const row = document.createElement('div');
+    row.className = 'je-line-row';
+    const options = accounts.filter(a => a.is_postable).map(a =>
+      `<option value="${a.id}" ${a.id === accountId ? 'selected' : ''}>${esc(a.code)} — ${esc(a.name_ar)}</option>`
+    ).join('');
+    row.innerHTML = `
+      <select class="je-account-select">
+        <option value="">— اختر حساب —</option>${options}
+      </select>
+      <input type="number" class="je-debit-input" placeholder="مدين" value="${debit}" step="0.01" min="0">
+      <input type="number" class="je-credit-input" placeholder="دائن" value="${credit}" step="0.01" min="0">
+      <button class="remove-line" type="button" title="حذف"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+    `;
+    row.querySelector('.remove-line').onclick = () => { row.remove(); updateJEBalance(); };
+    row.querySelectorAll('input').forEach(inp => inp.oninput = updateJEBalance);
+    container.appendChild(row);
+    if (window.lucide) lucide.createIcons();
+    updateJEBalance();
+  }
+
+  function updateJEBalance() {
+    const rows = document.querySelectorAll('#jeLinesContainer .je-line-row');
+    let debit = 0, credit = 0;
+    rows.forEach(r => {
+      debit += Number(r.querySelector('.je-debit-input').value) || 0;
+      credit += Number(r.querySelector('.je-credit-input').value) || 0;
+    });
+    const indicator = document.getElementById('jeBalanceIndicator');
+    if (!indicator) return;
+    const diff = Math.abs(debit - credit);
+    if (rows.length === 0) {
+      indicator.className = 'je-balance-indicator';
+      indicator.textContent = '—';
+    } else if (diff < 0.01 && debit > 0) {
+      indicator.className = 'je-balance-indicator balanced';
+      indicator.textContent = `✅ متوازن — مدين: ${money(debit)} | دائن: ${money(credit)}`;
+    } else {
+      indicator.className = 'je-balance-indicator unbalanced';
+      indicator.textContent = `⚠️ غير متوازن — فرق: ${money(diff)}`;
+    }
+  }
+
+  function openNewJE() {
+    document.getElementById('jeModalTitle').textContent = 'قيد جديد';
+    document.getElementById('jeFormError').classList.remove('show');
+    document.getElementById('jeId').value = '';
+    document.getElementById('jeNumber').value = 'JE-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4);
+    document.getElementById('jeDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('jeDescription').value = '';
+    document.getElementById('jeLinesContainer').innerHTML = '';
+    addJELine();
+    addJELine();
+    document.getElementById('jeModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function saveJE() {
+    const errEl = document.getElementById('jeFormError');
+    errEl.classList.remove('show');
+
+    const number = document.getElementById('jeNumber').value.trim();
+    const date = document.getElementById('jeDate').value;
+    if (!number) { errEl.textContent = 'رقم القيد مطلوب'; errEl.classList.add('show'); return; }
+    if (!date) { errEl.textContent = 'التاريخ مطلوب'; errEl.classList.add('show'); return; }
+
+    const rows = document.querySelectorAll('#jeLinesContainer .je-line-row');
+    const lines = [];
+    let totalDebit = 0, totalCredit = 0;
+    rows.forEach(r => {
+      const accId = r.querySelector('.je-account-select').value;
+      const debit = Number(r.querySelector('.je-debit-input').value) || 0;
+      const credit = Number(r.querySelector('.je-credit-input').value) || 0;
+      if (accId && (debit > 0 || credit > 0)) {
+        lines.push({ account_id: accId, debit, credit });
+        totalDebit += debit;
+        totalCredit += credit;
+      }
+    });
+
+    if (lines.length < 2) { errEl.textContent = 'يجب إضافة سطرين على الأقل'; errEl.classList.add('show'); return; }
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+      errEl.textContent = 'القيد غير متوازن';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('saveJeBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري الحفظ...</span>';
+
+    try {
+      const jeRes = await sb.from('journal_entries').insert({
+        company_id: session.company_id,
+        branch_id: session.active_branch_id,
+        entry_number: number,
+        entry_date: date,
+        description: document.getElementById('jeDescription').value.trim() || null,
+        reference_type: null,
+        reference_id: null,
+        status: 'draft',
+        is_auto: false,
+        created_by: session.user_id
+      }).select().single();
+
+      if (jeRes.error) throw jeRes.error;
+
+      const linesData = lines.map(l => ({
+        entry_id: jeRes.data.id,
+        account_id: l.account_id,
+        debit: l.debit,
+        credit: l.credit
+      }));
+
+      const linesRes = await sb.from('journal_entry_lines').insert(linesData);
+      if (linesRes.error) {
+        await sb.from('journal_entries').delete().eq('id', jeRes.data.id);
+        throw linesRes.error;
+      }
+
+      toast('success', 'تم حفظ القيد');
+      document.getElementById('jeModal').classList.remove('show');
+      await renderStats();
+      renderJournal();
+    } catch (e) {
+      errEl.textContent = e.message || 'فشل الحفظ';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 3: TRIAL BALANCE
+  // ═══════════════════════════════════════════════════════════
+  async function renderTrial() {
+    const tbody = document.getElementById('trialTable');
+    const from = document.getElementById('trialDateFrom').value;
+    const to = document.getElementById('trialDateTo').value;
+    const trial = await loadTrialBalance(from, to);
+
+    if (trial.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i data-lucide="scale"></i><h3>لا توجد بيانات</h3></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = trial.map(t => {
+      const bal = Number(t.balance || 0);
+      const hasAmounts = Number(t.total_debit) > 0 || Number(t.total_credit) > 0;
+      return `<tr style="${!hasAmounts ? 'opacity:0.6' : ''}">
+        <td><span class="code-cell">${esc(t.code)}</span></td>
+        <td>${esc(t.name_ar)}</td>
+        <td><span class="badge badge-${typeColors[t.account_type] || 'gray'}">${typeLabels[t.account_type] || t.account_type}</span></td>
+        <td class="num-cell debit">${Number(t.total_debit) > 0 ? money(t.total_debit) : '—'}</td>
+        <td class="num-cell credit">${Number(t.total_credit) > 0 ? money(t.total_credit) : '—'}</td>
+        <td class="num-cell ${bal >= 0 ? 'debit' : 'credit'}">${money(bal)}</td>
+      </tr>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 4: INCOME STATEMENT
+  // ═══════════════════════════════════════════════════════════
+  async function renderIncome() {
+    const container = document.getElementById('incomeContent');
+    const from = document.getElementById('incomeDateFrom').value;
+    const to = document.getElementById('incomeDateTo').value;
+
+    const data = await loadIncomeStatement(from || null, to || null);
+
+    if (data.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i data-lucide="file-text"></i><h3>لا توجد بيانات</h3><p>لم يتم ترحيل قيود بعد</p></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const revenues = data.filter(d => d.type === 'revenue').sort((a, b) => b.amount - a.amount);
+    const expenses = data.filter(d => d.type === 'expense').sort((a, b) => b.amount - a.amount);
+
+    const totalRevenue = revenues.reduce((s, d) => s + d.amount, 0);
+    const totalExpense = expenses.reduce((s, d) => s + d.amount, 0);
+    const netIncome = totalRevenue - totalExpense;
+    const profitMargin = totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0;
+
+    let html = '';
+
+    html += `<div style="text-align:center;padding:16px;background:var(--bg-soft);border-radius:10px;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:800">قائمة الدخل</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px">
+        ${from ? 'من ' + fmtDate(from) : 'من البداية'} — ${to ? 'إلى ' + fmtDate(to) : 'حتى الآن'}
+      </div>
+    </div>`;
+
+    html += `<div class="stats-grid" style="margin-bottom:24px">
+      <div class="stat-card success"><div class="stat-label">إجمالي الإيرادات</div><div class="stat-value" style="color:var(--success)">${money(totalRevenue)}</div></div>
+      <div class="stat-card danger"><div class="stat-label">إجمالي المصروفات</div><div class="stat-value" style="color:var(--danger)">${money(totalExpense)}</div></div>
+      <div class="stat-card gold"><div class="stat-label">صافي الدخل</div><div class="stat-value" style="color:${netIncome >= 0 ? 'var(--success)' : 'var(--danger)'}">${money(netIncome)}</div></div>
+      <div class="stat-card info"><div class="stat-label">هامش الربح</div><div class="stat-value" style="color:var(--info)">${profitMargin.toFixed(1)}%</div></div>
+    </div>`;
+
+    if (revenues.length > 0) {
+      html += `<div class="income-section">
+        <div class="income-header revenue">
+          <span><i data-lucide="trending-up" style="width:16px;height:16px;display:inline;vertical-align:middle"></i> الإيرادات</span>
+          <span>${money(totalRevenue)}</span>
+        </div>
+        ${revenues.map(r => `
+          <div class="income-item">
+            <span class="label"><span class="code">${esc(r.code)}</span> ${esc(r.name)}</span>
+            <span class="amount positive">${money(r.amount)}</span>
+          </div>
+        `).join('')}
+        <div class="income-item" style="background:var(--success-soft);font-weight:800;border-top:2px solid var(--success)">
+          <span>إجمالي الإيرادات</span>
+          <span class="amount positive">${money(totalRevenue)}</span>
+        </div>
+      </div>`;
+    }
+
+    if (expenses.length > 0) {
+      html += `<div class="income-section">
+        <div class="income-header expense">
+          <span><i data-lucide="trending-down" style="width:16px;height:16px;display:inline;vertical-align:middle"></i> المصروفات</span>
+          <span>${money(totalExpense)}</span>
+        </div>
+        ${expenses.map(r => `
+          <div class="income-item">
+            <span class="label"><span class="code">${esc(r.code)}</span> ${esc(r.name)}</span>
+            <span class="amount negative">${money(r.amount)}</span>
+          </div>
+        `).join('')}
+        <div class="income-item" style="background:var(--danger-soft);font-weight:800;border-top:2px solid var(--danger)">
+          <span>إجمالي المصروفات</span>
+          <span class="amount negative">${money(totalExpense)}</span>
+        </div>
+      </div>`;
+    }
+
+    html += `<div class="income-section">
+      <div class="income-header total" style="font-size:16px;padding:16px">
+        <span><i data-lucide="wallet" style="width:18px;height:18px;display:inline;vertical-align:middle"></i> صافي الدخل</span>
+        <span style="color:${netIncome >= 0 ? 'var(--success)' : 'var(--danger)'};font-size:20px">${money(netIncome)}</span>
+      </div>
+      <div style="padding:12px 16px;text-align:center;font-size:11.5px;color:var(--text-muted)">
+        ${netIncome >= 0 ? '✅ الشركة في ربح — هامش ' + profitMargin.toFixed(1) + '%' : '⚠️ الشركة في خسارة'}
+      </div>
+    </div>`;
+
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 5: P&L
+  // ═══════════════════════════════════════════════════════════
+  async function renderPL() {
+    const container = document.getElementById('plContent');
+    const months = Number(document.getElementById('plPeriodFilter').value) || 12;
+    const data = await loadProfitLoss(months);
+
+    if (data.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i data-lucide="trending-up"></i><h3>لا توجد بيانات</h3><p>لم يتم ترحيل قيود بعد</p></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const totalRev = data.reduce((s, p) => s + Number(p.revenue || 0), 0);
+    const totalExp = data.reduce((s, p) => s + Number(p.expense || 0), 0);
+    const net = totalRev - totalExp;
+    const maxVal = Math.max(...data.map(p => Math.max(Number(p.revenue || 0), Number(p.expense || 0))), 1);
+
+    let html = `<div class="stats-grid" style="margin-bottom:20px">
+      <div class="stat-card success"><div class="stat-label">إجمالي الإيرادات</div><div class="stat-value" style="color:var(--success)">${money(totalRev)}</div></div>
+      <div class="stat-card danger"><div class="stat-label">إجمالي المصروفات</div><div class="stat-value" style="color:var(--danger)">${money(totalExp)}</div></div>
+      <div class="stat-card gold"><div class="stat-label">صافي الربح</div><div class="stat-value" style="color:${net >= 0 ? 'var(--success)' : 'var(--danger)'}">${money(net)}</div></div>
+    </div>`;
+
+    html += '<div class="chart-container"><div class="chart-bars">';
+    data.forEach(p => {
+      const revH = (Number(p.revenue || 0) / maxVal) * 100;
+      const expH = (Number(p.expense || 0) / maxVal) * 100;
+      const periodLabel = new Date(p.period).toLocaleDateString('ar-EG', { month: 'short' });
+      html += `<div class="chart-bar-wrap">
+        <div style="flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px">
+          <div class="chart-bar" style="width:45%;height:${Math.max(revH, 2)}%;background:var(--success)" title="إيراد: ${money(p.revenue)}"></div>
+          <div class="chart-bar" style="width:45%;height:${Math.max(expH, 2)}%;background:var(--danger)" title="مصروف: ${money(p.expense)}"></div>
+        </div>
+        <div class="chart-label">${periodLabel}</div>
+      </div>`;
+    });
+    html += '</div>';
+    html += '<div style="display:flex;gap:14px;justify-content:center;margin-top:10px;font-size:12px"><span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:var(--success);border-radius:3px"></span>إيرادات</span><span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:var(--danger);border-radius:3px"></span>مصروفات</span></div></div>';
+
+    html += '<div style="overflow-x:auto;margin-top:20px"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:var(--bg-soft)">' +
+      '<th style="padding:10px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted)">الفترة</th>' +
+      '<th style="padding:10px;text-align:left;font-size:11px;font-weight:800;color:var(--text-muted)">إيرادات</th>' +
+      '<th style="padding:10px;text-align:left;font-size:11px;font-weight:800;color:var(--text-muted)">مصروفات</th>' +
+      '<th style="padding:10px;text-align:left;font-size:11px;font-weight:800;color:var(--text-muted)">صافي</th>' +
+    '</tr></thead><tbody>';
+    data.slice().reverse().forEach(p => {
+      const netP = Number(p.revenue || 0) - Number(p.expense || 0);
+      html += `<tr>
+        <td style="padding:10px;border-bottom:1px solid var(--border-soft)">${new Date(p.period).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long' })}</td>
+        <td style="padding:10px;text-align:left;border-bottom:1px solid var(--border-soft);color:var(--success);font-weight:700">${money(p.revenue)}</td>
+        <td style="padding:10px;text-align:left;border-bottom:1px solid var(--border-soft);color:var(--danger);font-weight:700">${money(p.expense)}</td>
+        <td style="padding:10px;text-align:left;border-bottom:1px solid var(--border-soft);font-weight:800;color:${netP >= 0 ? 'var(--success)' : 'var(--danger)'}">${money(netP)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 6: BALANCE SHEET
+  // ═══════════════════════════════════════════════════════════
+  async function renderBalance() {
+    const container = document.getElementById('balanceContent');
+    const bs = await loadBalanceSheet();
+    if (!bs) {
+      container.innerHTML = '<div class="empty-state"><i data-lucide="file-bar-chart"></i><h3>لا توجد بيانات</h3></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const assets = Number(bs.total_assets || 0);
+    const liabilities = Number(bs.total_liabilities || 0);
+    const equity = Number(bs.total_equity || 0);
+    const total = liabilities + equity;
+    const diff = assets - total;
+
+    let html = '<div class="stats-grid" style="margin-bottom:20px">' +
+      `<div class="stat-card success"><div class="stat-label">الأصول</div><div class="stat-value" style="color:var(--success)">${money(assets)}</div></div>` +
+      `<div class="stat-card danger"><div class="stat-label">الالتزامات</div><div class="stat-value" style="color:var(--danger)">${money(liabilities)}</div></div>` +
+      `<div class="stat-card purple"><div class="stat-label">حقوق الملكية</div><div class="stat-value" style="color:var(--purple)">${money(equity)}</div></div>` +
+      `<div class="stat-card ${Math.abs(diff) < 1 ? 'success' : 'danger'}"><div class="stat-label">${Math.abs(diff) < 1 ? '✅ متوازن' : '⚠️ فرق ' + money(diff)}</div><div class="stat-value">${money(total)}</div><div class="stat-sub">التزامات + حقوق</div></div>` +
+    '</div>';
+
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
+      `<div style="background:var(--bg-soft);padding:16px;border-radius:10px">
+        <div style="font-weight:800;font-size:13px;margin-bottom:12px;color:var(--success)">الأصول</div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border-soft)"><span>الإجمالي</span><strong style="color:var(--success)">${money(assets)}</strong></div>
+      </div>` +
+      `<div style="background:var(--bg-soft);padding:16px;border-radius:10px">
+        <div style="font-weight:800;font-size:13px;margin-bottom:12px;color:var(--danger)">الالتزامات + حقوق الملكية</div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border-soft)"><span>الالتزامات</span><strong style="color:var(--danger)">${money(liabilities)}</strong></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0"><span>حقوق الملكية</span><strong style="color:var(--purple)">${money(equity)}</strong></div>
+      </div>` +
+    '</div>';
+
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 7: ACCOUNT STATEMENT
+  // ═══════════════════════════════════════════════════════════
+  async function renderStatement() {
+    const container = document.getElementById('statementContent');
+    const accId = document.getElementById('stmtAccountSelect').value;
+    if (!accId) {
+      container.innerHTML = '<div class="empty-state"><i data-lucide="search"></i><h3>اختر حساباً</h3></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const from = document.getElementById('stmtDateFrom').value;
+    const to = document.getElementById('stmtDateTo').value;
+    const acc = accountMap[accId];
+
+    const rows = await loadAccountStatement(accId, from || null, to || null);
+
+    if (rows.length === 0) {
+      container.innerHTML = `<div class="empty-state"><i data-lucide="search"></i><h3>لا توجد حركات على الحساب</h3><p>${esc(acc?.name_ar || '')} — ${esc(acc?.code || '')}</p></div>`;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    let runningBalance = 0;
+    const rowsWithBalance = rows.map(r => {
+      const debit = Number(r.debit || 0);
+      const credit = Number(r.credit || 0);
+      runningBalance += (debit - credit);
+      return { ...r, debit, credit, runningBalance };
+    });
+
+    const totalDebit = rowsWithBalance.reduce((s, r) => s + r.debit, 0);
+    const totalCredit = rowsWithBalance.reduce((s, r) => s + r.credit, 0);
+    const finalBalance = totalDebit - totalCredit;
+
+    let html = `<div style="margin-bottom:16px;padding:16px;background:var(--bg-soft);border-radius:10px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--${typeColors[acc.account_type]}-soft);color:var(--${typeColors[acc.account_type]});display:flex;align-items:center;justify-content:center">
+          <i data-lucide="${typeIcons[acc.account_type]}"></i>
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:800">${esc(acc.name_ar)}</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">${esc(acc.code)} — ${typeLabels[acc.account_type]}</div>
+        </div>
+        <div style="margin-right:auto;text-align:left">
+          <div style="font-size:11px;color:var(--text-muted)">الرصيد النهائي</div>
+          <div style="font-size:18px;font-weight:900;color:${finalBalance >= 0 ? 'var(--success)' : 'var(--danger)'}">${money(finalBalance)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;font-size:11.5px;color:var(--text-muted)">
+        <span>مدين: <strong style="color:var(--success)">${money(totalDebit)}</strong></span>
+        <span>دائن: <strong style="color:var(--danger)">${money(totalCredit)}</strong></span>
+        <span>عدد الحركات: <strong>${rows.length}</strong></span>
+      </div>
+    </div>`;
+
+    html += '<div class="table-wrap"><table class="statement-table"><thead><tr>' +
+      '<th>التاريخ</th>' +
+      '<th>رقم القيد</th>' +
+      '<th>الوصف</th>' +
+      '<th style="text-align:left">مدين</th>' +
+      '<th style="text-align:left">دائن</th>' +
+      '<th style="text-align:left">الرصيد الجاري</th>' +
+    '</tr></thead><tbody>';
+
+    rowsWithBalance.forEach(r => {
+      html += `<tr>
+        <td>${fmtDate(r.entry_date)}</td>
+        <td><span style="font-family:monospace;font-size:11.5px">${esc(r.entry_number)}</span></td>
+        <td>
+          <div style="font-size:12px">${esc(r.line_description || r.entry_description || '—')}</div>
+          ${r.reference_type ? `<div style="font-size:10.5px;color:var(--text-muted)">${esc(r.reference_type)}</div>` : ''}
+        </td>
+        <td style="text-align:left;color:var(--success);font-weight:700">${r.debit > 0 ? money(r.debit) : '—'}</td>
+        <td style="text-align:left;color:var(--danger);font-weight:700">${r.credit > 0 ? money(r.credit) : '—'}</td>
+        <td style="text-align:left"><span class="running-balance" style="color:${r.runningBalance >= 0 ? 'var(--success)' : 'var(--danger)'}">${money(r.runningBalance)}</span></td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function populateStmtAccountSelect() {
+    const sel = document.getElementById('stmtAccountSelect');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— اختر حساب —</option>' +
+      accounts.map(a => `<option value="${a.id}">${esc(a.code)} — ${esc(a.name_ar)}</option>`).join('');
+    if (current) sel.value = current;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 8: TAX
+  // ═══════════════════════════════════════════════════════════
+  async function renderTax() {
+    const tbody = document.getElementById('taxTable');
+    const res = await sb.from('tax_rates')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .order('is_default', { ascending: false })
+      .order('rate');
+
+    const rates = res.data || [];
+    if (rates.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i data-lucide="percent"></i><h3>لا توجد نسب</h3></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = rates.map(r => {
+      const acc = r.tax_account_id ? accountMap[r.tax_account_id] : null;
+      return `<tr>
+        <td><strong>${esc(r.name)}</strong>${acc ? `<div style="font-size:10.5px;color:var(--text-muted)">${esc(acc.name_ar)}</div>` : ''}</td>
+        <td><strong style="color:var(--accent)">${Number(r.rate)}%</strong></td>
+        <td>${r.is_default ? '<span class="badge badge-success">افتراضي</span>' : '—'}</td>
+        <td>${r.is_inclusive ? '<span class="badge badge-info">شامل</span>' : '—'}</td>
+        <td>${r.is_active ? '<span class="badge badge-success">نشط</span>' : '<span class="badge badge-danger">معطل</span>'}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="window.editTax('${r.id}')"><i data-lucide="edit"></i></button></td>
+      </tr>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  window.editTax = async function(id) {
+    const res = await sb.from('tax_rates').select('*').eq('id', id).maybeSingle();
+    if (!res.data) return;
+    const t = res.data;
+    document.getElementById('taxModalTitle').textContent = 'تعديل نسبة ضريبة';
+    document.getElementById('taxId').value = t.id;
+    document.getElementById('taxName').value = t.name;
+    document.getElementById('taxRate').value = t.rate;
+    document.getElementById('taxAccount').value = t.tax_account_id || '';
+    document.getElementById('taxIsDefault').checked = t.is_default;
+    document.getElementById('taxInclusive').checked = t.is_inclusive;
+    document.getElementById('taxModal').classList.add('show');
+  };
+
+  function populateTaxAccountSelect() {
+    const sel = document.getElementById('taxAccount');
+    sel.innerHTML = '<option value="">— بدون —</option>' +
+      accounts.filter(a => a.is_postable).map(a =>
+        `<option value="${a.id}">${esc(a.code)} — ${esc(a.name_ar)}</option>`
+      ).join('');
+  }
+
+  function openNewTax() {
+    document.getElementById('taxModalTitle').textContent = 'نسبة ضريبة جديدة';
+    document.getElementById('taxId').value = '';
+    document.getElementById('taxName').value = '';
+    document.getElementById('taxRate').value = '14';
+    document.getElementById('taxAccount').value = '';
+    document.getElementById('taxIsDefault').checked = false;
+    document.getElementById('taxInclusive').checked = false;
+    populateTaxAccountSelect();
+    document.getElementById('taxModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function saveTax() {
+    const errEl = document.getElementById('taxFormError');
+    errEl.classList.remove('show');
+    const id = document.getElementById('taxId').value || null;
+    const name = document.getElementById('taxName').value.trim();
+    const rate = Number(document.getElementById('taxRate').value);
+    if (!name) { errEl.textContent = 'الاسم مطلوب'; errEl.classList.add('show'); return; }
+    if (isNaN(rate) || rate < 0 || rate > 100) { errEl.textContent = 'النسبة 0-100'; errEl.classList.add('show'); return; }
+
+    const payload = {
+      company_id: session.company_id,
+      name, rate,
+      is_default: document.getElementById('taxIsDefault').checked,
+      is_inclusive: document.getElementById('taxInclusive').checked,
+      tax_account_id: document.getElementById('taxAccount').value || null,
+      updated_at: new Date().toISOString()
+    };
+
+    const btn = document.getElementById('saveTaxBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div>';
+
+    try {
+      let res;
+      if (id) res = await sb.from('tax_rates').update(payload).eq('id', id);
+      else res = await sb.from('tax_rates').insert(payload);
+      if (res.error) throw res.error;
+      toast('success', 'تم الحفظ');
+      document.getElementById('taxModal').classList.remove('show');
+      renderTax();
+    } catch (e) {
+      errEl.textContent = e.message || 'فشل';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB 9: CASH MOVEMENTS (⭐ NEW)
+  // ═══════════════════════════════════════════════════════════
+  async function renderCash() {
+    const tbody = document.getElementById('cashTable');
+    const statsEl = document.getElementById('cashStats');
+
+    const typeFilter = document.getElementById('cashTypeFilter')?.value || '';
+    const dateFrom = document.getElementById('cashDateFrom')?.value || '';
+    const dateTo = document.getElementById('cashDateTo')?.value || '';
+
+    let q = sb.from('cash_movements')
+      .select('id, movement_type, direction, amount, payment_method, description, reference_type, session_id, created_at')
+      .eq('company_id', session.company_id)
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (typeFilter) q = q.eq('movement_type', typeFilter);
+    if (dateFrom) q = q.gte('created_at', dateFrom + 'T00:00:00');
+    if (dateTo) q = q.lte('created_at', dateTo + 'T23:59:59');
+
+    const { data, error } = await q;
+    if (error) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><i data-lucide="alert-circle"></i><h3>فشل التحميل</h3></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const movements = data || [];
+    document.getElementById('cashCount').textContent = movements.length;
+
+    let totalIn = 0, totalOut = 0;
+    movements.forEach(m => {
+      if (m.direction === 'in') totalIn += Number(m.amount || 0);
+      else totalOut += Number(m.amount || 0);
+    });
+    const netCash = totalIn - totalOut;
+
+    statsEl.innerHTML = `
+      <div class="stat-card success">
+        <div class="stat-icon green"><i data-lucide="arrow-down-circle"></i></div>
+        <div class="stat-label">إجمالي الداخل</div>
+        <div class="stat-value" style="color:var(--success)">${money(totalIn)}</div>
+        <div class="stat-sub">${movements.filter(m => m.direction === 'in').length} حركة</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-icon red"><i data-lucide="arrow-up-circle"></i></div>
+        <div class="stat-label">إجمالي الخارج</div>
+        <div class="stat-value" style="color:var(--danger)">${money(totalOut)}</div>
+        <div class="stat-sub">${movements.filter(m => m.direction === 'out').length} حركة</div>
+      </div>
+      <div class="stat-card ${netCash >= 0 ? 'info' : 'danger'}">
+        <div class="stat-icon blue"><i data-lucide="wallet"></i></div>
+        <div class="stat-label">صافي الدرج</div>
+        <div class="stat-value" style="color:${netCash >= 0 ? 'var(--info)' : 'var(--danger)'}">${money(netCash)}</div>
+        <div class="stat-sub">داخل - خارج</div>
+      </div>
+    `;
+
+    if (movements.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><i data-lucide="inbox"></i><h3>لا توجد حركات</h3><p>الحركات بتظهر لما تفتح وردية وتعمل بيع/مصروف</p></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const typeMap = {
+      sale: { label: 'بيع نقدي', cls: 'sale', icon: 'shopping-cart' },
+      return: { label: 'مرتجع', cls: 'return', icon: 'rotate-ccw' },
+      expense: { label: 'مصروف', cls: 'expense', icon: 'receipt' },
+      withdrawal: { label: 'سحب', cls: 'withdrawal', icon: 'arrow-up-circle' },
+      deposit: { label: 'إيداع', cls: 'deposit', icon: 'arrow-down-circle' },
+      purchase_payment: { label: 'دفع مورد', cls: 'purchase-payment', icon: 'truck' },
+      opening: { label: 'افتتاحي', cls: 'opening', icon: 'play-circle' },
+      closing: { label: 'إغلاق', cls: 'closing', icon: 'stop-circle' }
+    };
+
+    tbody.innerHTML = movements.map(m => {
+      const info = typeMap[m.movement_type] || { label: m.movement_type, cls: 'sale', icon: 'circle' };
+      const isIn = m.direction === 'in';
+      const dt = new Date(m.created_at).toLocaleString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return `<tr>
+        <td style="font-size:12px;color:var(--text-muted)">${dt}</td>
+        <td><span class="cash-type-badge cash-type-${info.cls}"><i data-lucide="${info.icon}" style="width:11px;height:11px"></i>${info.label}</span></td>
+        <td>${esc(m.description || '—')}</td>
+        <td style="text-align:left;font-weight:800;color:${isIn ? 'var(--success)' : 'var(--danger)'}">
+          ${isIn ? '+' : '-'} ${money(m.amount)}
+        </td>
+        <td style="font-size:11px;color:var(--text-muted);font-family:monospace">${m.session_id ? m.session_id.slice(0, 8) + '...' : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function exportCashCSV() {
+    const rows = [['date', 'type', 'direction', 'amount', 'description', 'session_id']];
+    document.querySelectorAll('#cashTable tr').forEach(tr => {
+      const cells = tr.querySelectorAll('td');
+      if (cells.length === 5) {
+        rows.push(Array.from(cells).map(td => td.textContent.trim()));
+      }
+    });
+    const csv = rows.map(r => r.map(c => '"' + String(c || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'cash-movements-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    toast('success', 'تم التصدير');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GENERATE ENTRIES
+  // ═══════════════════════════════════════════════════════════
+  async function generateEntries() {
+    if (!confirm('سيتم توليد قيود تلقائية من كل الفواتير اللي مالهاش قيد.\n\nمتابعة؟')) return;
+
+    const btns = [
+      document.getElementById('generateEntriesBtn'),
+      document.getElementById('syncNowBtn')
+    ].filter(Boolean);
+    btns.forEach(b => { b.disabled = true; });
+    setSyncStatus('syncing', 'جاري المزامنة...');
+
+    try {
+      const { data, error } = await sb.rpc('generate_all_invoice_entries', {
+        p_company_id: session.company_id
+      });
+
+      if (error) throw error;
+
+      const result = data || {};
+      const generated = result.generated || 0;
+      const errors = result.errors || 0;
+
+      if (generated > 0) {
+        toast('success', `✅ تم توليد ${generated} قيد${errors > 0 ? ' (' + errors + ' خطأ)' : ''}`);
+        setSyncStatus('success', 'متزامن');
+      } else if (errors > 0) {
+        toast('warning', `${errors} خطأ — راجع الـ messages`);
+        setSyncStatus('warning', errors + ' خطأ');
+      } else {
+        toast('info', 'كل الفواتير مربوطة بقيود بالفعل');
+        setSyncStatus('success', 'متزامن');
+      }
+
+      await loadAccounts();
+      await renderStats();
+      switchTab(currentTab);
+    } catch (e) {
+      console.error('[Accounting] generateEntries failed:', e);
+      const msg = e.message || 'خطأ غير معروف';
+      if (msg.includes('does not exist')) {
+        toast('error', 'نفّذ SQL migration بتاع القيود أولاً');
+      } else {
+        toast('error', 'فشل: ' + msg);
+      }
+      setSyncStatus('warning', 'فشل');
+    } finally {
+      btns.forEach(b => { b.disabled = false; });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TAB SWITCHING
+  // ═══════════════════════════════════════════════════════════
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.accounting-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tab));
+
+    if (tab === 'coa') renderCOA();
+    else if (tab === 'journal') renderJournal();
+    else if (tab === 'trial') renderTrial();
+    else if (tab === 'income') renderIncome();
+    else if (tab === 'pl') renderPL();
+    else if (tab === 'balance') renderBalance();
+    else if (tab === 'statement') { populateStmtAccountSelect(); renderStatement(); }
+    else if (tab === 'tax') { populateTaxAccountSelect(); renderTax(); }
+    else if (tab === 'cash') renderCash();   // ⭐ NEW
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // AUTO SYNC
+  // ═══════════════════════════════════════════════════════════
+  function startAutoSync() {
+    if (autoSyncTimer) clearInterval(autoSyncTimer);
+    autoSyncTimer = setInterval(async () => {
+      try {
+        const sync = await checkUnsyncedInvoices();
+        if (sync.unsynced > 0) {
+          const { error } = await sb.rpc('generate_all_invoice_entries', {
+            p_company_id: session.company_id
+          });
+          if (!error) {
+            console.log('[Accounting] Auto-synced', sync.unsynced, 'invoices');
+            await renderStats();
+            if (currentTab === 'coa') renderCOA();
+            else if (currentTab === 'journal') renderJournal();
+            else if (currentTab === 'trial') renderTrial();
+            else if (currentTab === 'cash') renderCash();
+          }
+        } else {
+          setSyncStatus('success', 'متزامن');
+        }
+      } catch (e) {
+        console.warn('[Accounting] Auto-sync failed:', e);
+      }
+    }, 30000);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) { location.href = 'admin.html'; return; }
+      }
+    } catch (e) { console.warn('[Accounting] admin check failed:', e); }
+
+    if (window.Refad && Refad.requireSession) {
+      session = await Refad.requireSession();
+    } else {
+      const token = localStorage.getItem(cfg.SESSION_KEY);
+      if (!token) { location.href = 'index.html'; return; }
+      const { data: { user }, error } = await sb.auth.getUser(token);
+      if (error || !user) { location.href = 'index.html'; return; }
+      const { data: profile } = await sb.from('users')
+        .select('id, company_id, branch_id, full_name, email, is_owner, is_active, deleted_at, permissions, role_id')
+        .eq('id', user.id).maybeSingle();
+      if (!profile || profile.is_active === false || profile.deleted_at) {
+        location.href = 'index.html'; return;
+      }
+      let roleData = null;
+      if (profile.role_id) {
+        const { data: r } = await sb.from('roles').select('name, is_owner, permissions').eq('id', profile.role_id).maybeSingle();
+        roleData = r;
+      }
+      const isOwner = !!(profile.is_owner || (roleData && roleData.is_owner));
+      session = {
+        user_id: user.id, email: user.email, company_id: profile.company_id,
+        active_branch_id: profile.branch_id, is_owner: isOwner,
+        permissions: (profile.permissions && profile.permissions.length)
+          ? profile.permissions : ((roleData && roleData.permissions) || []),
+        full_name: profile.full_name,
+        role_name: (roleData && roleData.name) || (isOwner ? 'مالك' : 'مستخدم')
+      };
+    }
+
+    if (!session || !session.company_id) { location.href = 'index.html'; return; }
+
+    const canView = !!(session.is_owner ||
+      (session.permissions && (session.permissions.includes('admin.full') ||
+        session.permissions.includes('accounting.view') ||
+        session.permissions.includes('reports.financial'))));
+    if (!canView) {
+      toast('error', 'غير مصرح');
+      setTimeout(() => location.href = 'dashboard.html', 1500);
+      return;
+    }
+
+    const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+    const branchName = session.branch_name || '';
+    document.getElementById('branchName').textContent = branchName ? (companyName + ' — ' + branchName) : companyName;
+
+    await loadAccounts();
+    await renderStats();
+    await renderCOA();
+
+    // Tabs
+    document.querySelectorAll('.accounting-tab').forEach(tab => {
+      tab.onclick = () => switchTab(tab.dataset.tab);
+    });
+
+    // COA
+    document.getElementById('coaTypeFilter').onchange = renderCOA;
+    document.getElementById('expandAllBtn').onclick = () => {
+      document.querySelectorAll('.tree-group-header').forEach(h => { h.classList.add('expanded'); h.nextElementSibling.classList.add('expanded'); });
+    };
+    document.getElementById('collapseAllBtn').onclick = () => {
+      document.querySelectorAll('.tree-group-header').forEach(h => { h.classList.remove('expanded'); h.nextElementSibling.classList.remove('expanded'); });
+    };
+
+    // Journal
+    document.getElementById('jeStatusFilter').onchange = renderJournal;
+    document.getElementById('jeDateFrom').onchange = renderJournal;
+    document.getElementById('jeDateTo').onchange = renderJournal;
+    document.getElementById('newEntryBtn').onclick = openNewJE;
+    document.getElementById('addLineBtn').onclick = () => addJELine();
+    document.getElementById('saveJeBtn').onclick = saveJE;
+
+    // Trial
+    document.getElementById('trialDateFrom').onchange = renderTrial;
+    document.getElementById('trialDateTo').onchange = renderTrial;
+
+    // Income
+    document.getElementById('incomeApplyBtn').onclick = renderIncome;
+    document.getElementById('incomePrintBtn').onclick = () => window.print();
+
+    // P&L
+    document.getElementById('plPeriodFilter').onchange = renderPL;
+
+    // Balance
+    document.getElementById('balancePrintBtn').onclick = () => window.print();
+
+    // Statement
+    document.getElementById('stmtApplyBtn').onclick = renderStatement;
+    document.getElementById('stmtPrintBtn').onclick = () => window.print();
+
+    // Tax
+    document.getElementById('addTaxBtn').onclick = openNewTax;
+    document.getElementById('saveTaxBtn').onclick = saveTax;
+
+    // ⭐ NEW: Cash movements filters
+    const cashTypeFilter = document.getElementById('cashTypeFilter');
+    if (cashTypeFilter) cashTypeFilter.onchange = renderCash;
+    const cashDateFrom = document.getElementById('cashDateFrom');
+    if (cashDateFrom) cashDateFrom.onchange = renderCash;
+    const cashDateTo = document.getElementById('cashDateTo');
+    if (cashDateTo) cashDateTo.onchange = renderCash;
+    const cashExportBtn = document.getElementById('cashExportBtn');
+    if (cashExportBtn) cashExportBtn.onclick = exportCashCSV;
+
+    // Generate
+    document.getElementById('generateEntriesBtn').onclick = generateEntries;
+    const syncNow = document.getElementById('syncNowBtn');
+    if (syncNow) syncNow.onclick = generateEntries;
+
+    // Refresh
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await loadAccounts();
+      await renderStats();
+      switchTab(currentTab);
+      toast('success', 'تم التحديث');
+    };
+
+    // Modals
+    document.querySelectorAll('[data-close]').forEach(el => {
+      el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+    });
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.onclick = (e) => { if (e.target === m) m.classList.remove('show'); };
+    });
+
+    startAutoSync();
+
+    window.addEventListener('refad:sale-created', async () => {
+      console.log('[Accounting] Sale created, syncing...');
+      await renderStats();
+      if (currentTab === 'coa') renderCOA();
+      else if (currentTab === 'journal') renderJournal();
+      else if (currentTab === 'cash') renderCash();
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

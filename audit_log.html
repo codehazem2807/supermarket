@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B2C4D">
+<title>سجل النشاط — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<!-- ⭐ ترتيب السكربتات الموحّد -->
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+/* ═══════════════════════════════════════════════════════════
+   CSS VARIABLES — Fallbacks. RefadTheme will override.
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --primary:#0B2C4D; --primary-light:#1e4a73; --primary-dark:#061a2e;
+  --accent:#14B8A6; --accent-dark:#0d9488; --accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B; --gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981; --success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6; --info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6; --purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9; --bg-soft:#f8fafc; --bg-card:#ffffff;
+  --card:#ffffff;
+  --text:#0f172a; --text-muted:#64748b;
+  --border:#e2e8f0; --border-soft:#f1f5f9;
+  --radius:14px; --radius-sm:10px; --radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#0f172a; --bg-soft:#1e293b; --bg-card:#1e293b;
+  --card:#1e293b; --text:#f1f5f9; --text-muted:#94a3b8;
+  --border:#334155; --border-soft:#1e293b;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  font-family:var(--font-family);
+  background:var(--bg); color:var(--text);
+  min-height:100vh; font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  transition:background 0.2s, color 0.2s;
+}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1600px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;transition:all .15s}
+.stat-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:var(--shadow)}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.create::before{background:var(--success)}
+.stat-card.update::before{background:var(--info)}
+.stat-card.delete::before{background:var(--danger)}
+.stat-card.auth::before{background:var(--purple)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:6px}
+.stat-value{font-size:22px;font-weight:800}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-title .count-badge{background:var(--accent-soft);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:800}
+
+/* ═══ FILTER BAR ═══ */
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 20px;background:var(--bg-soft);border-bottom:1px solid var(--border)}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap input{width:100%;padding:9px 36px 9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font-size:13px;transition:all .15s}
+.search-wrap input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.search-wrap svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none}
+.filter-bar select,.filter-bar input[type="date"]{padding:9px 12px;font-size:13px;border-radius:var(--radius-xs);border:1.5px solid var(--border);background:var(--card);color:var(--text);transition:all .15s}
+.filter-bar select:focus,.filter-bar input[type="date"]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.filter-bar .clear-filters{color:var(--danger);font-size:12px;font-weight:700;background:none;border:none;padding:6px 10px;border-radius:6px;display:none}
+.filter-bar .clear-filters:hover{background:var(--danger-soft)}
+.filter-bar .clear-filters.show{display:inline-flex;align-items:center;gap:4px}
+
+/* ═══ VIEW TOGGLE ═══ */
+.view-toggle{display:flex;gap:2px;background:var(--bg);padding:3px;border-radius:8px;border:1px solid var(--border)}
+.view-btn{padding:6px 12px;border-radius:6px;background:none;border:none;font-size:12px;font-weight:700;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;gap:4px}
+.view-btn.active{background:var(--card);color:var(--accent);box-shadow:var(--shadow-xs)}
+.view-btn svg{width:14px;height:14px}
+
+/* ═══ TABLE ═══ */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg-soft)}
+th{padding:12px 16px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:var(--bg-soft)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.highlighted{background:var(--gold-soft)}
+tbody tr.highlighted:hover{background:var(--gold-soft)}
+
+.action-cell{display:flex;align-items:center;gap:10px}
+.action-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.action-icon svg{width:18px;height:18px}
+.action-icon.create{background:var(--success-soft);color:var(--success)}
+.action-icon.update{background:var(--info-soft);color:var(--info)}
+.action-icon.delete,.action-icon.void{background:var(--danger-soft);color:var(--danger)}
+.action-icon.auth{background:var(--purple-soft);color:var(--purple)}
+.action-icon.theme{background:var(--gold-soft);color:var(--gold)}
+.action-icon.settings{background:var(--accent-soft);color:var(--accent)}
+.action-icon.default{background:var(--bg-soft);color:var(--text-muted)}
+.action-info h4{font-size:13px;font-weight:700;margin-bottom:2px}
+.action-info p{font-size:11px;color:var(--text-muted);font-family:monospace}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+.badge-accent{background:var(--accent-soft);color:var(--accent)}
+
+.user-cell{display:flex;align-items:center;gap:8px}
+.user-avatar-sm{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+
+.details-toggle{background:none;border:none;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;padding:4px 8px;border-radius:6px}
+.details-toggle:hover{background:var(--accent-soft)}
+
+.icon-btn{width:32px;height:32px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
+.icon-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.icon-btn svg{width:15px;height:15px}
+
+/* ═══ TIMELINE VIEW ═══ */
+.timeline{padding:20px}
+.timeline-day{margin-bottom:28px}
+.timeline-day:last-child{margin-bottom:0}
+.timeline-day-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.timeline-day-title{font-size:14px;font-weight:800;color:var(--text)}
+.timeline-day-count{background:var(--accent-soft);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:800}
+.timeline-day-line{flex:1;height:1px;background:var(--border)}
+.timeline-items{position:relative;padding-right:24px}
+.timeline-items::before{content:'';position:absolute;right:9px;top:0;bottom:0;width:2px;background:var(--border)}
+.timeline-item{position:relative;padding:12px 16px;margin-bottom:10px;background:var(--bg-soft);border-radius:10px;border:1px solid var(--border-soft);cursor:pointer;transition:all .15s}
+.timeline-item:hover{border-color:var(--accent);background:var(--card)}
+.timeline-item::before{content:'';position:absolute;right:-18px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--card);box-shadow:0 0 0 2px var(--accent-soft)}
+.timeline-item.create::before{background:var(--success)}
+.timeline-item.update::before{background:var(--info)}
+.timeline-item.delete::before,.timeline-item.void::before{background:var(--danger)}
+.timeline-item.auth::before{background:var(--purple)}
+.timeline-item.theme::before{background:var(--gold)}
+.timeline-item.settings::before{background:var(--accent)}
+.timeline-item-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+.timeline-item-title{font-size:13px;font-weight:700}
+.timeline-item-time{font-size:11px;color:var(--text-muted);white-space:nowrap}
+.timeline-item-meta{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* ═══ PAGINATION ═══ */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid var(--border);flex-wrap:wrap;gap:12px}
+.pagination-info{font-size:12.5px;color:var(--text-muted)}
+.pagination-buttons{display:flex;gap:6px;align-items:center}
+.pagination-buttons button{padding:6px 12px;font-size:12.5px;font-weight:700;border-radius:6px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.pagination-buttons button:hover:not(:disabled){background:var(--accent-soft);border-color:var(--accent);color:var(--accent-dark)}
+.pagination-buttons button:disabled{opacity:.4;cursor:not-allowed}
+.pagination-buttons .page-num{min-width:32px;justify-content:center}
+.pagination-buttons .page-num.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ═══ MODAL ═══ */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:18px;width:100%;max-width:720px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn .25s cubic-bezier(0.4,0,0.2,1)}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;gap:12px}
+.modal-header h3{font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px;flex:1}
+.modal-header h3 svg{width:20px;height:20px;color:var(--accent)}
+.modal-close{background:none;border:none;color:var(--text-muted);padding:6px;border-radius:8px}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-close svg{width:20px;height:20px}
+.modal-body{padding:22px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;position:sticky;bottom:0;background:var(--card)}
+
+.code-block{background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre-wrap;word-break:break-word;margin-top:8px;max-height:300px}
+.detail-row{display:flex;padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:13px;gap:12px}
+.detail-row:last-child{border-bottom:none}
+.detail-label{width:140px;font-weight:700;color:var(--text-muted);flex-shrink:0}
+.detail-value{flex:1;word-break:break-word}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:48px;height:48px;margin-bottom:14px;opacity:.5}
+.empty-state h3{font-size:15px;color:var(--text);margin-bottom:6px;font-weight:700}
+.loading-state{padding:40px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast .3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}
+.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}
+.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}
+.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}
+.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+@media (max-width:1024px){.refad-main-content{margin-right:0!important}}
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .filter-bar{flex-direction:column;align-items:stretch}
+  .filter-bar select,.filter-bar input[type="date"]{width:100%}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .detail-label{width:100px}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <h1>سجل النشاط</h1>
+        <div class="topbar-subtitle" id="branchName">—</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-ghost" id="exportCsvBtn" title="تصدير CSV"><i data-lucide="download"></i><span>CSV</span></button>
+      <button class="btn btn-ghost" id="exportJsonBtn" title="تصدير JSON"><i data-lucide="file-json"></i><span>JSON</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">إجمالي الأحداث</div>
+        <div class="stat-value" id="statTotal">—</div>
+      </div>
+      <div class="stat-card create">
+        <div class="stat-label">عمليات إنشاء</div>
+        <div class="stat-value" id="statCreate" style="color:var(--success)">—</div>
+      </div>
+      <div class="stat-card update">
+        <div class="stat-label">عمليات تعديل</div>
+        <div class="stat-value" id="statUpdate" style="color:var(--info)">—</div>
+      </div>
+      <div class="stat-card delete">
+        <div class="stat-label">حذف / إلغاء</div>
+        <div class="stat-value" id="statDelete" style="color:var(--danger)">—</div>
+      </div>
+      <div class="stat-card auth">
+        <div class="stat-label">دخول / خروج</div>
+        <div class="stat-value" id="statAuth" style="color:var(--purple)">—</div>
+      </div>
+    </div>
+
+    <!-- Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i data-lucide="file-text"></i>
+          <span>سجل النشاط</span>
+          <span class="count-badge" id="countBadge">0</span>
+        </div>
+        <div class="view-toggle">
+          <button class="view-btn active" data-view="table"><i data-lucide="list"></i>جدول</button>
+          <button class="view-btn" data-view="timeline"><i data-lucide="git-commit-vertical"></i>تسلسل زمني</button>
+        </div>
+      </div>
+
+      <!-- ⭐ FILTER BAR المتقدم -->
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <i data-lucide="search"></i>
+          <input type="text" id="searchInput" placeholder="بحث بالمستخدم / الإجراء / النوع / ID...">
+        </div>
+        <select id="actionFilter">
+          <option value="">كل الإجراءات</option>
+          <option value="create">إنشاء</option>
+          <option value="update">تعديل</option>
+          <option value="delete">حذف</option>
+          <option value="void">إلغاء</option>
+          <option value="auth">دخول / خروج</option>
+          <option value="theme">ثيم</option>
+          <option value="settings">إعدادات</option>
+        </select>
+        <select id="entityFilter">
+          <option value="">كل الكيانات</option>
+        </select>
+        <select id="userFilter">
+          <option value="">كل المستخدمين</option>
+        </select>
+        <input type="date" id="dateFrom" title="من تاريخ">
+        <input type="date" id="dateTo" title="إلى تاريخ">
+        <button class="clear-filters" id="clearFiltersBtn">
+          <i data-lucide="x" style="width:12px;height:12px"></i>مسح الفلاتر
+        </button>
+      </div>
+
+      <!-- ⭐ Table View -->
+      <div class="table-wrap" id="tableView">
+        <table>
+          <thead>
+            <tr>
+              <th>الحدث</th>
+              <th>المستخدم</th>
+              <th>النوع</th>
+              <th>التاريخ</th>
+              <th style="text-align:left">تفاصيل</th>
+            </tr>
+          </thead>
+          <tbody id="auditTable">
+            <tr><td colspan="5" class="loading-state"><div class="spinner"></div>جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ⭐ Timeline View -->
+      <div class="timeline" id="timelineView" style="display:none"></div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <div class="pagination-info" id="paginationInfo">—</div>
+        <div class="pagination-buttons" id="paginationButtons"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Details Modal -->
+<div class="modal-overlay" id="detailsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i data-lucide="file-text"></i><span>تفاصيل الحدث</span></h3>
+      <button class="modal-close" data-close="detailsModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="detailsBody">
+      <div class="loading-state"><div class="spinner"></div></div>
+    </div>
+    <div class="modal-footer" id="detailsFooter"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let allLogs = [];
+  let filteredLogs = [];
+  let currentPage = 0;
+  const pageSize = 50;
+  let currentView = 'table';
+  let currentHighlightId = null;
+  let filterDebounceTimer = null;
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const fmtDateTime = (window.Refad && Refad.fmtDateTime) || function(d){if(!d)return'—';return new Date(d).toLocaleString('ar-EG',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+  const timeAgo = (window.Refad && Refad.timeAgo) || function(d){if(!d)return'—';const diff=Date.now()-new Date(d).getTime();const m=Math.floor(diff/60000);if(m<1)return'الآن';if(m<60)return'منذ '+m+' دقيقة';const h=Math.floor(m/60);if(h<24)return'منذ '+h+' ساعة';return'منذ '+Math.floor(h/24)+' يوم'};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // ACTION CATEGORY & LABEL & ICON
+  // ═══════════════════════════════════════════════════════════
+  function getActionCategory(action) {
+    if (!action) return 'default';
+    const a = action.toLowerCase();
+    if (a.includes('theme')) return 'theme';
+    if (a.includes('settings') || a.includes('setting')) return 'settings';
+    if (a.includes('login') || a.includes('signin') || a.includes('logout') || a.includes('signout') || a.includes('auth')) return 'auth';
+    if (a.includes('create') || a.includes('insert') || a.includes('add')) return 'create';
+    if (a.includes('update') || a.includes('edit') || a.includes('reset') || a.includes('change')) return 'update';
+    if (a.includes('delete') || a.includes('remove')) return 'delete';
+    if (a.includes('void') || a.includes('cancel') || a.includes('reverse')) return 'void';
+    return 'default';
+  }
+
+  function getActionLabel(action) {
+    if (!action) return '—';
+    const map = {
+      'company.create': 'إنشاء شركة', 'company.update': 'تعديل شركة', 'company.delete': 'حذف شركة',
+      'theme.change': 'تغيير الثيم',
+      'user.create': 'إنشاء مستخدم', 'user.update': 'تعديل مستخدم', 'user.delete': 'حذف مستخدم',
+      'user.password_reset': 'إعادة تعيين باسورد',
+      'product.create': 'إنشاء منتج', 'product.update': 'تعديل منتج', 'product.delete': 'حذف منتج',
+      'sale.create': 'فاتورة جديدة', 'sale.void': 'إلغاء فاتورة', 'sale.return': 'مرتجع',
+      'payment.create': 'دفعة جديدة',
+      'purchase.create': 'أمر شراء', 'purchase.receive': 'استلام مخزون',
+      'branch.create': 'إنشاء فرع', 'branch.update': 'تعديل فرع', 'branch.delete': 'حذف فرع',
+      'login': 'تسجيل دخول', 'logout': 'تسجيل خروج',
+      'settings.update': 'تعديل إعدادات'
+    };
+    return map[action] || action;
+  }
+
+  function getActionIcon(action) {
+    const cat = getActionCategory(action);
+    const map = {
+      create: 'plus-circle', update: 'edit', delete: 'trash-2',
+      void: 'x-circle', auth: 'log-in', theme: 'palette',
+      settings: 'settings', default: 'file-text'
+    };
+    return map[cat] || 'file-text';
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOAD LOGS — كل السجل (chunked)
+  // ═══════════════════════════════════════════════════════════
+  async function loadLogs() {
+    allLogs = [];
+    let offset = 0;
+    const chunk = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = await sb.from('audit_log')
+        .select('*')
+        .eq('company_id', session.company_id)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + chunk - 1);
+
+      if (res.error) { toast('error', 'فشل تحميل السجل: ' + res.error.message); break; }
+      const rows = res.data || [];
+      allLogs = allLogs.concat(rows);
+      offset += chunk;
+      hasMore = rows.length === chunk;
+      if (offset > 20000) break; // safety cap
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BUILD DYNAMIC FILTER OPTIONS
+  // ═══════════════════════════════════════════════════════════
+  function buildFilterOptions() {
+    const entitySet = new Set();
+    const userSet = new Set();
+    allLogs.forEach(l => {
+      if (l.entity_type) entitySet.add(l.entity_type);
+      if (l.user_email) userSet.add(l.user_email);
+    });
+
+    const entitySel = document.getElementById('entityFilter');
+    const userSel = document.getElementById('userFilter');
+    const curEntity = entitySel.value;
+    const curUser = userSel.value;
+
+    entitySel.innerHTML = '<option value="">كل الكيانات</option>' +
+      [...entitySet].sort().map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('');
+    userSel.innerHTML = '<option value="">كل المستخدمين</option>' +
+      [...userSet].sort().map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join('');
+
+    entitySel.value = curEntity;
+    userSel.value = curUser;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FILTER
+  // ═══════════════════════════════════════════════════════════
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const af = document.getElementById('actionFilter').value;
+    const ef = document.getElementById('entityFilter').value;
+    const uf = document.getElementById('userFilter').value;
+    const df = document.getElementById('dateFrom').value;
+    const dt = document.getElementById('dateTo').value;
+
+    // Show/hide clear button
+    const hasFilters = q || af || ef || uf || df || dt;
+    document.getElementById('clearFiltersBtn').classList.toggle('show', !!hasFilters);
+
+    filteredLogs = allLogs.filter(log => {
+      if (q) {
+        const userEmail = (log.user_email || '').toLowerCase();
+        const action = (log.action || '').toLowerCase();
+        const entityType = (log.entity_type || '').toLowerCase();
+        const entityId = (log.entity_id || '').toLowerCase();
+        if (!userEmail.includes(q) && !action.includes(q) &&
+            !entityType.includes(q) && !entityId.includes(q)) return false;
+      }
+      if (af) {
+        const cat = getActionCategory(log.action);
+        if (af === 'auth') {
+          const a = (log.action || '').toLowerCase();
+          if (!a.includes('login') && !a.includes('logout') && !a.includes('signin') && !a.includes('signout')) return false;
+        } else if (cat !== af) return false;
+      }
+      if (ef && log.entity_type !== ef) return false;
+      if (uf && log.user_email !== uf) return false;
+      if (df && log.created_at < df + 'T00:00:00') return false;
+      if (dt && log.created_at > dt + 'T23:59:59') return false;
+      return true;
+    });
+
+    currentPage = 0;
+    renderStats();
+    render();
+  }
+
+  function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('actionFilter').value = '';
+    document.getElementById('entityFilter').value = '';
+    document.getElementById('userFilter').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    applyFilters();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATS (dynamic on filtered)
+  // ═══════════════════════════════════════════════════════════
+  function renderStats() {
+    let create = 0, update = 0, del = 0, auth = 0;
+    filteredLogs.forEach(l => {
+      const cat = getActionCategory(l.action);
+      if (cat === 'create') create++;
+      else if (cat === 'update') update++;
+      else if (cat === 'delete' || cat === 'void') del++;
+      else if (cat === 'auth') auth++;
+    });
+    document.getElementById('statTotal').textContent = filteredLogs.length;
+    document.getElementById('statCreate').textContent = create;
+    document.getElementById('statUpdate').textContent = update;
+    document.getElementById('statDelete').textContent = del;
+    document.getElementById('statAuth').textContent = auth;
+    document.getElementById('countBadge').textContent = filteredLogs.length;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER — dispatch by view
+  // ═══════════════════════════════════════════════════════════
+  function render() {
+    if (currentView === 'table') renderTable();
+    else renderTimeline();
+    renderPagination();
+  }
+
+  function renderPagination() {
+    const total = filteredLogs.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const start = currentPage * pageSize;
+    const end = Math.min(start + pageSize, total);
+
+    document.getElementById('paginationInfo').textContent = total > 0
+      ? `عرض ${start + 1} - ${end} من ${total} حدث`
+      : 'لا توجد نتائج';
+
+    const container = document.getElementById('paginationButtons');
+    const btns = [];
+    btns.push(`<button ${currentPage === 0 ? 'disabled' : ''} data-page="prev"><i data-lucide="chevron-right"></i>السابق</button>`);
+
+    // Page numbers (max 7)
+    const pages = [];
+    const maxVisible = 7;
+    let startPage = Math.max(0, currentPage - 3);
+    let endPage = Math.min(totalPages - 1, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) {
+      startPage = Math.max(0, endPage - maxVisible + 1);
+    }
+    if (startPage > 0) {
+      pages.push(`<button class="page-num" data-page="0">1</button>`);
+      if (startPage > 1) pages.push(`<span style="padding:6px 4px;color:var(--text-muted)">…</span>`);
+    }
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(`<button class="page-num ${i === currentPage ? 'active' : ''}" data-page="${i}">${i + 1}</button>`);
+    }
+    if (endPage < totalPages - 1) {
+      if (endPage < totalPages - 2) pages.push(`<span style="padding:6px 4px;color:var(--text-muted)">…</span>`);
+      pages.push(`<button class="page-num" data-page="${totalPages - 1}">${totalPages}</button>`);
+    }
+
+    btns.push(...pages);
+    btns.push(`<button ${currentPage >= totalPages - 1 ? 'disabled' : ''} data-page="next">التالي<i data-lucide="chevron-left"></i></button>`);
+
+    container.innerHTML = btns.join('');
+    if (window.lucide) lucide.createIcons();
+
+    container.querySelectorAll('button[data-page]').forEach(btn => {
+      btn.onclick = () => {
+        const p = btn.dataset.page;
+        if (p === 'prev' && currentPage > 0) currentPage--;
+        else if (p === 'next' && currentPage < totalPages - 1) currentPage++;
+        else if (!isNaN(Number(p))) currentPage = Number(p);
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TABLE VIEW
+  // ═══════════════════════════════════════════════════════════
+  function renderTable() {
+    document.getElementById('tableView').style.display = '';
+    document.getElementById('timelineView').style.display = 'none';
+
+    const start = currentPage * pageSize;
+    const pageLogs = filteredLogs.slice(start, start + pageSize);
+    const tbody = document.getElementById('auditTable');
+
+    if (pageLogs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><i data-lucide="file-text"></i><h3>لا توجد أحداث</h3><p>لم يتم العثور على سجلات مطابقة</p></td></tr>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = pageLogs.map(log => {
+      const cat = getActionCategory(log.action);
+      const iconName = getActionIcon(log.action);
+      const actionLabel = getActionLabel(log.action);
+      const userInitial = (log.user_email || 'S').charAt(0).toUpperCase();
+      const isHighlighted = currentHighlightId && log.id === currentHighlightId;
+      return `<tr class="${isHighlighted ? 'highlighted' : ''}" data-log-id="${esc(log.id)}">
+        <td><div class="action-cell"><div class="action-icon ${cat}"><i data-lucide="${iconName}"></i></div><div class="action-info"><h4>${esc(actionLabel)}</h4><p>${esc(log.action || '—')}</p></div></div></td>
+        <td><div class="user-cell"><div class="user-avatar-sm">${esc(userInitial)}</div><span style="font-size:12px">${esc(log.user_email || '—')}</span></div></td>
+        <td>${log.entity_type ? `<span class="badge badge-info">${esc(log.entity_type)}</span>` : '—'}</td>
+        <td style="font-size:12px;color:var(--text-muted)"><div>${fmtDateTime(log.created_at)}</div><div style="font-size:10.5px">${timeAgo(log.created_at)}</div></td>
+        <td style="text-align:left"><button class="details-toggle" data-log-id="${esc(log.id)}">تفاصيل</button></td>
+      </tr>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+
+    tbody.querySelectorAll('[data-log-id]').forEach(el => {
+      el.onclick = () => {
+        const id = el.dataset.logId;
+        const log = allLogs.find(l => l.id === id);
+        if (log) showDetails(log);
+      };
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TIMELINE VIEW
+  // ═══════════════════════════════════════════════════════════
+  function renderTimeline() {
+    document.getElementById('tableView').style.display = 'none';
+    document.getElementById('timelineView').style.display = '';
+
+    const container = document.getElementById('timelineView');
+    const start = currentPage * pageSize;
+    const pageLogs = filteredLogs.slice(start, start + pageSize);
+
+    if (pageLogs.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i data-lucide="git-commit-vertical"></i><h3>لا توجد أحداث</h3></div>';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    // Group by date
+    const groups = {};
+    pageLogs.forEach(log => {
+      const d = new Date(log.created_at);
+      const key = d.toISOString().slice(0, 10);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(log);
+    });
+
+    const dayLabel = (isoDate) => {
+      const d = new Date(isoDate + 'T00:00:00');
+      const today = new Date(); today.setHours(0,0,0,0);
+      const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+      const dd = new Date(d); dd.setHours(0,0,0,0);
+      if (dd.getTime() === today.getTime()) return 'اليوم';
+      if (dd.getTime() === yesterday.getTime()) return 'أمس';
+      return d.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    const sortedDates = Object.keys(groups).sort((a,b) => b.localeCompare(a));
+    container.innerHTML = sortedDates.map(dateKey => {
+      const items = groups[dateKey];
+      return `<div class="timeline-day">
+        <div class="timeline-day-header">
+          <div class="timeline-day-title">${esc(dayLabel(dateKey))}</div>
+          <span class="timeline-day-count">${items.length}</span>
+          <div class="timeline-day-line"></div>
+        </div>
+        <div class="timeline-items">
+          ${items.map(log => {
+            const cat = getActionCategory(log.action);
+            const actionLabel = getActionLabel(log.action);
+            const t = new Date(log.created_at).toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'});
+            const isHighlighted = currentHighlightId && log.id === currentHighlightId;
+            return `<div class="timeline-item ${cat}" data-log-id="${esc(log.id)}" ${isHighlighted ? 'style="border-color:var(--gold);background:var(--gold-soft)"' : ''}>
+              <div class="timeline-item-header">
+                <div class="timeline-item-title">${esc(actionLabel)}</div>
+                <div class="timeline-item-time">${t}</div>
+              </div>
+              <div class="timeline-item-meta">
+                <span>👤 ${esc(log.user_email || '—')}</span>
+                ${log.entity_type ? `<span class="badge badge-info">${esc(log.entity_type)}</span>` : ''}
+                ${log.entity_id ? `<span style="font-family:monospace;font-size:10px">#${esc(log.entity_id.slice(0, 8))}</span>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+
+    container.querySelectorAll('[data-log-id]').forEach(el => {
+      el.onclick = () => {
+        const id = el.dataset.logId;
+        const log = allLogs.find(l => l.id === id);
+        if (log) showDetails(log);
+      };
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SHOW DETAILS + ACTIONS
+  // ═══════════════════════════════════════════════════════════
+  function showDetails(log) {
+    if (!log) return;
+    const body = document.getElementById('detailsBody');
+    const footer = document.getElementById('detailsFooter');
+
+    const cat = getActionCategory(log.action);
+    const iconName = getActionIcon(log.action);
+
+    let html = '';
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg-soft);border-radius:10px;margin-bottom:16px">
+      <div class="action-icon ${cat}" style="width:44px;height:44px"><i data-lucide="${iconName}" style="width:22px;height:22px"></i></div>
+      <div>
+        <div style="font-size:15px;font-weight:800">${esc(getActionLabel(log.action))}</div>
+        <div style="font-size:11.5px;color:var(--text-muted);font-family:monospace">${esc(log.action || '—')}</div>
+      </div>
+    </div>`;
+
+    html += `<div class="detail-row"><div class="detail-label">التاريخ</div><div class="detail-value">${fmtDateTime(log.created_at)} <span style="color:var(--text-muted);font-size:11px">(${timeAgo(log.created_at)})</span></div></div>`;
+    html += `<div class="detail-row"><div class="detail-label">المستخدم</div><div class="detail-value">${esc(log.user_email || '—')}</div></div>`;
+    if (log.entity_type) {
+      html += `<div class="detail-row"><div class="detail-label">نوع الكيان</div><div class="detail-value"><span class="badge badge-info">${esc(log.entity_type)}</span></div></div>`;
+    }
+    if (log.entity_id) {
+      html += `<div class="detail-row"><div class="detail-label">معرف الكيان</div><div class="detail-value" style="font-family:monospace;font-size:11px">${esc(log.entity_id)}</div></div>`;
+    }
+    if (log.branch_id) {
+      html += `<div class="detail-row"><div class="detail-label">الفرع</div><div class="detail-value" style="font-family:monospace;font-size:11px">${esc(log.branch_id)}</div></div>`;
+    }
+
+    if (log.old_values) {
+      html += `<div style="margin-top:16px"><strong style="font-size:13px;display:block;margin-bottom:6px">📋 القيم القديمة:</strong>
+        <div class="code-block">${esc(typeof log.old_values === 'string' ? log.old_values : JSON.stringify(log.old_values, null, 2))}</div></div>`;
+    }
+    if (log.new_values) {
+      html += `<div style="margin-top:16px"><strong style="font-size:13px;display:block;margin-bottom:6px">✨ القيم الجديدة:</strong>
+        <div class="code-block">${esc(typeof log.new_values === 'string' ? log.new_values : JSON.stringify(log.new_values, null, 2))}</div></div>`;
+    }
+
+    if (log.user_agent) {
+      html += `<div class="detail-row" style="margin-top:16px"><div class="detail-label">المتصفح</div><div class="detail-value" style="font-size:11px;color:var(--text-muted)">${esc(log.user_agent)}</div></div>`;
+    }
+    if (log.ip_address) {
+      html += `<div class="detail-row"><div class="detail-label">IP</div><div class="detail-value" style="font-family:monospace;font-size:11px">${esc(log.ip_address)}</div></div>`;
+    }
+
+    body.innerHTML = html;
+
+    // ⭐ Footer actions: view all for entity / user
+    const actions = [];
+    if (log.entity_type && log.entity_id) {
+      actions.push(`<button class="btn btn-ghost btn-sm" data-action="entity"><i data-lucide="package"></i>كل حركات هذا الكيان</button>`);
+    }
+    if (log.entity_type) {
+      actions.push(`<button class="btn btn-ghost btn-sm" data-action="entity-type"><i data-lucide="list"></i>كل حركات ${esc(log.entity_type)}</button>`);
+    }
+    if (log.user_email) {
+      actions.push(`<button class="btn btn-ghost btn-sm" data-action="user"><i data-lucide="user"></i>كل حركات هذا المستخدم</button>`);
+    }
+    actions.push(`<button class="btn btn-ghost btn-sm" data-close="detailsModal">إغلاق</button>`);
+    footer.innerHTML = actions.join('');
+    if (window.lucide) lucide.createIcons();
+
+    footer.querySelectorAll('[data-action]').forEach(btn => {
+      btn.onclick = () => {
+        const action = btn.dataset.action;
+        document.getElementById('detailsModal').classList.remove('show');
+        if (action === 'entity') {
+          document.getElementById('searchInput').value = log.entity_id;
+          document.getElementById('actionFilter').value = '';
+          document.getElementById('entityFilter').value = log.entity_type || '';
+          document.getElementById('userFilter').value = '';
+          applyFilters();
+          toast('info', `عرض كل حركات الكيان: ${log.entity_id.slice(0, 8)}...`);
+        } else if (action === 'entity-type') {
+          document.getElementById('entityFilter').value = log.entity_type;
+          document.getElementById('searchInput').value = '';
+          document.getElementById('actionFilter').value = '';
+          document.getElementById('userFilter').value = '';
+          applyFilters();
+          toast('info', `عرض كل حركات نوع: ${log.entity_type}`);
+        } else if (action === 'user') {
+          document.getElementById('userFilter').value = log.user_email;
+          document.getElementById('searchInput').value = '';
+          document.getElementById('actionFilter').value = '';
+          document.getElementById('entityFilter').value = '';
+          applyFilters();
+          toast('info', `عرض كل حركات: ${log.user_email}`);
+        }
+      };
+    });
+
+    footer.querySelectorAll('[data-close]').forEach(el => {
+      el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+    });
+
+    document.getElementById('detailsModal').classList.add('show');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // EXPORT
+  // ═══════════════════════════════════════════════════════════
+  function exportCSV() {
+    if (filteredLogs.length === 0) { toast('error', 'لا توجد بيانات للتصدير'); return; }
+    const headers = ['التاريخ', 'المستخدم', 'الإجراء', 'التسمية', 'النوع', 'معرف الكيان', 'الفرع'];
+    const rows = filteredLogs.map(log => [
+      fmtDateTime(log.created_at),
+      log.user_email || '',
+      log.action || '',
+      getActionLabel(log.action),
+      log.entity_type || '',
+      log.entity_id || '',
+      log.branch_id || ''
+    ]);
+    const csv = [headers.join(',')].concat(
+      rows.map(r => r.map(x => '"' + String(x || '').replace(/"/g, '""') + '"').join(','))
+    );
+    const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'audit-log-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    toast('success', `تم تصدير ${filteredLogs.length} حدث`);
+  }
+
+  function exportJSON() {
+    if (filteredLogs.length === 0) { toast('error', 'لا توجد بيانات للتصدير'); return; }
+    const blob = new Blob([JSON.stringify(filteredLogs, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'audit-log-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    toast('success', `تم تصدير ${filteredLogs.length} حدث`);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DEEP LINK — audit_log.html?id=xxx
+  // ═══════════════════════════════════════════════════════════
+  function handleDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (!id) return false;
+
+    const log = allLogs.find(l => l.id === id);
+    if (log) {
+      currentHighlightId = id;
+      // Jump to the page containing it
+      const idx = filteredLogs.findIndex(l => l.id === id);
+      if (idx >= 0) currentPage = Math.floor(idx / pageSize);
+      render();
+      setTimeout(() => showDetails(log), 300);
+      return true;
+    } else {
+      toast('warning', 'الحركة غير موجودة');
+      return false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    // 1) كشف platform admin
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) { location.href = 'admin.html'; return; }
+      }
+    } catch (e) { console.warn('[Audit] admin check failed:', e); }
+
+    // 2) requireSession
+    if (window.Refad && Refad.requireSession) {
+      session = await Refad.requireSession();
+    } else {
+      const token = localStorage.getItem(cfg.SESSION_KEY);
+      if (!token) { location.href = 'index.html'; return; }
+      const { data: { user }, error } = await sb.auth.getUser(token);
+      if (error || !user) { location.href = 'index.html'; return; }
+      const { data: profile } = await sb.from('users')
+        .select('id, company_id, branch_id, full_name, email, is_owner, is_active, deleted_at, permissions, role_id')
+        .eq('id', user.id).maybeSingle();
+      if (!profile || profile.is_active === false || profile.deleted_at) {
+        location.href = 'index.html'; return;
+      }
+      let roleData = null;
+      if (profile.role_id) {
+        const { data: r } = await sb.from('roles')
+          .select('name, is_owner, permissions').eq('id', profile.role_id).maybeSingle();
+        roleData = r;
+      }
+      const isOwner = !!(profile.is_owner || (roleData && roleData.is_owner));
+      session = {
+        user_id: user.id, email: user.email, company_id: profile.company_id,
+        active_branch_id: profile.branch_id, is_owner: isOwner,
+        permissions: (profile.permissions && profile.permissions.length)
+          ? profile.permissions : ((roleData && roleData.permissions) || []),
+        full_name: profile.full_name,
+        role_name: (roleData && roleData.name) || (isOwner ? 'مالك' : 'مستخدم')
+      };
+    }
+
+    if (!session) { location.href = 'index.html'; return; }
+    if (!session.company_id) { location.href = 'index.html'; return; }
+
+    // 3) صلاحية — المالك فقط (أو admin.full)
+    const canView = !!(session.is_owner ||
+      (session.permissions && (
+        session.permissions.includes('admin.full') ||
+        session.permissions.includes('audit.view')
+      )));
+    if (!canView) {
+      toast('error', 'غير مصرح — سجل النشاط للمالك فقط');
+      setTimeout(() => location.href = 'dashboard.html', 1200);
+      return;
+    }
+
+    // 4) topbar
+    const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+    const branchName = session.branch_name || '';
+    document.getElementById('branchName').textContent = branchName ? (companyName + ' — ' + branchName) : companyName;
+
+    // 5) load
+    await loadLogs();
+    buildFilterOptions();
+    applyFilters();
+
+    // 6) deep link
+    handleDeepLink();
+
+    // 7) events
+    document.getElementById('searchInput').oninput = () => {
+      clearTimeout(filterDebounceTimer);
+      filterDebounceTimer = setTimeout(applyFilters, 250);
+    };
+    ['actionFilter','entityFilter','userFilter','dateFrom','dateTo'].forEach(id => {
+      document.getElementById(id).onchange = applyFilters;
+    });
+    document.getElementById('clearFiltersBtn').onclick = clearFilters;
+
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b === btn));
+        currentView = btn.dataset.view;
+        render();
+      };
+    });
+
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await loadLogs();
+      buildFilterOptions();
+      applyFilters();
+      toast('success', `تم — ${allLogs.length} حدث`);
+    };
+
+    document.getElementById('exportCsvBtn').onclick = exportCSV;
+    document.getElementById('exportJsonBtn').onclick = exportJSON;
+
+    document.querySelectorAll('[data-close]').forEach(el => {
+      el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+    });
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.onclick = (e) => { if (e.target === m) m.classList.remove('show'); };
+    });
+
+    // settings-changed listener
+    window.addEventListener('refad:settings-changed', () => {
+      const cName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      const bName = session.branch_name || '';
+      document.getElementById('branchName').textContent = bName ? (cName + ' — ' + bName) : cName;
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

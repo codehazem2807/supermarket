@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>التحويلات — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root {
+  --primary:#0B2C4D; --primary-light:#1e4a73; --primary-dark:#061a2e;
+  --accent:#14B8A6; --accent-dark:#0d9488; --accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B; --gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981; --success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6; --info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6; --purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9; --bg-soft:#f8fafc; --bg-card:#ffffff;
+  --card:#ffffff; --text:#0f172a; --text-muted:#64748b;
+  --border:#e2e8f0; --border-soft:#f1f5f9;
+  --radius:14px; --radius-sm:10px; --radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background 0.2s,color 0.2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px;flex-wrap:wrap}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:white}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:white}
+.btn-warning{background:var(--gold-soft);color:var(--gold)}
+.btn-warning:hover{background:var(--gold);color:white}
+.btn-success{background:var(--success-soft);color:var(--success)}
+.btn-success:hover{background:var(--success);color:white}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1600px;margin:0 auto}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.info::before{background:var(--info)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.danger::before{background:var(--danger)}
+.stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.stat-icon svg{width:18px;height:18px}
+.stat-icon.blue{background:var(--info-soft);color:var(--info)}
+.stat-icon.gold{background:var(--gold-soft);color:var(--gold)}
+.stat-icon.green{background:var(--success-soft);color:var(--success)}
+.stat-icon.red{background:var(--danger-soft);color:var(--danger)}
+.stat-icon.teal{background:var(--accent-soft);color:var(--accent)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-body{padding:0}
+
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 20px;background:var(--bg-soft);border-bottom:1px solid var(--border)}
+.filter-bar .form-input,.filter-bar .form-select{padding:9px 12px;font-size:13px;border-radius:var(--radius-xs);border:1.5px solid var(--border);background:var(--card);color:var(--text);min-width:130px}
+.filter-bar .form-input:focus,.filter-bar .form-select:focus{outline:none;border-color:var(--accent)}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap input{width:100%;padding:9px 36px 9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font-size:13px}
+.search-wrap input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.search-wrap svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none}
+
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg-soft)}
+th{padding:12px 16px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tbody tr{transition:background 0.15s}
+tbody tr:hover{background:var(--bg-soft)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.clickable{cursor:pointer}
+
+.transfer-num{font-family:monospace;font-size:12.5px;font-weight:800;color:var(--accent)}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+
+.flow-cell{display:flex;align-items:center;gap:6px;font-size:12.5px}
+.flow-arrow{color:var(--accent);font-weight:900}
+.flow-wh{font-weight:700}
+
+.actions-cell{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}
+.icon-btn{width:32px;height:32px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s}
+.icon-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.icon-btn.danger:hover{background:var(--danger-soft);color:var(--danger)}
+.icon-btn.success:hover{background:var(--success-soft);color:var(--success)}
+.icon-btn.warn:hover{background:var(--gold-soft);color:var(--gold)}
+.icon-btn svg{width:15px;height:15px}
+
+/* ⭐ Inline action buttons (في الجدول نفسه) */
+.inline-actions{display:flex;gap:4px;justify-content:flex-end}
+.inline-btn{padding:5px 10px;border-radius:6px;border:none;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap}
+.inline-btn svg{width:12px;height:12px}
+.inline-btn.send{background:var(--accent);color:white}
+.inline-btn.send:hover{background:var(--accent-dark)}
+.inline-btn.receive{background:var(--success);color:white}
+.inline-btn.receive:hover{background:#059669}
+.inline-btn.cancel{background:var(--danger-soft);color:var(--danger)}
+.inline-btn.cancel:hover{background:var(--danger);color:white}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:56px;height:56px;margin-bottom:14px;opacity:0.5}
+.empty-state h3{font-size:16px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:13px;max-width:500px;margin:0 auto;line-height:1.6}
+.loading-state{padding:60px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-top:1px solid var(--border);background:var(--bg-soft);flex-wrap:wrap}
+.pagination button{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:700}
+.pagination button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pagination button.active{background:var(--accent);color:white;border-color:var(--accent)}
+.pagination button:disabled{opacity:0.4;cursor:not-allowed}
+.pagination .page-info{font-size:12px;color:var(--text-muted);margin:0 8px}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:18px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn 0.25s cubic-bezier(0.4,0,0.2,1)}
+.modal.lg{max-width:820px}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;border-radius:18px 18px 0 0}
+.modal-header h3{font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px}
+.modal-header h3 svg{width:20px;height:20px;color:var(--accent)}
+.modal-close{background:none;border:none;color:var(--text-muted);padding:6px;border-radius:8px}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-close svg{width:20px;height:20px}
+.modal-body{padding:22px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card);border-radius:0 0 18px 18px;flex-wrap:wrap}
+
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.form-label .required{color:var(--danger)}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;transition:all 0.15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-textarea{resize:vertical;min-height:70px}
+.form-hint{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-error{background:var(--danger-soft);color:var(--danger);padding:11px 14px;border-radius:var(--radius-xs);font-size:12.5px;font-weight:600;margin-bottom:14px;display:none;border-right:3px solid var(--danger)}
+.form-error.show{display:block}
+
+/* Product picker */
+.product-picker{position:relative;margin-bottom:10px}
+.product-picker input{padding-right:36px}
+.product-picker .search-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none}
+.picker-results{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xs);box-shadow:var(--shadow-lg);max-height:260px;overflow-y:auto;z-index:10;margin-top:4px;display:none}
+.picker-results.show{display:block}
+.picker-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.picker-item:hover{background:var(--bg-soft)}
+.picker-item:last-child{border-bottom:none}
+.picker-item .pi-name{font-weight:700;font-size:13px}
+.picker-item .pi-stock{font-size:11px;color:var(--text-muted)}
+.picker-item .pi-stock.ok{color:var(--success)}
+.picker-item .pi-stock.low{color:var(--gold)}
+.picker-item .pi-stock.out{color:var(--danger)}
+
+.items-list{background:var(--bg-soft);border-radius:var(--radius-xs);padding:4px;margin-top:12px;max-height:280px;overflow-y:auto}
+.item-row{display:grid;grid-template-columns:1fr 100px 100px 40px;gap:8px;padding:10px;background:var(--card);border-radius:8px;margin-bottom:6px;align-items:center}
+.item-row .ir-name{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-row .ir-qty{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:700;text-align:center;background:var(--bg-soft)}
+.item-row .ir-cost{font-size:12px;color:var(--text-muted);text-align:center}
+.item-row .ir-remove{width:32px;height:32px;border-radius:6px;border:none;background:var(--danger-soft);color:var(--danger);display:flex;align-items:center;justify-content:center}
+.item-row .ir-remove:hover{background:var(--danger);color:white}
+.item-row .ir-remove svg{width:14px;height:14px}
+
+.items-summary{display:flex;justify-content:space-between;padding:12px 14px;background:var(--accent-soft);border-radius:var(--radius-xs);margin-top:12px;font-weight:800;font-size:14px}
+.items-summary .is-label{color:var(--text)}
+.items-summary .is-value{color:var(--accent-dark);font-size:16px}
+
+.details-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:18px}
+.detail-item{background:var(--bg-soft);padding:12px 14px;border-radius:var(--radius-xs);border:1px solid var(--border)}
+.detail-label{font-size:11.5px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+.detail-value{font-size:14px;font-weight:700;word-break:break-word}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);animation:slideInToast 0.3s ease-out;max-width:400px}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .form-row{grid-template-columns:1fr}
+  .filter-bar{flex-direction:column;align-items:stretch}
+  .filter-bar .form-select,.filter-bar .form-input{width:100%}
+  .details-grid{grid-template-columns:1fr}
+  .item-row{grid-template-columns:1fr 80px 36px;font-size:12px}
+  .item-row .ir-cost{display:none}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .inline-actions{flex-direction:column;align-items:stretch}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div><h1>التحويلات بين المخازن</h1><div class="topbar-subtitle" id="branchName">—</div></div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-primary" id="newTransferBtn"><i data-lucide="plus"></i><span>تحويل جديد</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="stats-grid">
+      <div class="stat-card info">
+        <div class="stat-icon blue"><i data-lucide="arrow-left-right"></i></div>
+        <div class="stat-label">إجمالي التحويلات</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub">كل الحالات</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-icon gold"><i data-lucide="file-edit"></i></div>
+        <div class="stat-label">مسودات</div>
+        <div class="stat-value" id="statDraft" style="color:var(--gold)">—</div>
+        <div class="stat-sub">بانتظار الإرسال</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon teal"><i data-lucide="truck"></i></div>
+        <div class="stat-label">في الطريق</div>
+        <div class="stat-value" id="statTransit" style="color:var(--info)">—</div>
+        <div class="stat-sub">بانتظار الاستلام</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-icon green"><i data-lucide="check-circle"></i></div>
+        <div class="stat-label">مستلمة</div>
+        <div class="stat-value" id="statReceived" style="color:var(--success)">—</div>
+        <div class="stat-sub">مكتملة</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="list"></i><span>قائمة التحويلات</span></div>
+        <span class="badge badge-info" id="listCount">0</span>
+      </div>
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <i data-lucide="search"></i>
+          <input type="text" id="searchInput" placeholder="بحث برقم التحويل أو المخزن...">
+        </div>
+        <select class="form-select" id="statusFilter">
+          <option value="">كل الحالات</option>
+          <option value="draft">مسودة</option>
+          <option value="in_transit">في الطريق</option>
+          <option value="received">مستلم</option>
+          <option value="cancelled">ملغي</option>
+        </select>
+        <select class="form-select" id="warehouseFilter">
+          <option value="">كل المخازن</option>
+        </select>
+        <input type="date" class="form-input" id="dateFrom" title="من تاريخ">
+        <input type="date" class="form-input" id="dateTo" title="إلى تاريخ">
+        <button class="btn btn-ghost btn-sm" id="clearFilters"><i data-lucide="x"></i><span>مسح</span></button>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>رقم التحويل</th>
+                <th>من → إلى</th>
+                <th>التاريخ</th>
+                <th>الأصناف</th>
+                <th>التكلفة</th>
+                <th>الحالة</th>
+                <th style="text-align:left">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="transfersTable">
+              <tr><td colspan="7" class="loading-state"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: New Transfer -->
+<div class="modal-overlay" id="transferModal">
+  <div class="modal lg">
+    <div class="modal-header">
+      <h3><i data-lucide="arrow-left-right"></i><span id="modalTitle">تحويل جديد</span></h3>
+      <button class="modal-close" data-close="transferModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="formError"></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">من مخزن <span class="required">*</span></label>
+          <select class="form-select" id="fromWarehouse"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">إلى مخزن <span class="required">*</span></label>
+          <select class="form-select" id="toWarehouse"></select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">تاريخ التحويل</label>
+          <input type="date" class="form-input" id="transferDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">التاريخ المتوقع</label>
+          <input type="date" class="form-input" id="expectedDate">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ملاحظات</label>
+        <textarea class="form-textarea" id="notes" placeholder="أي تفاصيل إضافية..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">إضافة منتج</label>
+        <div class="product-picker">
+          <input type="text" class="form-input" id="productSearch" placeholder="ابحث بالاسم أو الباركود..." autocomplete="off">
+          <i data-lucide="search" class="search-icon"></i>
+          <div class="picker-results" id="pickerResults"></div>
+        </div>
+      </div>
+
+      <div class="items-list" id="itemsList" style="display:none"></div>
+      <div class="items-summary" id="itemsSummary" style="display:none">
+        <span class="is-label">إجمالي التكلفة</span>
+        <span class="is-value" id="totalCost">0.00 ج.م</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="transferModal">إلغاء</button>
+      <button class="btn btn-primary" id="saveTransferBtn"><i data-lucide="save"></i><span>حفظ كمسودة</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Transfer Details -->
+<div class="modal-overlay" id="detailsModal">
+  <div class="modal lg">
+    <div class="modal-header">
+      <h3><i data-lucide="file-text"></i><span>تفاصيل التحويل</span></h3>
+      <button class="modal-close" data-close="detailsModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="detailsBody"></div>
+    <div class="modal-footer" id="detailsFooter">
+      <button class="btn btn-ghost" data-close="detailsModal">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Cancel -->
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i data-lucide="x-circle" style="color:var(--danger)"></i><span>إلغاء التحويل</span></h3>
+      <button class="modal-close" data-close="cancelModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">سبب الإلغاء <span class="required">*</span></label>
+        <textarea class="form-textarea" id="cancelReason" placeholder="اكتب سبب الإلغاء..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="cancelModal">رجوع</button>
+      <button class="btn btn-danger" id="confirmCancelBtn"><i data-lucide="x-circle"></i><span>تأكيد الإلغاء</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let warehouses = [];
+  let products = [];
+  let stockMap = {};
+  let transfers = [];
+  let currentTransfer = null;
+  let cancelTarget = null;
+  let items = [];
+
+  const PAGE_SIZE = 25;
+  const state = { page: 1, q: '', status: '', warehouse: '', from: '', to: '' };
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
+  const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:3})};
+  const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3500); }
+    };
+  })();
+
+  const STATUS_INFO = {
+    draft:      { label: 'مسودة',     color: 'var(--text-muted)', icon: 'file-edit' },
+    in_transit: { label: 'في الطريق', color: 'var(--info)',       icon: 'truck' },
+    received:   { label: 'مستلم',     color: 'var(--success)',    icon: 'check-circle' },
+    cancelled:  { label: 'ملغي',      color: 'var(--danger)',     icon: 'x-circle' }
+  };
+
+  function mapById(arr) {
+    const m = {};
+    arr.forEach(x => { m[x.id] = x; });
+    return m;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOADERS
+  // ═══════════════════════════════════════════════════════════
+  async function loadWarehouses() {
+    const { data } = await sb.from('warehouses')
+      .select('id, name, branch_id, is_active')
+      .eq('company_id', session.company_id)
+      .is('deleted_at', null)
+      .eq('is_active', true)
+      .order('name');
+    warehouses = data || [];
+  }
+
+  async function loadProducts() {
+    const { data } = await sb.from('products')
+      .select('id, name, barcode, sale_unit, base_unit, cost_price, sale_price, is_bundle')
+      .eq('company_id', session.company_id)
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('name')
+      .limit(1000);
+    products = (data || []).filter(p => !p.is_bundle);
+  }
+
+  async function loadStock(warehouseId) {
+    if (!warehouseId) { stockMap = {}; return; }
+    try {
+      const { data } = await sb.from('stock_lots')
+        .select('product_id, quantity_left, effective_unit_cost, expiry_date')
+        .eq('company_id', session.company_id)
+        .eq('warehouse_id', warehouseId)
+        .gt('quantity_left', 0)
+        .eq('is_quarantined', false)
+        .order('expiry_date', { ascending: true });
+
+      const map = {};
+      (data || []).forEach(l => {
+        if (!map[l.product_id]) map[l.product_id] = { qty: 0, cost: 0 };
+        map[l.product_id].qty += Number(l.quantity_left);
+        if (!map[l.product_id].cost || Number(l.effective_unit_cost) < map[l.product_id].cost) {
+          map[l.product_id].cost = Number(l.effective_unit_cost) || 0;
+        }
+      });
+      stockMap = map;
+    } catch (e) {
+      console.warn('[Transfers] loadStock error:', e);
+      stockMap = {};
+    }
+  }
+
+  async function loadTransfers() {
+    let q = sb.from('stock_transfers')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .order('created_at', { ascending: false });
+
+    if (state.status) q = q.eq('status', state.status);
+    if (state.warehouse) q = q.or(`from_warehouse_id.eq.${state.warehouse},to_warehouse_id.eq.${state.warehouse}`);
+    if (state.from) q = q.gte('transfer_date', state.from);
+    if (state.to) q = q.lte('transfer_date', state.to);
+
+    const { data } = await q;
+    transfers = data || [];
+
+    if (transfers.length > 0) {
+      const ids = transfers.map(t => t.id);
+      const { data: counts } = await sb.from('stock_transfer_items')
+        .select('transfer_id')
+        .in('transfer_id', ids);
+      const countMap = {};
+      (counts || []).forEach(c => { countMap[c.transfer_id] = (countMap[c.transfer_id] || 0) + 1; });
+      transfers = transfers.map(t => ({ ...t, items_count: countMap[t.id] || 0 }));
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  function renderStats() {
+    const total = transfers.length;
+    const draft = transfers.filter(t => t.status === 'draft').length;
+    const transit = transfers.filter(t => t.status === 'in_transit').length;
+    const received = transfers.filter(t => t.status === 'received').length;
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statDraft').textContent = draft;
+    document.getElementById('statTransit').textContent = transit;
+    document.getElementById('statReceived').textContent = received;
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('transfersTable');
+    const whMap = mapById(warehouses);
+
+    let filtered = transfers;
+    if (state.q) {
+      const q = state.q.toLowerCase();
+      filtered = filtered.filter(t =>
+        (t.transfer_number || '').toLowerCase().includes(q) ||
+        (whMap[t.from_warehouse_id]?.name || '').toLowerCase().includes(q) ||
+        (whMap[t.to_warehouse_id]?.name || '').toLowerCase().includes(q)
+      );
+    }
+
+    document.getElementById('listCount').textContent = filtered.length;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i data-lucide="arrow-left-right"></i><h3>لا توجد تحويلات</h3><p>ابدأ بإنشاء تحويل جديد من الزر أعلاه</p></td></tr>';
+      renderPagination(0);
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const pageItems = filtered.slice((state.page-1)*PAGE_SIZE, state.page*PAGE_SIZE);
+
+    tbody.innerHTML = pageItems.map(t => {
+      const info = STATUS_INFO[t.status] || { label: t.status, color: 'var(--text-muted)' };
+      const fromWh = whMap[t.from_warehouse_id]?.name || '—';
+      const toWh = whMap[t.to_warehouse_id]?.name || '—';
+
+      // ⭐ أزرار الإجراءات المباشرة في الجدول
+      let inlineActions = '';
+      if (t.status === 'draft') {
+        inlineActions = `
+          <button class="inline-btn send" data-act="send" data-tid="${t.id}" title="إرسال"><i data-lucide="send"></i>إرسال</button>
+        `;
+      } else if (t.status === 'in_transit') {
+        inlineActions = `
+          <button class="inline-btn receive" data-act="receive" data-tid="${t.id}" title="استلام"><i data-lucide="check-circle"></i>استلام</button>
+        `;
+      }
+
+      return `<tr class="clickable" data-tid="${t.id}">
+        <td><span class="transfer-num">${esc(t.transfer_number)}</span></td>
+        <td><div class="flow-cell"><span class="flow-wh">${esc(fromWh)}</span><span class="flow-arrow">←</span><span class="flow-wh">${esc(toWh)}</span></div></td>
+        <td style="font-size:12px;color:var(--text-muted)">${fmtDate(t.transfer_date)}</td>
+        <td>${t.items_count || 0} صنف</td>
+        <td>${money(t.total_cost || 0)}</td>
+        <td><span class="badge" style="background:${info.color}20;color:${info.color}"><i data-lucide="${info.icon}"></i>${info.label}</span></td>
+        <td style="text-align:left">
+          <div class="inline-actions">
+            ${inlineActions}
+            <button class="icon-btn" data-act="view" data-tid="${t.id}" title="تفاصيل"><i data-lucide="eye"></i></button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    // Row click → details
+    tbody.querySelectorAll('tr[data-tid]').forEach(tr => {
+      tr.onclick = (e) => {
+        if (e.target.closest('[data-act]')) return;
+        openDetails(tr.dataset.tid);
+      };
+    });
+
+    // View button
+    tbody.querySelectorAll('[data-act="view"]').forEach(btn => {
+      btn.onclick = (e) => { e.stopPropagation(); openDetails(btn.dataset.tid); };
+    });
+
+    // ⭐ Send button
+    tbody.querySelectorAll('[data-act="send"]').forEach(btn => {
+      btn.onclick = (e) => { e.stopPropagation(); sendTransfer(btn.dataset.tid); };
+    });
+
+    // ⭐ Receive button
+    tbody.querySelectorAll('[data-act="receive"]').forEach(btn => {
+      btn.onclick = (e) => { e.stopPropagation(); receiveTransfer(btn.dataset.tid); };
+    });
+
+    renderPagination(filtered.length);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderPagination(total) {
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const el = document.getElementById('pagination');
+    if (totalPages <= 1) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    let html = `<button ${state.page <= 1 ? 'disabled' : ''} data-p="${state.page-1}">‹ السابق</button>`;
+    const start = Math.max(1, state.page - 2);
+    const end = Math.min(totalPages, state.page + 2);
+    for (let i = start; i <= end; i++) {
+      html += `<button class="${i === state.page ? 'active' : ''}" data-p="${i}">${i}</button>`;
+    }
+    html += `<button ${state.page >= totalPages ? 'disabled' : ''} data-p="${state.page+1}">التالي ›</button>`;
+    html += `<span class="page-info">${total} سجل</span>`;
+    el.innerHTML = html;
+    el.querySelectorAll('button[data-p]').forEach(btn => {
+      btn.onclick = () => { state.page = Number(btn.dataset.p); renderTable(); };
+    });
+  }
+
+  function fillWarehouseSelects() {
+    const opts = '<option value="">اختر مخزن...</option>' + warehouses.map(w =>
+      `<option value="${w.id}">${esc(w.name)}</option>`
+    ).join('');
+    document.getElementById('fromWarehouse').innerHTML = opts;
+    document.getElementById('toWarehouse').innerHTML = opts;
+
+    const filterOpts = '<option value="">كل المخازن</option>' + warehouses.map(w =>
+      `<option value="${w.id}">${esc(w.name)}</option>`
+    ).join('');
+    document.getElementById('warehouseFilter').innerHTML = filterOpts;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PRODUCT PICKER
+  // ═══════════════════════════════════════════════════════════
+  function setupProductPicker() {
+    const input = document.getElementById('productSearch');
+    const results = document.getElementById('pickerResults');
+
+    input.oninput = () => {
+      const q = input.value.trim().toLowerCase();
+      if (q.length < 1) { results.classList.remove('show'); return; }
+
+      const fromWh = document.getElementById('fromWarehouse').value;
+      const matches = products.filter(p =>
+        p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q))
+      ).slice(0, 15);
+
+      if (matches.length === 0) {
+        results.innerHTML = '<div class="picker-item" style="color:var(--text-muted)">لا توجد نتائج</div>';
+        results.classList.add('show');
+        return;
+      }
+
+      results.innerHTML = matches.map(p => {
+        const stock = stockMap[p.id]?.qty || 0;
+        const stockClass = stock <= 0 ? 'out' : (stock < 5 ? 'low' : 'ok');
+        return `<div class="picker-item" data-pid="${p.id}">
+          <div>
+            <div class="pi-name">${esc(p.name)}</div>
+            <div class="pi-stock ${stockClass}">${fromWh ? `متاح: ${num(stock)} ${esc(p.sale_unit || '')}` : 'اختر مخزن أولاً'}</div>
+          </div>
+          <i data-lucide="plus-circle" style="color:var(--accent);width:18px;height:18px"></i>
+        </div>`;
+      }).join('');
+      results.classList.add('show');
+      if (window.lucide) lucide.createIcons();
+
+      results.querySelectorAll('[data-pid]').forEach(el => {
+        el.onclick = () => {
+          addItem(el.dataset.pid);
+          input.value = '';
+          results.classList.remove('show');
+        };
+      });
+    };
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.product-picker')) results.classList.remove('show');
+    });
+  }
+
+  function addItem(productId) {
+    const p = products.find(x => x.id === productId);
+    if (!p) return;
+    if (items.find(i => i.product_id === productId)) {
+      toast('warning', 'المنتج موجود بالفعل في التحويل');
+      return;
+    }
+
+    const stock = stockMap[productId];
+    const cost = stock?.cost || Number(p.cost_price) || 0;
+    const maxQty = stock?.qty || 0;
+
+    if (maxQty <= 0) {
+      toast('error', 'لا يوجد مخزون متاح من هذا المنتج في المخزن المصدري');
+      return;
+    }
+
+    items.push({
+      product_id: productId,
+      name: p.name,
+      unit: p.sale_unit || p.base_unit || '',
+      quantity: 1,
+      unit_cost: cost,
+      max_qty: maxQty
+    });
+    renderItems();
+  }
+
+  function renderItems() {
+    const list = document.getElementById('itemsList');
+    const summary = document.getElementById('itemsSummary');
+
+    if (items.length === 0) {
+      list.style.display = 'none';
+      summary.style.display = 'none';
+      return;
+    }
+
+    list.style.display = 'block';
+    summary.style.display = 'flex';
+
+    list.innerHTML = items.map((it, idx) => `
+      <div class="item-row" data-idx="${idx}">
+        <div class="ir-name" title="${esc(it.name)}">${esc(it.name)}</div>
+        <input type="number" class="ir-qty" value="${it.quantity}" min="0.001" step="0.001" max="${it.max_qty}" data-idx="${idx}" data-field="qty">
+        <div class="ir-cost">${money(it.unit_cost)}</div>
+        <button class="ir-remove" data-idx="${idx}"><i data-lucide="x"></i></button>
+      </div>
+    `).join('');
+
+    const total = items.reduce((s, it) => s + it.quantity * it.unit_cost, 0);
+    document.getElementById('totalCost').textContent = money(total);
+
+    list.querySelectorAll('input[data-field="qty"]').forEach(inp => {
+      inp.oninput = () => {
+        const idx = Number(inp.dataset.idx);
+        const v = Number(inp.value) || 0;
+        items[idx].quantity = v;
+        const total = items.reduce((s, it) => s + it.quantity * it.unit_cost, 0);
+        document.getElementById('totalCost').textContent = money(total);
+      };
+    });
+
+    list.querySelectorAll('.ir-remove').forEach(btn => {
+      btn.onclick = () => {
+        items.splice(Number(btn.dataset.idx), 1);
+        renderItems();
+      };
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // OPEN MODALS
+  // ═══════════════════════════════════════════════════════════
+  function openNewTransfer() {
+    items = [];
+    document.getElementById('modalTitle').textContent = 'تحويل جديد';
+    document.getElementById('fromWarehouse').value = '';
+    document.getElementById('toWarehouse').value = '';
+    document.getElementById('transferDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('expectedDate').value = '';
+    document.getElementById('notes').value = '';
+    document.getElementById('productSearch').value = '';
+    document.getElementById('formError').classList.remove('show');
+    renderItems();
+    document.getElementById('transferModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function openDetails(transferId) {
+    currentTransfer = transfers.find(t => t.id === transferId);
+    if (!currentTransfer) return;
+
+    const whMap = mapById(warehouses);
+    const info = STATUS_INFO[currentTransfer.status] || {};
+
+    document.getElementById('detailsBody').innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+    document.getElementById('detailsModal').classList.add('show');
+
+    const { data: tItems } = await sb.from('stock_transfer_items')
+      .select('*')
+      .eq('transfer_id', transferId);
+
+    const productIds = (tItems || []).map(i => i.product_id).filter(Boolean);
+    let prodMap = {};
+    if (productIds.length > 0) {
+      const { data: prods } = await sb.from('products').select('id, name, sale_unit').in('id', productIds);
+      prodMap = mapById(prods || []);
+    }
+
+    const fromWh = whMap[currentTransfer.from_warehouse_id]?.name || '—';
+    const toWh = whMap[currentTransfer.to_warehouse_id]?.name || '—';
+
+    let itemsHtml = '';
+    if (!tItems || tItems.length === 0) {
+      itemsHtml = '<p style="text-align:center;color:var(--text-muted);padding:20px">لا توجد أصناف</p>';
+    } else {
+      itemsHtml = `<div class="table-wrap"><table>
+        <thead><tr><th>المنتج</th><th>الكمية</th><th>المستلمة</th><th>التكلفة</th><th>الإجمالي</th></tr></thead>
+        <tbody>${tItems.map(it => {
+          const p = prodMap[it.product_id];
+          return `<tr>
+            <td>${esc(p?.name || '—')}</td>
+            <td>${num(it.quantity)}</td>
+            <td>${num(it.received_quantity)}</td>
+            <td>${money(it.unit_cost)}</td>
+            <td>${money(it.total_cost)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    }
+
+    document.getElementById('detailsBody').innerHTML = `
+      <div class="details-grid">
+        <div class="detail-item"><div class="detail-label">رقم التحويل</div><div class="detail-value transfer-num">${esc(currentTransfer.transfer_number)}</div></div>
+        <div class="detail-item"><div class="detail-label">الحالة</div><div class="detail-value"><span class="badge" style="background:${info.color}20;color:${info.color}">${info.label || currentTransfer.status}</span></div></div>
+        <div class="detail-item"><div class="detail-label">من مخزن</div><div class="detail-value">${esc(fromWh)}</div></div>
+        <div class="detail-item"><div class="detail-label">إلى مخزن</div><div class="detail-value">${esc(toWh)}</div></div>
+        <div class="detail-item"><div class="detail-label">تاريخ التحويل</div><div class="detail-value">${fmtDate(currentTransfer.transfer_date)}</div></div>
+        <div class="detail-item"><div class="detail-label">التاريخ المتوقع</div><div class="detail-value">${currentTransfer.expected_date ? fmtDate(currentTransfer.expected_date) : '—'}</div></div>
+        ${currentTransfer.received_date ? `<div class="detail-item"><div class="detail-label">تاريخ الاستلام</div><div class="detail-value">${fmtDate(currentTransfer.received_date)}</div></div>` : ''}
+        <div class="detail-item"><div class="detail-label">إجمالي التكلفة</div><div class="detail-value" style="color:var(--accent)">${money(currentTransfer.total_cost)}</div></div>
+      </div>
+      ${currentTransfer.notes ? `<div class="detail-item" style="margin-bottom:18px"><div class="detail-label">ملاحظات</div><div class="detail-value" style="font-weight:500">${esc(currentTransfer.notes)}</div></div>` : ''}
+      ${currentTransfer.cancel_reason ? `<div class="detail-item" style="margin-bottom:18px;background:var(--danger-soft);border-color:var(--danger)"><div class="detail-label" style="color:var(--danger)">سبب الإلغاء</div><div class="detail-value">${esc(currentTransfer.cancel_reason)}</div></div>` : ''}
+      <h4 style="font-size:14px;font-weight:800;margin:16px 0 10px">الأصناف (${tItems?.length || 0})</h4>
+      ${itemsHtml}
+    `;
+
+    // ⭐ Footer actions
+    let footer = '<button class="btn btn-ghost" data-close="detailsModal">إغلاق</button>';
+
+    if (currentTransfer.status === 'draft') {
+      footer += `<button class="btn btn-danger" id="cancelTransferBtn" data-tid="${currentTransfer.id}"><i data-lucide="x-circle"></i><span>إلغاء</span></button>`;
+      footer += `<button class="btn btn-primary" id="sendTransferBtn" data-tid="${currentTransfer.id}"><i data-lucide="send"></i><span>إرسال</span></button>`;
+    } else if (currentTransfer.status === 'in_transit') {
+      footer += `<button class="btn btn-warning" id="cancelTransferBtn" data-tid="${currentTransfer.id}"><i data-lucide="x-circle"></i><span>إلغاء</span></button>`;
+      footer += `<button class="btn btn-success" id="receiveTransferBtn" data-tid="${currentTransfer.id}"><i data-lucide="check-circle"></i><span>استلام</span></button>`;
+    }
+
+    document.getElementById('detailsFooter').innerHTML = footer;
+
+    const sendBtn = document.getElementById('sendTransferBtn');
+    if (sendBtn) sendBtn.onclick = () => sendTransfer(sendBtn.dataset.tid);
+    const receiveBtn = document.getElementById('receiveTransferBtn');
+    if (receiveBtn) receiveBtn.onclick = () => receiveTransfer(receiveBtn.dataset.tid);
+    const cancelBtn = document.getElementById('cancelTransferBtn');
+    if (cancelBtn) cancelBtn.onclick = () => openCancelModal(cancelBtn.dataset.tid);
+
+    document.querySelectorAll('[data-close]').forEach(el => {
+      el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function openCancelModal(transferId) {
+    cancelTarget = transferId;
+    document.getElementById('cancelReason').value = '';
+    document.getElementById('cancelModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SAVE TRANSFER
+  // ═══════════════════════════════════════════════════════════
+  async function saveTransfer() {
+    const errEl = document.getElementById('formError');
+    errEl.classList.remove('show');
+
+    const fromWh = document.getElementById('fromWarehouse').value;
+    const toWh = document.getElementById('toWarehouse').value;
+    const transferDate = document.getElementById('transferDate').value;
+    const expectedDate = document.getElementById('expectedDate').value;
+    const notes = document.getElementById('notes').value.trim();
+
+    if (!fromWh || !toWh) { errEl.textContent = 'اختر المخزن المصدري والمستقبل'; errEl.classList.add('show'); return; }
+    if (fromWh === toWh) { errEl.textContent = 'لا يمكن التحويل لنفس المخزن'; errEl.classList.add('show'); return; }
+    if (items.length === 0) { errEl.textContent = 'أضف منتج واحد على الأقل'; errEl.classList.add('show'); return; }
+
+    for (const it of items) {
+      if (!it.quantity || it.quantity <= 0) {
+        errEl.textContent = `كمية غير صحيحة للمنتج: ${it.name}`; errEl.classList.add('show'); return;
+      }
+      if (it.quantity > it.max_qty) {
+        errEl.textContent = `الكمية المطلوبة أكبر من المتاح للمنتج: ${it.name} (متاح: ${num(it.max_qty)})`; errEl.classList.add('show'); return;
+      }
+    }
+
+    const btn = document.getElementById('saveTransferBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
+
+    try {
+      const fromWhObj = warehouses.find(w => w.id === fromWh);
+      const toWhObj = warehouses.find(w => w.id === toWh);
+
+      const itemsJson = items.map(it => ({
+        product_id: it.product_id,
+        quantity: it.quantity,
+        unit_cost: it.unit_cost
+      }));
+
+      const { data, error } = await sb.rpc('create_stock_transfer', {
+        p_company: session.company_id,
+        p_from_branch: fromWhObj?.branch_id || session.active_branch_id,
+        p_from_warehouse: fromWh,
+        p_to_branch: toWhObj?.branch_id || session.active_branch_id,
+        p_to_warehouse: toWh,
+        p_items: itemsJson,
+        p_transfer_date: transferDate || new Date().toISOString().slice(0, 10),
+        p_expected_date: expectedDate || null,
+        p_notes: notes || null
+      });
+
+      if (error) throw error;
+
+      toast('success', 'تم إنشاء التحويل كمسودة — اضغط "إرسال" لتأكيده');
+      document.getElementById('transferModal').classList.remove('show');
+      await loadTransfers();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      console.error('[Transfers] save error:', e);
+      errEl.textContent = e.message || 'خطأ في الحفظ';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SEND TRANSFER
+  // ═══════════════════════════════════════════════════════════
+  async function sendTransfer(transferId) {
+    if (!confirm('إرسال التحويل؟\nسيتم خصم الكميات من المخزن المصدري.')) return;
+
+    try {
+      const { error } = await sb.rpc('send_stock_transfer', { p_transfer_id: transferId });
+      if (error) throw error;
+      toast('success', '✅ تم إرسال التحويل — الكميات خُصمت من المخزن المصدري');
+      document.getElementById('detailsModal').classList.remove('show');
+      await loadTransfers();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      console.error('[Transfers] send error:', e);
+      toast('error', 'فشل الإرسال: ' + (e.message || ''));
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RECEIVE TRANSFER
+  // ═══════════════════════════════════════════════════════════
+  async function receiveTransfer(transferId) {
+    if (!confirm('استلام التحويل؟\nسيتم إضافة الكميات للمخزن المستقبل.')) return;
+
+    try {
+      const { error } = await sb.rpc('receive_stock_transfer', {
+        p_transfer_id: transferId,
+        p_received_items: null
+      });
+      if (error) throw error;
+      toast('success', '✅ تم استلام التحويل — الكميات أُضيفت للمخزن المستقبل');
+      document.getElementById('detailsModal').classList.remove('show');
+      await loadTransfers();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      console.error('[Transfers] receive error:', e);
+      toast('error', 'فشل الاستلام: ' + (e.message || ''));
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CANCEL TRANSFER
+  // ═══════════════════════════════════════════════════════════
+  async function confirmCancel() {
+    const reason = document.getElementById('cancelReason').value.trim();
+    if (!reason) { toast('warning', 'اكتب سبب الإلغاء'); return; }
+    if (!cancelTarget) return;
+
+    const btn = document.getElementById('confirmCancelBtn');
+    btn.disabled = true;
+
+    try {
+      const { error } = await sb.rpc('cancel_stock_transfer', {
+        p_transfer_id: cancelTarget,
+        p_reason: reason
+      });
+      if (error) throw error;
+      toast('success', 'تم إلغاء التحويل');
+      document.getElementById('cancelModal').classList.remove('show');
+      document.getElementById('detailsModal').classList.remove('show');
+      await loadTransfers();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      console.error('[Transfers] cancel error:', e);
+      toast('error', 'فشل الإلغاء: ' + (e.message || ''));
+    } finally {
+      btn.disabled = false;
+      cancelTarget = null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) { location.href = 'admin.html'; return; }
+      }
+    } catch (e) { console.warn('[Transfers] admin check failed:', e); }
+
+    session = await (window.Refad && Refad.requireSession ? Refad.requireSession() : Promise.resolve(null));
+    if (!session || !session.company_id) {
+      setTimeout(() => location.href = 'index.html', 800);
+      return;
+    }
+
+    const branchNameEl = document.getElementById('branchName');
+    if (branchNameEl) {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+
+    await Promise.all([loadWarehouses(), loadProducts()]);
+    await loadTransfers();
+    fillWarehouseSelects();
+    setupProductPicker();
+    renderStats();
+    renderTable();
+
+    document.getElementById('newTransferBtn').onclick = openNewTransfer;
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await Promise.all([loadWarehouses(), loadProducts()]);
+      await loadTransfers();
+      fillWarehouseSelects();
+      renderStats();
+      renderTable();
+      toast('success', 'تم التحديث');
+    };
+
+    document.getElementById('fromWarehouse').onchange = async () => {
+      const whId = document.getElementById('fromWarehouse').value;
+      await loadStock(whId);
+      items = [];
+      renderItems();
+    };
+
+    document.getElementById('saveTransferBtn').onclick = saveTransfer;
+    document.getElementById('confirmCancelBtn').onclick = confirmCancel;
+
+    document.getElementById('searchInput').oninput = (e) => {
+      state.q = e.target.value;
+      state.page = 1;
+      renderTable();
+    };
+    document.getElementById('statusFilter').onchange = (e) => {
+      state.status = e.target.value;
+      state.page = 1;
+      loadTransfers().then(() => { renderStats(); renderTable(); });
+    };
+    document.getElementById('warehouseFilter').onchange = (e) => {
+      state.warehouse = e.target.value;
+      state.page = 1;
+      loadTransfers().then(() => { renderStats(); renderTable(); });
+    };
+    document.getElementById('dateFrom').onchange = (e) => {
+      state.from = e.target.value;
+      state.page = 1;
+      loadTransfers().then(() => { renderStats(); renderTable(); });
+    };
+    document.getElementById('dateTo').onchange = (e) => {
+      state.to = e.target.value;
+      state.page = 1;
+      loadTransfers().then(() => { renderStats(); renderTable(); });
+    };
+    document.getElementById('clearFilters').onclick = () => {
+      state.q = ''; state.status = ''; state.warehouse = ''; state.from = ''; state.to = ''; state.page = 1;
+      document.getElementById('searchInput').value = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('warehouseFilter').value = '';
+      document.getElementById('dateFrom').value = '';
+      document.getElementById('dateTo').value = '';
+      loadTransfers().then(() => { renderStats(); renderTable(); });
+    };
+
+    document.querySelectorAll('[data-close]').forEach(el => {
+      el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+    });
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.onclick = (e) => { if (e.target === m) m.classList.remove('show'); };
+    });
+
+    if (window.lucide) lucide.createIcons();
+    console.log('[Transfers v1.1] Ready');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

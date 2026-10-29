@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>المستخدمون — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<!-- ⭐ ترتيب السكربتات -->
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root {
+  --primary:#0B2C4D; --primary-light:#1e4a73; --primary-dark:#061a2e;
+  --accent:#14B8A6; --accent-dark:#0d9488; --accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B; --gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981; --success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6; --info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6; --purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9; --bg-soft:#f8fafc; --bg-card:#ffffff;
+  --card:#ffffff;
+  --text:#0f172a; --text-muted:#64748b;
+  --border:#e2e8f0; --border-soft:#f1f5f9;
+  --radius:14px; --radius-sm:10px; --radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  font-family:var(--font-family);
+  background:var(--bg);color:var(--text);
+  min-height:100vh;font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  transition:background 0.2s,color 0.2s;
+}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:white}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:white}
+.btn-success{background:var(--success-soft);color:var(--success)}
+.btn-success:hover{background:var(--success);color:white}
+.btn-warning{background:var(--gold-soft);color:var(--gold)}
+.btn-warning:hover{background:var(--gold);color:white}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1600px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.danger::before{background:var(--danger)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:6px}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-title .count-badge{background:var(--accent-soft);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:800}
+
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 20px;background:var(--bg-soft);border-bottom:1px solid var(--border)}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap input{width:100%;padding:9px 36px 9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font-size:13px}
+.search-wrap input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.search-wrap svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none}
+.form-select,.form-input{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font-size:13px;min-width:120px}
+.form-select:focus,.form-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg-soft)}
+th{padding:12px 16px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tbody tr{transition:background 0.15s}
+tbody tr:hover{background:var(--bg-soft)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
+
+.user-cell{display:flex;align-items:center;gap:10px}
+.user-avatar{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent-soft),var(--accent));color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;position:relative}
+.user-avatar.owner{background:linear-gradient(135deg,var(--gold),#d97706)}
+.user-avatar.owner::after{content:'👑';position:absolute;top:-4px;right:-4px;font-size:12px}
+.user-info h4{font-size:13px;font-weight:700;margin-bottom:2px}
+.user-info p{font-size:11px;color:var(--text-muted);font-family:monospace}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+.badge-teal{background:var(--accent-soft);color:var(--accent)}
+.badge-owner{background:linear-gradient(135deg,var(--gold-soft),rgba(245,158,11,0.2));color:var(--gold);font-weight:800}
+
+.actions-cell{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}
+.icon-btn{width:32px;height:32px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s}
+.icon-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.icon-btn.danger:hover{background:var(--danger-soft);color:var(--danger)}
+.icon-btn.success:hover{background:var(--success-soft);color:var(--success)}
+.icon-btn.warn:hover{background:var(--gold-soft);color:var(--gold)}
+.icon-btn svg{width:15px;height:15px}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:48px;height:48px;margin-bottom:14px;opacity:0.5}
+.empty-state h3{font-size:15px;color:var(--text);margin-bottom:6px;font-weight:700}
+.loading-state{padding:40px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px;border-top:1px solid var(--border);background:var(--bg-soft);flex-wrap:wrap}
+.pagination button{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:700}
+.pagination button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pagination button.active{background:var(--accent);color:white;border-color:var(--accent)}
+.pagination button:disabled{opacity:0.4;cursor:not-allowed}
+.pagination .page-info{font-size:12px;color:var(--text-muted);margin:0 8px}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:18px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn 0.25s cubic-bezier(0.4,0,0.2,1)}
+.modal.lg{max-width:720px}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;gap:12px}
+.modal-header h3{font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px;flex:1}
+.modal-header h3 svg{width:20px;height:20px;color:var(--accent)}
+.modal-close{background:none;border:none;color:var(--text-muted);padding:6px;border-radius:8px}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-close svg{width:20px;height:20px}
+.modal-body{padding:22px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card);flex-wrap:wrap}
+
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px}
+.form-label .required{color:var(--danger)}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;transition:all 0.15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-input.error{border-color:var(--danger);background:rgba(239,68,68,0.03)}
+.form-input:disabled{background:var(--bg);color:var(--text-muted);cursor:not-allowed}
+.form-hint{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-error{background:var(--danger-soft);color:var(--danger);padding:11px 14px;border-radius:var(--radius-xs);font-size:12.5px;font-weight:600;margin-bottom:14px;display:none;border-right:3px solid var(--danger)}
+.form-error.show{display:block}
+
+.role-info-box{background:var(--bg-soft);padding:12px;border-radius:8px;margin-top:10px;border:1px solid var(--border);font-size:12px}
+.role-info-box strong{color:var(--accent-dark)}
+.perm-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.perm-chip{background:var(--accent-soft);color:var(--accent-dark);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+
+.pass-strength{height:4px;background:var(--bg);border-radius:2px;margin-top:6px;overflow:hidden}
+.pass-strength-fill{height:100%;width:0;transition:all 0.3s;border-radius:2px}
+.pass-strength-fill.weak{width:33%;background:var(--danger)}
+.pass-strength-fill.medium{width:66%;background:var(--gold)}
+.pass-strength-fill.strong{width:100%;background:var(--success)}
+
+.modal.danger .modal-header{background:var(--danger-soft);border-bottom-color:var(--danger)}
+.modal.danger .modal-header h3{color:var(--danger)}
+
+.info-banner{background:var(--info-soft);border:1px solid rgba(59,130,246,0.3);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;font-size:12.5px;color:var(--info);display:flex;gap:10px;align-items:flex-start}
+.info-banner svg{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast 0.3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}
+.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}
+.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}
+.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}
+.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+@media (max-width:1024px){.refad-main-content{margin-right:0!important}}
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .form-row{grid-template-columns:1fr}
+  .filter-bar{flex-direction:column;align-items:stretch}
+  .filter-bar .form-select{width:100%}
+  .stats-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div><h1>المستخدمون</h1><div class="topbar-subtitle" id="branchName">—</div></div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-ghost btn-icon" id="exportBtn" title="تصدير CSV"><i data-lucide="download"></i></button>
+      <button class="btn btn-primary" id="addUserBtn"><i data-lucide="user-plus"></i><span>مستخدم جديد</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="info-banner" id="permissionBanner" style="display:none">
+      <i data-lucide="info"></i>
+      <div id="permissionBannerText"></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">إجمالي المستخدمين</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub" id="statTotalSub">—</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label">نشطون</div>
+        <div class="stat-value" id="statActive" style="color:var(--success)">—</div>
+        <div class="stat-sub" id="statActiveSub">—</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-label">معطلون</div>
+        <div class="stat-value" id="statInactive" style="color:var(--danger)">—</div>
+        <div class="stat-sub">لا يستطيعون الدخول</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-label">الملاك</div>
+        <div class="stat-value" id="statOwners" style="color:var(--gold)">—</div>
+        <div class="stat-sub">صلاحيات كاملة</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i data-lucide="users"></i>
+          <span>قائمة المستخدمين</span>
+          <span class="count-badge" id="tableCount">0</span>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <i data-lucide="search"></i>
+          <input type="text" id="searchInput" placeholder="بحث بالاسم / الإيميل / الهاتف / username...">
+        </div>
+        <select class="form-select" id="roleFilter">
+          <option value="">كل الأدوار</option>
+        </select>
+        <select class="form-select" id="branchFilter">
+          <option value="">كل الفروع</option>
+        </select>
+        <select class="form-select" id="statusFilter">
+          <option value="">كل الحالات</option>
+          <option value="active">نشط</option>
+          <option value="inactive">معطل</option>
+          <option value="owner">مالك</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="clearFilters"><i data-lucide="x"></i><span>مسح</span></button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>المستخدم</th>
+              <th>الهاتف</th>
+              <th>الدور</th>
+              <th>الفرع</th>
+              <th>آخر دخول</th>
+              <th>الحالة</th>
+              <th style="text-align:left">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable">
+            <tr><td colspan="7" class="loading-state"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination" style="display:none"></div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="userModal">
+  <div class="modal lg">
+    <div class="modal-header">
+      <h3><i data-lucide="user-plus"></i><span id="userModalTitle">مستخدم جديد</span></h3>
+      <button class="modal-close" data-close="userModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="userFormError"></div>
+      <input type="hidden" id="userId">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">الاسم الكامل <span class="required">*</span></label>
+          <input type="text" class="form-input" id="userName" placeholder="مثلاً: أحمد محمد" maxlength="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">اسم المستخدم</label>
+          <input type="text" class="form-input" id="userUsername" placeholder="مثلاً: ahmed" maxlength="50">
+          <div class="form-hint">حروف إنجليزية وأرقام فقط</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">الإيميل <span class="required">*</span></label>
+          <input type="email" class="form-input" id="userEmail" placeholder="user@example.com" maxlength="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">الهاتف</label>
+          <input type="tel" class="form-input" id="userPhone" placeholder="01000000000" maxlength="20">
+        </div>
+      </div>
+
+      <div class="form-group" id="passwordGroup">
+        <label class="form-label">كلمة المرور <span class="required">*</span></label>
+        <input type="password" class="form-input" id="userPassword" placeholder="••••••••" minlength="6" autocomplete="new-password">
+        <div class="pass-strength"><div class="pass-strength-fill" id="passStrengthFill"></div></div>
+        <div class="form-hint" id="passwordHint">6 أحرف على الأقل — يُفضّل 8+ مع رقم ورمز</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">الدور <span class="required">*</span></label>
+          <select class="form-select" id="userRole">
+            <option value="">اختر دور...</option>
+          </select>
+          <div class="role-info-box" id="roleInfoBox" style="display:none">
+            <div>الصلاحيات:</div>
+            <div class="perm-chips" id="permChips"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">الفرع <span class="required">*</span></label>
+          <select class="form-select" id="userBranch">
+            <option value="">اختر فرع...</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="userActive" checked style="width:18px;height:18px;accent-color:var(--accent)">
+          <span>نشط (يمكنه تسجيل الدخول)</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="userModal">إلغاء</button>
+      <button class="btn btn-primary" id="saveUserBtn"><i data-lucide="save"></i><span>حفظ</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="passwordModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i data-lucide="key-round"></i><span>تغيير كلمة المرور</span></h3>
+      <button class="modal-close" data-close="passwordModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="passwordFormError"></div>
+      <input type="hidden" id="pwdUserId">
+      <p style="margin-bottom:14px;font-size:13px;color:var(--text-muted);padding:12px;background:var(--bg-soft);border-radius:8px" id="pwdUserName"></p>
+      <div class="form-group">
+        <label class="form-label">كلمة المرور الجديدة <span class="required">*</span></label>
+        <input type="password" class="form-input" id="newPassword" placeholder="••••••••" minlength="6" autocomplete="new-password">
+        <div class="pass-strength"><div class="pass-strength-fill" id="newPassStrengthFill"></div></div>
+        <div class="form-hint">6 أحرف على الأقل</div>
+      </div>
+      <div class="info-banner" style="margin-bottom:0">
+        <i data-lucide="alert-circle"></i>
+        <div>⚠️ <strong>تنبيه:</strong> تغيير كلمة المرور من هنا يتطلب Admin API (service_role). لو ظهر خطأ، استخدم زر "إرسال رابط استعادة" بدلاً من ذلك.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="passwordModal">إلغاء</button>
+      <button class="btn btn-primary" id="confirmPasswordBtn"><i data-lucide="key-round"></i><span>تغيير كلمة المرور</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal danger">
+    <div class="modal-header">
+      <h3><i data-lucide="alert-triangle"></i><span>حذف المستخدم</span></h3>
+      <button class="modal-close" data-close="deleteModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="deleteError"></div>
+      <input type="hidden" id="deleteUserId">
+      <p style="margin-bottom:14px;font-size:13px" id="deleteUserInfo"></p>
+      <div style="background:var(--danger-soft);padding:12px;border-radius:8px;font-size:12px;color:var(--danger);font-weight:600">
+        ⚠️ هذا الإجراء لا يمكن التراجع عنه. سيتم منع المستخدم من تسجيل الدخول نهائياً.
+      </div>
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">اكتب اسم المستخدم للتأكيد</label>
+        <input type="text" class="form-input" id="confirmDeleteInput" placeholder="اكتب الإيميل بالضبط">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="deleteModal">إلغاء</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn" disabled><i data-lucide="trash-2"></i>حذف نهائي</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let users = [];
+  let roles = [];
+  let branches = [];
+  let canManage = false;
+  let currentPage = 1;
+  const PAGE_SIZE = 25;
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  function timeAgo(d) {
+    if (!d) return '—';
+    const diff = Date.now() - new Date(d).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'الآن';
+    if (m < 60) return 'منذ ' + m + ' د';
+    const h = Math.floor(m / 60);
+    if (h < 24) return 'منذ ' + h + ' س';
+    const day = Math.floor(h / 24);
+    if (day < 30) return 'منذ ' + day + ' ي';
+    return fmtDate(d);
+  }
+
+  function isValidEmail(e) { return e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+  function isValidUsername(u) { return !u || /^[a-zA-Z0-9_]{3,50}$/.test(u); }
+  function passwordStrength(p) {
+    if (!p) return { level: 'none', label: '' };
+    let score = 0;
+    if (p.length >= 6) score++;
+    if (p.length >= 8) score++;
+    if (/[0-9]/.test(p)) score++;
+    if (/[a-zA-Z]/.test(p)) score++;
+    if (/[^a-zA-Z0-9]/.test(p)) score++;
+    if (score <= 2) return { level: 'weak', label: 'ضعيفة' };
+    if (score <= 3) return { level: 'medium', label: 'متوسطة' };
+    return { level: 'strong', label: 'قوية' };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOADERS — بدون joins
+  // ═══════════════════════════════════════════════════════════
+  async function loadRoles() {
+    const res = await sb.from('roles')
+      .select('id, name, code, permissions, is_owner, is_system')
+      .eq('company_id', session.company_id)
+      .order('is_owner', { ascending: false })
+      .order('name');
+    roles = res.data || [];
+  }
+
+  async function loadBranches() {
+    const res = await sb.from('branches')
+      .select('id, name, is_active')
+      .eq('company_id', session.company_id)
+      .is('deleted_at', null)
+      .order('name');
+    branches = res.data || [];
+  }
+
+  async function loadUsers() {
+    // ⭐ جلب users بدون join
+    const res = await sb.from('users')
+      .select('id, full_name, email, username, phone, is_owner, is_active, status, last_login, created_at, role_id, branch_id')
+      .eq('company_id', session.company_id)
+      .is('deleted_at', null)
+      .order('is_owner', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (res.error) {
+      console.error('[Users] loadUsers error:', res.error);
+      toast('error', 'فشل تحميل المستخدمين');
+      return;
+    }
+    users = res.data || [];
+
+    // ⭐ جلب roles map
+    const roleIds = [...new Set(users.map(u => u.role_id).filter(Boolean))];
+    let roleMap = {};
+    if (roleIds.length > 0) {
+      const roleRes = await sb.from('roles').select('id, name, code, is_owner').in('id', roleIds);
+      (roleRes.data || []).forEach(r => { roleMap[r.id] = r; });
+    }
+
+    // ⭐ جلب branches map
+    const branchIds = [...new Set(users.map(u => u.branch_id).filter(Boolean))];
+    let branchMap = {};
+    if (branchIds.length > 0) {
+      const branchRes = await sb.from('branches').select('id, name').in('id', branchIds);
+      (branchRes.data || []).forEach(b => { branchMap[b.id] = b; });
+    }
+
+    users = users.map(u => ({
+      ...u,
+      roles: u.role_id ? roleMap[u.role_id] : null,
+      branches: u.branch_id ? branchMap[u.branch_id] : null
+    }));
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  function renderStats() {
+    const total = users.length;
+    const active = users.filter(u => u.is_active).length;
+    const inactive = total - active;
+    const owners = users.filter(u => u.is_owner || (u.roles && u.roles.is_owner)).length;
+
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statTotalSub').textContent = branches.length + ' فرع';
+    document.getElementById('statActive').textContent = active;
+    document.getElementById('statActiveSub').textContent = ((active / Math.max(total, 1)) * 100).toFixed(0) + '%';
+    document.getElementById('statInactive').textContent = inactive;
+    document.getElementById('statOwners').textContent = owners;
+  }
+
+  function getFilteredUsers() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const roleFilter = document.getElementById('roleFilter').value;
+    const branchFilter = document.getElementById('branchFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    return users.filter(u => {
+      if (q) {
+        const name = (u.full_name || '').toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        const phone = (u.phone || '').toLowerCase();
+        const username = (u.username || '').toLowerCase();
+        if (!name.includes(q) && !email.includes(q) && !phone.includes(q) && !username.includes(q)) return false;
+      }
+      if (roleFilter && u.role_id !== roleFilter) return false;
+      if (branchFilter && u.branch_id !== branchFilter) return false;
+      if (statusFilter === 'active' && !u.is_active) return false;
+      if (statusFilter === 'inactive' && u.is_active) return false;
+      if (statusFilter === 'owner' && !(u.is_owner || (u.roles && u.roles.is_owner))) return false;
+      return true;
+    });
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('usersTable');
+    const filtered = getFilteredUsers();
+    document.getElementById('tableCount').textContent = filtered.length;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i data-lucide="users"></i><h3>لا يوجد مستخدمون</h3><p>اضغط "مستخدم جديد" للبدء</p></td></tr>';
+      document.getElementById('pagination').style.display = 'none';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    const pageItems = filtered.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+
+    tbody.innerHTML = pageItems.map(u => {
+      const isOwner = u.is_owner || (u.roles && u.roles.is_owner);
+      const isSelf = u.id === session.user_id;
+      const initial = (u.full_name || u.email || '?').charAt(0).toUpperCase();
+      const roleName = (u.roles && u.roles.name) || (isOwner ? 'مالك' : '—');
+      const branchName = (u.branches && u.branches.name) || '—';
+      const statusBadge = u.is_active
+        ? '<span class="badge badge-success"><i data-lucide="check"></i>نشط</span>'
+        : '<span class="badge badge-danger"><i data-lucide="x"></i>معطل</span>';
+      const ownerBadge = isOwner ? '<span class="badge badge-owner"><i data-lucide="crown"></i>مالك</span>' : '';
+
+      return '<tr class="' + (u.is_active ? '' : 'inactive') + '">' +
+        '<td><div class="user-cell">' +
+          '<div class="user-avatar ' + (isOwner ? 'owner' : '') + '">' + esc(initial) + '</div>' +
+          '<div class="user-info">' +
+            '<h4>' + esc(u.full_name || '—') + (isSelf ? ' <span class="badge badge-info" style="font-size:9px">أنت</span>' : '') + '</h4>' +
+            '<p>' + esc(u.email || u.username || '—') + '</p>' +
+          '</div>' +
+        '</div></td>' +
+        '<td>' + esc(u.phone || '—') + '</td>' +
+        '<td>' + ownerBadge + ' <span class="badge badge-purple">' + esc(roleName) + '</span></td>' +
+        '<td>' + esc(branchName) + '</td>' +
+        '<td style="font-size:11.5px;color:var(--text-muted)">' + timeAgo(u.last_login) + '</td>' +
+        '<td>' + statusBadge + '</td>' +
+        '<td style="text-align:left"><div class="actions-cell">' +
+          (canManage && !isSelf && !isOwner ? '<button class="icon-btn" data-action="edit" data-id="' + u.id + '" title="تعديل"><i data-lucide="edit"></i></button>' : '') +
+          (canManage && !isSelf ? '<button class="icon-btn warn" data-action="password" data-id="' + u.id + '" title="تغيير كلمة المرور"><i data-lucide="key-round"></i></button>' : '') +
+          (canManage && !isSelf && !isOwner ? '<button class="icon-btn ' + (u.is_active ? 'danger' : 'success') + '" data-action="toggle" data-id="' + u.id + '" title="' + (u.is_active ? 'تعطيل' : 'تفعيل') + '"><i data-lucide="' + (u.is_active ? 'user-x' : 'user-check') + '"></i></button>' : '') +
+          (canManage && !isSelf && !isOwner ? '<button class="icon-btn danger" data-action="delete" data-id="' + u.id + '" title="حذف"><i data-lucide="trash-2"></i></button>' : '') +
+        '</div></td>' +
+      '</tr>';
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+
+    tbody.querySelectorAll('[data-action="edit"]').forEach(b => b.onclick = () => openEditModal(b.dataset.id));
+    tbody.querySelectorAll('[data-action="password"]').forEach(b => b.onclick = () => openPasswordModal(b.dataset.id));
+    tbody.querySelectorAll('[data-action="toggle"]').forEach(b => b.onclick = () => toggleUser(b.dataset.id));
+    tbody.querySelectorAll('[data-action="delete"]').forEach(b => b.onclick = () => openDeleteModal(b.dataset.id));
+
+    renderPagination(filtered.length, totalPages);
+  }
+
+  function renderPagination(total, totalPages) {
+    const el = document.getElementById('pagination');
+    if (totalPages <= 1) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    let html = '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' data-p="' + (currentPage-1) + '">‹ السابق</button>';
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    for (let i = start; i <= end; i++) {
+      html += '<button class="' + (i === currentPage ? 'active' : '') + '" data-p="' + i + '">' + i + '</button>';
+    }
+    html += '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' data-p="' + (currentPage+1) + '">التالي ›</button>';
+    html += '<span class="page-info">' + total + ' مستخدم</span>';
+    el.innerHTML = html;
+    el.querySelectorAll('button[data-p]').forEach(btn => {
+      btn.onclick = () => { currentPage = Number(btn.dataset.p); renderTable(); window.scrollTo({top:0,behavior:'smooth'}); };
+    });
+  }
+
+  function fillSelects() {
+    const roleOptions = '<option value="">اختر دور...</option>' +
+      roles.map(r => '<option value="' + r.id + '">' + esc(r.name) + (r.is_owner ? ' 👑' : '') + '</option>').join('');
+    document.getElementById('userRole').innerHTML = roleOptions;
+
+    const roleFilterOptions = '<option value="">كل الأدوار</option>' +
+      roles.map(r => '<option value="' + r.id + '">' + esc(r.name) + '</option>').join('');
+    document.getElementById('roleFilter').innerHTML = roleFilterOptions;
+
+    const branchOptions = '<option value="">اختر فرع...</option>' +
+      branches.filter(b => b.is_active).map(b => '<option value="' + b.id + '">' + esc(b.name) + '</option>').join('');
+    document.getElementById('userBranch').innerHTML = branchOptions;
+
+    const branchFilterOptions = '<option value="">كل الفروع</option>' +
+      branches.map(b => '<option value="' + b.id + '">' + esc(b.name) + '</option>').join('');
+    document.getElementById('branchFilter').innerHTML = branchFilterOptions;
+  }
+
+  function updateRoleInfo() {
+    const roleId = document.getElementById('userRole').value;
+    const role = roles.find(r => r.id === roleId);
+    const box = document.getElementById('roleInfoBox');
+    const chips = document.getElementById('permChips');
+
+    if (!role) { box.style.display = 'none'; return; }
+
+    const perms = role.permissions || [];
+    if (perms.length === 0) { box.style.display = 'none'; return; }
+
+    chips.innerHTML = perms.map(p => '<span class="perm-chip">' + esc(p) + '</span>').join('');
+    box.style.display = 'block';
+  }
+
+  function openAddModal() {
+    document.getElementById('userModalTitle').textContent = 'مستخدم جديد';
+    document.getElementById('userFormError').classList.remove('show');
+    document.getElementById('userId').value = '';
+    document.getElementById('userName').value = '';
+    document.getElementById('userUsername').value = '';
+    document.getElementById('userEmail').value = '';
+    document.getElementById('userPhone').value = '';
+    document.getElementById('userPassword').value = '';
+    document.getElementById('userRole').value = '';
+    document.getElementById('userBranch').value = '';
+    document.getElementById('userActive').checked = true;
+    document.getElementById('passwordGroup').style.display = 'block';
+    document.getElementById('userEmail').disabled = false;
+    document.getElementById('passStrengthFill').className = 'pass-strength-fill';
+    document.getElementById('passwordHint').textContent = '6 أحرف على الأقل — يُفضّل 8+ مع رقم ورمز';
+    document.getElementById('roleInfoBox').style.display = 'none';
+
+    document.querySelectorAll('#userModal .form-input.error').forEach(i => i.classList.remove('error'));
+    document.getElementById('userModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function openEditModal(id) {
+    const u = users.find(x => x.id === id);
+    if (!u) return;
+    if (u.is_owner || (u.roles && u.roles.is_owner)) {
+      toast('warning', 'لا يمكن تعديل بيانات المالك من هنا');
+      return;
+    }
+    if (u.id === session.user_id) {
+      toast('warning', 'لا يمكنك تعديل نفسك');
+      return;
+    }
+
+    document.getElementById('userModalTitle').textContent = 'تعديل المستخدم';
+    document.getElementById('userFormError').classList.remove('show');
+    document.getElementById('userId').value = u.id;
+    document.getElementById('userName').value = u.full_name || '';
+    document.getElementById('userUsername').value = u.username || '';
+    document.getElementById('userEmail').value = u.email || '';
+    document.getElementById('userPhone').value = u.phone || '';
+    document.getElementById('userPassword').value = '';
+    document.getElementById('userRole').value = u.role_id || '';
+    document.getElementById('userBranch').value = u.branch_id || '';
+    document.getElementById('userActive').checked = u.is_active;
+    document.getElementById('passwordGroup').style.display = 'none';
+    document.getElementById('userEmail').disabled = true;
+
+    document.querySelectorAll('#userModal .form-input.error').forEach(i => i.classList.remove('error'));
+    document.getElementById('userModal').classList.add('show');
+    updateRoleInfo();
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function saveUser() {
+    const errEl = document.getElementById('userFormError');
+    errEl.classList.remove('show');
+
+    const id = document.getElementById('userId').value;
+    const name = document.getElementById('userName').value.trim();
+    const username = document.getElementById('userUsername').value.trim();
+    const email = document.getElementById('userEmail').value.trim();
+    const phone = document.getElementById('userPhone').value.trim();
+    const password = document.getElementById('userPassword').value;
+    const roleId = document.getElementById('userRole').value;
+    const branchId = document.getElementById('userBranch').value;
+    const isActive = document.getElementById('userActive').checked;
+
+    document.querySelectorAll('#userModal .form-input.error').forEach(i => i.classList.remove('error'));
+
+    if (!name) {
+      document.getElementById('userName').classList.add('error');
+      errEl.textContent = 'الاسم مطلوب';
+      errEl.classList.add('show');
+      return;
+    }
+    if (!username || !isValidUsername(username)) {
+      document.getElementById('userUsername').classList.add('error');
+      errEl.textContent = 'اسم المستخدم مطلوب — 3-50 حرف/رقم/_';
+      errEl.classList.add('show');
+      return;
+    }
+    if (!email || !isValidEmail(email)) {
+      document.getElementById('userEmail').classList.add('error');
+      errEl.textContent = 'إيميل غير صحيح';
+      errEl.classList.add('show');
+      return;
+    }
+    if (!id && (!password || password.length < 6)) {
+      document.getElementById('userPassword').classList.add('error');
+      errEl.textContent = 'كلمة المرور 6 أحرف على الأقل';
+      errEl.classList.add('show');
+      return;
+    }
+    if (!roleId) {
+      document.getElementById('userRole').classList.add('error');
+      errEl.textContent = 'اختر الدور';
+      errEl.classList.add('show');
+      return;
+    }
+    if (!branchId) {
+      document.getElementById('userBranch').classList.add('error');
+      errEl.textContent = 'اختر الفرع';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const dupEmail = users.find(u => u.id !== id && u.email && u.email.toLowerCase() === email.toLowerCase());
+    if (dupEmail) {
+      document.getElementById('userEmail').classList.add('error');
+      errEl.textContent = 'الإيميل مستخدم بالفعل';
+      errEl.classList.add('show');
+      return;
+    }
+    const dupUsername = users.find(u => u.id !== id && u.username && u.username.toLowerCase() === username.toLowerCase());
+    if (dupUsername) {
+      document.getElementById('userUsername').classList.add('error');
+      errEl.textContent = 'اسم المستخدم مستخدم بالفعل';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('saveUserBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري الحفظ...</span>';
+
+    try {
+      if (id) {
+        const payload = {
+          full_name: name,
+          username: username,
+          phone: phone || null,
+          role_id: roleId,
+          branch_id: branchId,
+          is_active: isActive,
+          updated_at: new Date().toISOString()
+        };
+
+        const res = await sb.from('users').update(payload).eq('id', id);
+        if (res.error) throw res.error;
+
+        toast('success', 'تم تحديث المستخدم');
+      } else {
+        // ⭐ حفظ الجلسة الحالية
+        const currentSession = await sb.auth.getSession();
+        const currentAccessToken = currentSession.data.session?.access_token;
+        const currentRefreshToken = currentSession.data.session?.refresh_token;
+
+        // ⭐ signUp
+        const signupRes = await sb.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: {
+              full_name: name,
+              username: username,
+              phone: phone || null,
+              company_id: session.company_id,
+              branch_id: branchId,
+              role_id: roleId,
+              is_owner: false
+            },
+            emailRedirectTo: window.location.origin + '/index.html'
+          }
+        });
+
+        if (signupRes.error) throw signupRes.error;
+        if (!signupRes.data.user) throw new Error('فشل إنشاء المستخدم');
+
+        // ⭐ استعادة جلسة الأدمن
+        if (currentAccessToken) {
+          await sb.auth.setSession({
+            access_token: currentAccessToken,
+            refresh_token: currentRefreshToken
+          });
+        }
+
+        // ⭐ تحديث public.users row
+        await sb.from('users').update({
+          full_name: name,
+          username: username,
+          phone: phone || null,
+          role_id: roleId,
+          branch_id: branchId,
+          is_active: isActive,
+          company_id: session.company_id
+        }).eq('id', signupRes.data.user.id);
+
+        toast('success', 'تم إنشاء المستخدم — قد يحتاج تأكيد الإيميل');
+      }
+
+      document.getElementById('userModal').classList.remove('show');
+      await loadUsers();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      let msg = e.message || 'فشل الحفظ';
+      if (msg.includes('User already registered')) msg = 'الإيميل مسجل بالفعل في النظام';
+      else if (msg.includes('duplicate') || msg.includes('unique')) msg = 'يوجد تكرار في البيانات';
+      else if (msg.includes('password')) msg = 'كلمة المرور ضعيفة أو غير صالحة';
+      errEl.textContent = msg;
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  async function toggleUser(id) {
+    const u = users.find(x => x.id === id);
+    if (!u) return;
+    if (u.is_owner || (u.roles && u.roles.is_owner)) {
+      toast('warning', 'لا يمكن تعطيل المالك');
+      return;
+    }
+    const action = u.is_active ? 'تعطيل' : 'تفعيل';
+    if (!confirm(action + ' ' + (u.full_name || u.email) + '؟')) return;
+
+    try {
+      const res = await sb.from('users').update({ is_active: !u.is_active }).eq('id', id);
+      if (res.error) throw res.error;
+      toast('success', 'تم ' + action + ' المستخدم');
+      await loadUsers();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      toast('error', e.message);
+    }
+  }
+
+  function openPasswordModal(id) {
+    const u = users.find(x => x.id === id);
+    if (!u) return;
+    if (u.is_owner || (u.roles && u.roles.is_owner)) {
+      toast('warning', 'لا يمكن تغيير كلمة مرور المالك من هنا');
+      return;
+    }
+
+    document.getElementById('pwdUserId').value = id;
+    document.getElementById('pwdUserName').innerHTML = 'المستخدم: <strong>' + esc(u.full_name || u.email) + '</strong>';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('newPassStrengthFill').className = 'pass-strength-fill';
+    document.getElementById('passwordFormError').classList.remove('show');
+    document.getElementById('passwordModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function confirmPasswordChange() {
+    const errEl = document.getElementById('passwordFormError');
+    errEl.classList.remove('show');
+    const userId = document.getElementById('pwdUserId').value;
+    const newPassword = document.getElementById('newPassword').value;
+
+    if (!newPassword || newPassword.length < 6) {
+      errEl.textContent = 'كلمة المرور 6 أحرف على الأقل';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('confirmPasswordBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
+
+    try {
+      const u = users.find(x => x.id === userId);
+      if (!u || !u.email) throw new Error('لا يمكن إرسال الإيميل');
+
+      const { error } = await sb.auth.resetPasswordForEmail(u.email, {
+        redirectTo: window.location.origin + '/index.html'
+      });
+      if (error) throw error;
+
+      toast('success', 'تم إرسال رابط تغيير كلمة المرور إلى ' + u.email);
+      document.getElementById('passwordModal').classList.remove('show');
+    } catch (e) {
+      errEl.textContent = 'تعذر تغيير كلمة المرور مباشرة. ' + (e.message || '');
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  function openDeleteModal(id) {
+    const u = users.find(x => x.id === id);
+    if (!u) return;
+    if (u.is_owner || (u.roles && u.roles.is_owner)) {
+      toast('warning', 'لا يمكن حذف المالك');
+      return;
+    }
+
+    document.getElementById('deleteUserId').value = id;
+    document.getElementById('deleteUserInfo').innerHTML = 'المستخدم: <strong>' + esc(u.full_name || u.email) + '</strong> (' + esc(u.email) + ')';
+    document.getElementById('confirmDeleteInput').value = '';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+    document.getElementById('deleteError').classList.remove('show');
+    document.getElementById('deleteModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function confirmDelete() {
+    const errEl = document.getElementById('deleteError');
+    errEl.classList.remove('show');
+    const id = document.getElementById('deleteUserId').value;
+    const input = document.getElementById('confirmDeleteInput').value.trim();
+    const u = users.find(x => x.id === id);
+    if (!u) return;
+
+    if (input !== u.email) {
+      errEl.textContent = 'الإيميل غير مطابق';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
+
+    try {
+      const res = await sb.from('users').update({
+        deleted_at: new Date().toISOString(),
+        is_active: false,
+        status: 'deleted'
+      }).eq('id', id);
+      if (res.error) throw res.error;
+
+      toast('success', 'تم حذف المستخدم');
+      document.getElementById('deleteModal').classList.remove('show');
+      await loadUsers();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.add('show');
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+
+  function exportCSV() {
+    const filtered = getFilteredUsers();
+    const rows = [['name','email','phone','username','role','branch','is_active','is_owner','last_login']];
+    filtered.forEach(u => {
+      rows.push([
+        u.full_name || '',
+        u.email || '',
+        u.phone || '',
+        u.username || '',
+        (u.roles && u.roles.name) || '',
+        (u.branches && u.branches.name) || '',
+        u.is_active ? 1 : 0,
+        (u.is_owner || (u.roles && u.roles.is_owner)) ? 1 : 0,
+        u.last_login || ''
+      ]);
+    });
+    const csv = rows.map(r => r.map(c => '"' + String(c || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'users-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    toast('success', 'تم تصدير ' + filtered.length + ' مستخدم');
+  }
+
+  async function init() {
+    // ⭐ كشف platform admin
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) {
+          console.log('[Users] Platform admin — redirecting to admin.html');
+          location.href = 'admin.html';
+          return;
+        }
+      }
+    } catch (e) { console.warn('[Users] admin check failed:', e); }
+
+    if (window.Refad && Refad.requireSession) {
+      session = await Refad.requireSession();
+    }
+    if (!session) { location.href = 'index.html'; return; }
+    if (!session.company_id) {
+      console.warn('[Users] No company_id');
+      location.href = 'index.html';
+      return;
+    }
+
+    canManage = !!(session.is_owner || (session.permissions && session.permissions.includes('admin.full')));
+
+    const branchNameEl = document.getElementById('branchName');
+    if (branchNameEl) {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+
+    if (!canManage) {
+      document.getElementById('permissionBanner').style.display = 'flex';
+      document.getElementById('permissionBannerText').innerHTML = '<strong>أنت في وضع القراءة فقط.</strong> إدارة المستخدمين متاحة للمالك فقط.';
+      document.getElementById('addUserBtn').style.display = 'none';
+    }
+
+    await loadRoles();
+    await loadBranches();
+    await loadUsers();
+
+    fillSelects();
+    renderStats();
+    renderTable();
+
+    document.getElementById('addUserBtn').onclick = openAddModal;
+    document.getElementById('saveUserBtn').onclick = saveUser;
+    document.getElementById('confirmPasswordBtn').onclick = confirmPasswordChange;
+    document.getElementById('confirmDeleteBtn').onclick = confirmDelete;
+    document.getElementById('exportBtn').onclick = exportCSV;
+
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await Promise.all([loadRoles(), loadBranches(), loadUsers()]);
+      fillSelects();
+      renderStats();
+      renderTable();
+      toast('success', 'تم التحديث');
+    };
+
+    document.getElementById('searchInput').oninput = () => { currentPage = 1; renderTable(); };
+    document.getElementById('roleFilter').onchange = () => { currentPage = 1; renderTable(); };
+    document.getElementById('branchFilter').onchange = () => { currentPage = 1; renderTable(); };
+    document.getElementById('statusFilter').onchange = () => { currentPage = 1; renderTable(); };
+    document.getElementById('clearFilters').onclick = () => {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('roleFilter').value = '';
+      document.getElementById('branchFilter').value = '';
+      document.getElementById('statusFilter').value = '';
+      currentPage = 1;
+      renderTable();
+    };
+
+    document.getElementById('userRole').onchange = updateRoleInfo;
+
+    document.getElementById('userPassword').oninput = function() {
+      const s = passwordStrength(this.value);
+      const fill = document.getElementById('passStrengthFill');
+      fill.className = 'pass-strength-fill' + (s.level !== 'none' ? ' ' + s.level : '');
+      document.getElementById('passwordHint').textContent = s.label ? 'قوة: ' + s.label : '6 أحرف على الأقل';
+    };
+    document.getElementById('newPassword').oninput = function() {
+      const s = passwordStrength(this.value);
+      const fill = document.getElementById('newPassStrengthFill');
+      fill.className = 'pass-strength-fill' + (s.level !== 'none' ? ' ' + s.level : '');
+    };
+
+    document.getElementById('confirmDeleteInput').oninput = function() {
+      const id = document.getElementById('deleteUserId').value;
+      const u = users.find(x => x.id === id);
+      document.getElementById('confirmDeleteBtn').disabled = !u || this.value.trim() !== u.email;
+    };
+
+    document.querySelectorAll('[data-close]').forEach(el => {
+      el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+    });
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.onclick = (e) => { if (e.target === m) m.classList.remove('show'); };
+    });
+
+    window.addEventListener('refad:settings-changed', () => {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      if (branchNameEl) branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

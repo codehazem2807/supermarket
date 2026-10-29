@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>مقارنة الفروع — رفاد</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root {
+  --primary:#0B2C4D; --primary-light:#1e4a73; --primary-dark:#061a2e;
+  --accent:#14B8A6; --accent-dark:#0d9488; --accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B; --gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981; --success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6; --info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6; --purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9; --bg-soft:#f8fafc; --bg-card:#ffffff;
+  --card:#ffffff; --text:#0f172a; --text-muted:#64748b;
+  --border:#e2e8f0; --border-soft:#f1f5f9;
+  --radius:14px; --radius-sm:10px; --radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI','Cairo',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px;flex-wrap:wrap}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1400px;margin:0 auto}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-body{padding:20px}
+
+/* Filter */
+.filter-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:6px;min-width:140px;flex:1}
+.filter-label{font-size:11.5px;font-weight:700;color:var(--text-muted)}
+.filter-select{padding:10px 12px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:13px;font-weight:600;transition:all .15s}
+.filter-select:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* Podium */
+.podium{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:14px;margin-bottom:20px;align-items:end}
+.podium-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;text-align:center;position:relative;transition:all .2s}
+.podium-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.podium-card.first{background:linear-gradient(135deg,var(--gold-soft),var(--accent-soft));border-color:var(--gold);padding:28px 16px;order:2}
+.podium-card.second{order:1}
+.podium-card.third{order:3}
+.podium-rank{width:44px;height:44px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;margin-bottom:12px;color:#fff}
+.podium-rank.rank-1{background:linear-gradient(135deg,#FFD700,#F59E0B);box-shadow:0 4px 16px rgba(245,158,11,0.4);width:56px;height:56px;font-size:24px}
+.podium-rank.rank-2{background:linear-gradient(135deg,#C0C0C0,#94a3b8)}
+.podium-rank.rank-3{background:linear-gradient(135deg,#CD7F32,#a16207)}
+.podium-name{font-size:15px;font-weight:800;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.podium-card.first .podium-name{font-size:17px}
+.podium-sales{font-size:24px;font-weight:900;color:var(--accent);margin:8px 0;font-variant-numeric:tabular-nums}
+.podium-card.first .podium-sales{font-size:30px;color:var(--gold)}
+.podium-meta{font-size:11.5px;color:var(--text-muted);display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.podium-meta span{display:inline-flex;align-items:center;gap:3px}
+
+/* Comparison table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg-soft)}
+th{padding:12px 16px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tbody tr:hover{background:var(--bg-soft)}
+tbody tr:last-child td{border-bottom:none}
+
+/* Bar chart */
+.bar-chart{display:flex;flex-direction:column;gap:14px;padding:10px 0}
+.bar-row{display:flex;align-items:center;gap:12px}
+.bar-label{min-width:120px;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;height:28px;background:var(--bg-soft);border-radius:6px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding:0 12px;color:#fff;font-size:11.5px;font-weight:800;transition:width .5s ease-out;min-width:60px}
+.bar-fill.rank-1{background:linear-gradient(90deg,var(--gold),#d97706)}
+.bar-fill.rank-2{background:linear-gradient(90deg,var(--accent),var(--accent-dark))}
+.bar-fill.rank-3{background:linear-gradient(90deg,var(--info),#1d4ed8)}
+.bar-fill.rank-other{background:linear-gradient(90deg,var(--text-muted),#475569)}
+.bar-value{font-variant-numeric:tabular-nums;margin-right:auto}
+
+/* Growth indicator */
+.growth{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:12px}
+.growth.up{background:var(--success-soft);color:var(--success)}
+.growth.down{background:var(--danger-soft);color:var(--danger)}
+.growth.neutral{background:var(--bg-soft);color:var(--text-muted)}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:56px;height:56px;margin-bottom:14px;opacity:.4}
+.empty-state h3{font-size:16px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:13px;max-width:500px;margin:0 auto;line-height:1.6}
+
+.loading-state{padding:60px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast .3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .podium{grid-template-columns:1fr;gap:10px}
+  .podium-card.first{order:1}
+  .podium-card.second{order:2}
+  .podium-card.third{order:3}
+  .filter-bar{flex-direction:column}
+  .filter-group{min-width:100%}
+  .bar-label{min-width:80px;font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <h1>مقارنة الفروع</h1>
+        <div class="topbar-subtitle" id="branchName">—</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <a href="dashboard.html" class="btn btn-ghost"><i data-lucide="arrow-right"></i>رجوع</a>
+    </div>
+  </div>
+
+  <div class="content" id="mainContent">
+    <div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>
+  </div>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let branchData = [];
+  let previousData = [];  // للمقارنة (فترة سابقة)
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
+  const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:0})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // LOADERS
+  // ═══════════════════════════════════════════════════════════
+  async function loadBranchComparison() {
+    try {
+      const { data, error } = await sb.from('v_branch_comparison')
+        .select('*')
+        .eq('company_id', session.company_id)
+        .order('sales_30d', { ascending: false });
+
+      if (error) throw error;
+      branchData = (data || []).map(b => ({
+        ...b,
+        sales_30d: Number(b.sales_30d || 0),
+        sales_7d: Number(b.sales_7d || 0),
+        invoices_30d: Number(b.invoices_30d || 0),
+        avg_ticket_30d: Number(b.avg_ticket_30d || 0),
+        unique_customers_30d: Number(b.unique_customers_30d || 0)
+      }));
+
+      console.log('[BranchCompare] Loaded', branchData.length, 'branches');
+    } catch (e) {
+      console.error('[BranchCompare] loadBranchComparison:', e);
+      toast('error', 'فشل تحميل بيانات الفروع: ' + (e.message || ''));
+      branchData = [];
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATS
+  // ═══════════════════════════════════════════════════════════
+  function computeStats() {
+    const totalSales30 = branchData.reduce((s, b) => s + b.sales_30d, 0);
+    const totalSales7 = branchData.reduce((s, b) => s + b.sales_7d, 0);
+    const totalInvoices = branchData.reduce((s, b) => s + b.invoices_30d, 0);
+    const totalCustomers = branchData.reduce((s, b) => s + b.unique_customers_30d, 0);
+    const avgTicket = totalInvoices > 0 ? totalSales30 / totalInvoices : 0;
+    const activeBranches = branchData.filter(b => b.invoices_30d > 0).length;
+    const bestBranch = branchData[0] || null;
+
+    return {
+      totalSales30,
+      totalSales7,
+      totalInvoices,
+      totalCustomers,
+      avgTicket,
+      activeBranches,
+      totalBranches: branchData.length,
+      bestBranch
+    };
+  }
+
+  function computeGrowth(current, previous) {
+    if (!previous || previous === 0) return null;
+    return ((current - previous) / previous) * 100;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  async function render() {
+    const container = document.getElementById('mainContent');
+    await loadBranchComparison();
+
+    if (branchData.length === 0) {
+      container.innerHTML = `
+        <div class="card">
+          <div class="empty-state">
+            <i data-lucide="git-compare"></i>
+            <h3>لا توجد بيانات للمقارنة</h3>
+            <p>مقارنة الفروع بتظهر لما يكون عندك أكثر من فرع وبيانات مبيعات. أضف فروع من صفحة "الفروع" وابدأ البيع عشان تشوف المقارنة هنا.</p>
+            <div style="margin-top:20px">
+              <a href="branches.html" class="btn btn-primary">
+                <i data-lucide="git-branch"></i>
+                إدارة الفروع
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const stats = computeStats();
+    const top3 = branchData.slice(0, 3);
+    const maxSales = Math.max(...branchData.map(b => b.sales_30d), 1);
+
+    container.innerHTML = `
+      ${renderStatsCards(stats)}
+      ${renderPodium(top3)}
+      ${renderBarChart(maxSales)}
+      ${renderComparisonTable(stats)}
+    `;
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderStatsCards(stats) {
+    return `
+      <div class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px">
+        <div class="stat-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)"></div>
+          <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;background:var(--accent-soft);color:var(--accent)">
+            <i data-lucide="git-branch" style="width:18px;height:18px"></i>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px">إجمالي المبيعات (30 يوم)</div>
+          <div style="font-size:22px;font-weight:800;color:var(--accent)">${money(stats.totalSales30)}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600">${num(stats.totalInvoices)} فاتورة</div>
+        </div>
+        <div class="stat-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;right:0;width:4px;height:100%;background:var(--info)"></div>
+          <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;background:var(--info-soft);color:var(--info)">
+            <i data-lucide="git-branch" style="width:18px;height:18px"></i>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px">الفروع النشطة</div>
+          <div style="font-size:22px;font-weight:800;color:var(--info)">${stats.activeBranches} / ${stats.totalBranches}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600">من إجمالي الفروع</div>
+        </div>
+        <div class="stat-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;right:0;width:4px;height:100%;background:var(--gold)"></div>
+          <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;background:var(--gold-soft);color:var(--gold)">
+            <i data-lucide="receipt" style="width:18px;height:18px"></i>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px">متوسط الفاتورة</div>
+          <div style="font-size:22px;font-weight:800;color:var(--gold)">${money(stats.avgTicket)}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600">${num(stats.totalCustomers)} عميل</div>
+        </div>
+        <div class="stat-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;right:0;width:4px;height:100%;background:var(--success)"></div>
+          <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;background:var(--success-soft);color:var(--success)">
+            <i data-lucide="crown" style="width:18px;height:18px"></i>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px">الفرع الأفضل</div>
+          <div style="font-size:18px;font-weight:800;color:var(--success);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(stats.bestBranch?.branch_name || '—')}">${esc(stats.bestBranch?.branch_name || '—')}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600">${money(stats.bestBranch?.sales_30d || 0)}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPodium(top3) {
+    if (top3.length === 0) return '';
+
+    const rankClasses = ['first', 'second', 'third'];
+    const rankNumbers = ['🥇', '🥈', '🥉'];
+    const rankClassNames = ['rank-1', 'rank-2', 'rank-3'];
+
+    return `
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="trophy"></i><span>أفضل 3 فروع (آخر 30 يوم)</span></div>
+        </div>
+        <div class="card-body">
+          <div class="podium">
+            ${top3.map((b, i) => `
+              <div class="podium-card ${rankClasses[i]}">
+                <div class="podium-rank ${rankClassNames[i]}">${rankNumbers[i]}</div>
+                <div class="podium-name" title="${esc(b.branch_name)}">${esc(b.branch_name)}</div>
+                <div class="podium-sales">${money(b.sales_30d)}</div>
+                <div class="podium-meta">
+                  <span><i data-lucide="receipt" style="width:11px;height:11px"></i> ${num(b.invoices_30d)}</span>
+                  <span><i data-lucide="users" style="width:11px;height:11px"></i> ${num(b.unique_customers_30d)}</span>
+                  <span><i data-lucide="trending-up" style="width:11px;height:11px"></i> ${money(b.sales_7d)}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderBarChart(maxSales) {
+    const rankClasses = ['rank-1', 'rank-2', 'rank-3'];
+
+    return `
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="bar-chart-3"></i><span>مبيعات الفروع (30 يوم)</span></div>
+        </div>
+        <div class="card-body">
+          <div class="bar-chart">
+            ${branchData.map((b, i) => {
+              const pct = (b.sales_30d / maxSales) * 100;
+              const rankClass = i < 3 ? rankClasses[i] : 'rank-other';
+              return `
+                <div class="bar-row">
+                  <div class="bar-label" title="${esc(b.branch_name)}">${esc(b.branch_name)}</div>
+                  <div class="bar-track">
+                    <div class="bar-fill ${rankClass}" style="width:${Math.max(pct, 8)}%">
+                      <span class="bar-value">${money(b.sales_30d)}</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderComparisonTable(stats) {
+    return `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="table-2"></i><span>تفاصيل المقارنة</span></div>
+          <span class="badge badge-info" style="background:var(--info-soft);color:var(--info);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700">${branchData.length} فرع</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>الفرع</th>
+                <th>الكود</th>
+                <th>مبيعات 30 يوم</th>
+                <th>مبيعات 7 أيام</th>
+                <th>الفواتير</th>
+                <th>متوسط الفاتورة</th>
+                <th>العملاء</th>
+                <th>المساهمة</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${branchData.map((b, i) => {
+                const contribution = stats.totalSales30 > 0 ? (b.sales_30d / stats.totalSales30) * 100 : 0;
+                const rankBadge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+                return `
+                  <tr>
+                    <td><strong>${rankBadge}</strong></td>
+                    <td><strong>${esc(b.branch_name)}</strong></td>
+                    <td><span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${esc(b.branch_code || '—')}</span></td>
+                    <td><strong style="color:var(--accent)">${money(b.sales_30d)}</strong></td>
+                    <td>${money(b.sales_7d)}</td>
+                    <td>${num(b.invoices_30d)}</td>
+                    <td>${money(b.avg_ticket_30d)}</td>
+                    <td>${num(b.unique_customers_30d)}</td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <div style="flex:1;height:6px;background:var(--bg-soft);border-radius:3px;overflow:hidden;min-width:50px">
+                          <div style="height:100%;width:${contribution}%;background:var(--accent);border-radius:3px"></div>
+                        </div>
+                        <span style="font-size:11px;font-weight:800;color:var(--text-muted);min-width:36px;text-align:left">${contribution.toFixed(1)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    session = await (window.Refad && Refad.requireSession ? Refad.requireSession() : Promise.resolve(null));
+    if (!session || !session.company_id) {
+      setTimeout(() => location.href = 'index.html', 1200);
+      return;
+    }
+
+    if (window.Refad && Refad.hasPermission) {
+      if (!Refad.hasPermission('branches.compare') && !Refad.hasPermission('branches.view')) {
+        toast('error', 'غير مصرح — صلاحية branches.compare مطلوبة');
+        setTimeout(() => location.href = 'dashboard.html', 1500);
+        return;
+      }
+    }
+
+    const branchNameEl = document.getElementById('branchName');
+    if (branchNameEl) {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+      branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+
+    await render();
+
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await render();
+      toast('success', 'تم التحديث');
+    };
+
+    if (window.lucide) lucide.createIcons();
+    console.log('[BranchCompare v1.0] Ready');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>

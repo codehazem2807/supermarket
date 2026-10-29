@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>تنبؤ المخزون — رفاد</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root {
+  --primary:#0B2C4D; --primary-light:#1e4a73; --primary-dark:#061a2e;
+  --accent:#14B8A6; --accent-dark:#0d9488; --accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B; --gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981; --success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6; --info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6; --purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9; --bg-soft:#f8fafc; --bg-card:#ffffff;
+  --card:#ffffff; --text:#0f172a; --text-muted:#64748b;
+  --border:#e2e8f0; --border-soft:#f1f5f9;
+  --radius:14px; --radius-sm:10px; --radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI','Cairo',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px;flex-wrap:wrap}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1400px;margin:0 auto}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+.card-body{padding:20px}
+
+/* Filters */
+.filters-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:6px;min-width:140px;flex:1}
+.filter-label{font-size:11.5px;font-weight:700;color:var(--text-muted)}
+.filter-input,.filter-select{padding:10px 12px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:13px;font-weight:600;transition:all .15s}
+.filter-input:focus,.filter-select:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.danger::before{background:var(--danger)}
+.stat-card.info::before{background:var(--info)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-card.purple::before{background:var(--purple)}
+.stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.stat-icon svg{width:18px;height:18px}
+.stat-icon.blue{background:var(--info-soft);color:var(--info)}
+.stat-icon.gold{background:var(--gold-soft);color:var(--gold)}
+.stat-icon.green{background:var(--success-soft);color:var(--success)}
+.stat-icon.red{background:var(--danger-soft);color:var(--danger)}
+.stat-icon.purple{background:var(--purple-soft);color:var(--purple)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600}
+
+/* Table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg-soft)}
+th{padding:12px 16px;text-align:right;font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tbody tr:hover{background:var(--bg-soft)}
+tbody tr:last-child td{border-bottom:none}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge svg{width:11px;height:11px}
+.badge-success{background:var(--success-soft);color:var(--success)}
+.badge-danger{background:var(--danger-soft);color:var(--danger)}
+.badge-warning{background:var(--gold-soft);color:var(--gold)}
+.badge-info{background:var(--info-soft);color:var(--info)}
+.badge-gray{background:var(--bg-soft);color:var(--text-muted)}
+.badge-purple{background:var(--purple-soft);color:var(--purple)}
+
+/* Forecast bar */
+.forecast-bar{display:flex;align-items:center;gap:8px;min-width:120px}
+.forecast-bar-track{flex:1;height:8px;background:var(--bg-soft);border-radius:4px;overflow:hidden;position:relative}
+.forecast-bar-fill{height:100%;border-radius:4px;transition:width .3s}
+.forecast-bar-fill.critical{background:var(--danger)}
+.forecast-bar-fill.low{background:var(--gold)}
+.forecast-bar-fill.ok{background:var(--success)}
+.forecast-bar-label{font-size:11px;font-weight:800;white-space:nowrap;min-width:36px;text-align:left}
+
+/* Confidence */
+.confidence{display:inline-flex;align-items:center;gap:4px}
+.confidence-dot{width:8px;height:8px;border-radius:50%}
+.confidence-dot.high{background:var(--success)}
+.confidence-dot.medium{background:var(--gold)}
+.confidence-dot.low{background:var(--danger)}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;overflow-x:auto}
+.tab{padding:12px 20px;background:none;border:none;border-bottom:3px solid transparent;color:var(--text-muted);font-size:13.5px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;margin-bottom:-2px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Season cards */
+.seasons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.season-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;position:relative;overflow:hidden;transition:all .15s}
+.season-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+.season-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.season-card.ramadan::before{background:var(--purple)}
+.season-card.eid::before{background:var(--gold)}
+.season-card.school::before{background:var(--info)}
+.season-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.season-name{font-size:14px;font-weight:800}
+.season-multiplier{background:var(--accent-soft);color:var(--accent);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:800}
+.season-dates{font-size:11.5px;color:var(--text-muted);margin-bottom:8px}
+.season-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700}
+.season-status.active{color:var(--success)}
+.season-status.upcoming{color:var(--gold)}
+.season-status.past{color:var(--text-muted)}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:56px;height:56px;margin-bottom:14px;opacity:.4}
+.empty-state h3{font-size:16px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:13px;max-width:500px;margin:0 auto;line-height:1.6}
+
+/* ⭐ NEW: Info banner for "no data" */
+.info-banner{background:var(--info-soft);border:1px solid var(--info);border-radius:var(--radius-sm);padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;font-size:13px;line-height:1.7}
+.info-banner svg{width:20px;height:20px;color:var(--info);flex-shrink:0;margin-top:2px}
+.info-banner strong{display:block;margin-bottom:6px;font-size:14px}
+.info-banner .btn{margin-top:10px}
+
+/* ⭐ NEW: Warning banner */
+.warning-banner{background:var(--gold-soft);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;font-size:12.5px;line-height:1.7;color:var(--text)}
+.warning-banner svg{width:18px;height:18px;color:var(--gold);flex-shrink:0;margin-top:2px}
+.warning-banner strong{color:var(--gold);display:block;margin-bottom:4px}
+
+.loading-state{padding:60px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+.spinner.sm{width:16px;height:16px;border-width:2px;margin:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast .3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .filters-bar{flex-direction:column}
+  .filter-group{min-width:100%}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <h1>تنبؤ المخزون</h1>
+        <div class="topbar-subtitle" id="branchName">—</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <!-- ⭐ NEW: زر تحديث التنبؤات -->
+      <button class="btn btn-warning" id="calculateBtn" title="حساب التنبؤات من تاريخ المبيعات">
+        <i data-lucide="sparkles"></i>
+        <span>تحديث التنبؤات</span>
+      </button>
+      <a href="dashboard.html" class="btn btn-ghost"><i data-lucide="arrow-right"></i>رجوع</a>
+    </div>
+  </div>
+
+  <div class="content" id="mainContent">
+    <div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>
+  </div>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    (function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let forecastData = [];
+  let seasonsData = [];
+  let warehouses = [];
+  let products = [];
+  let currentTab = 'forecast';
+  let filters = { horizon: 30, warehouse: '', status: '', season: '' };
+  let isCalculating = false;
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
+  const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:2})};
+  const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
+  const toast = (function(){
+    const base = window.Refad && Refad.toast;
+    if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
+    if (typeof base === 'function') return base;
+    return function(type, msg) {
+      const icons = {error:'alert-circle',success:'check-circle',info:'info',warning:'alert-triangle'};
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.innerHTML = '<i data-lucide="' + (icons[type]||'info') + '"></i><span>' + esc(msg) + '</span>';
+      const c = document.getElementById('toastContainer');
+      if (c) { c.appendChild(el); if (window.lucide) lucide.createIcons();
+        setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity 0.3s';setTimeout(()=>el.remove(),300)},3000); }
+    };
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // LOADERS
+  // ═══════════════════════════════════════════════════════════
+  async function loadWarehouses() {
+    try {
+      const { data } = await sb.from('warehouses')
+        .select('id, name')
+        .eq('company_id', session.company_id)
+        .is('deleted_at', null)
+        .eq('is_active', true)
+        .order('name');
+      warehouses = data || [];
+    } catch (e) { warehouses = []; }
+  }
+
+  async function loadProducts() {
+    try {
+      const { data } = await sb.from('products')
+        .select('id, name')
+        .eq('company_id', session.company_id)
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .order('name').limit(500);
+      products = data || [];
+    } catch (e) { products = []; }
+  }
+
+  async function loadForecastData() {
+    try {
+      let query = sb.from('inventory_forecasts')
+        .select('id, product_id, warehouse_id, forecast_date, horizon_days, predicted_demand, predicted_stock, recommended_order_qty, confidence_pct, algorithm, season_tag')
+        .eq('company_id', session.company_id)
+        .eq('horizon_days', filters.horizon)
+        .order('forecast_date', { ascending: true });
+
+      if (filters.warehouse) query = query.eq('warehouse_id', filters.warehouse);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      forecastData = (data || []).map(f => {
+        const prod = products.find(p => p.id === f.product_id);
+        const wh = warehouses.find(w => w.id === f.warehouse_id);
+        return {
+          ...f,
+          product_name: prod ? prod.name : '—',
+          warehouse_name: wh ? wh.name : '—',
+          stock_status: f.predicted_stock < 0 ? 'critical' : (f.predicted_stock < 10 ? 'low' : 'ok')
+        };
+      });
+
+      console.log('[Forecast] Loaded', forecastData.length, 'forecasts');
+    } catch (e) {
+      console.warn('[Forecast] loadForecastData:', e);
+      forecastData = [];
+    }
+  }
+
+  async function loadSeasons() {
+    try {
+      const { data } = await sb.from('seasonal_patterns')
+        .select('*')
+        .eq('company_id', session.company_id)
+        .eq('is_active', true)
+        .order('start_month');
+      seasonsData = data || [];
+    } catch (e) { seasonsData = []; }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ⭐ NEW: CALCULATE FORECASTS
+  // ═══════════════════════════════════════════════════════════
+  async function calculateForecasts() {
+    if (isCalculating) return;
+    isCalculating = true;
+
+    const btn = document.getElementById('calculateBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner sm"></div><span>جاري الحساب...</span>';
+    }
+
+    try {
+      console.log('[Forecast] Calling calculate_inventory_forecasts with horizon:', filters.horizon);
+
+      const { data, error } = await sb.rpc('calculate_inventory_forecasts', {
+        p_company_id: session.company_id,
+        p_horizon_days: filters.horizon
+      });
+
+      if (error) throw error;
+
+      const result = data || {};
+      console.log('[Forecast] RPC result:', result);
+
+      if (result.ok === false) {
+        toast('warning', result.error || 'فشل الحساب');
+      } else {
+        const generated = result.generated || 0;
+        const errors = result.errors || 0;
+        const daysHistory = result.days_history || 0;
+
+        if (generated > 0) {
+          toast('success', `✅ تم حساب ${generated} تنبؤ${errors > 0 ? ' (' + errors + ' خطأ)' : ''}`);
+        } else if (errors > 0) {
+          toast('warning', `فشل حساب ${errors} منتج`);
+        } else {
+          toast('info', 'مفيش منتجات تحتاج تنبؤ');
+        }
+
+        // لو التاريخ غير كافي، اعرض رسالة
+        if (daysHistory < 7) {
+          toast('warning', `تاريخ المبيعات ${daysHistory} يوم فقط — التنبؤ قد يكون غير دقيق`);
+        }
+      }
+
+      // أعد تحميل البيانات
+      await loadForecastData();
+      await render();
+    } catch (e) {
+      console.error('[Forecast] calculateForecasts failed:', e);
+      const msg = e.message || 'خطأ غير معروف';
+      if (msg.includes('does not exist')) {
+        toast('error', 'نفّذ Migration 022 أولاً (calculate_inventory_forecasts)');
+      } else {
+        toast('error', 'فشل الحساب: ' + msg);
+      }
+    } finally {
+      isCalculating = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="sparkles"></i><span>تحديث التنبؤات</span>';
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATS
+  // ═══════════════════════════════════════════════════════════
+  function computeStats() {
+    const total = forecastData.length;
+    const critical = forecastData.filter(f => f.stock_status === 'critical').length;
+    const low = forecastData.filter(f => f.stock_status === 'low').length;
+    const needOrder = forecastData.filter(f => f.recommended_order_qty > 0).length;
+    const totalOrderQty = forecastData.reduce((s, f) => s + Number(f.recommended_order_qty || 0), 0);
+    const avgConfidence = total > 0 ? forecastData.reduce((s, f) => s + Number(f.confidence_pct || 0), 0) / total : 0;
+
+    return { total, critical, low, needOrder, totalOrderQty, avgConfidence };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  async function render() {
+    const container = document.getElementById('mainContent');
+
+    await Promise.all([
+      loadWarehouses(),
+      loadProducts()
+    ]);
+    await Promise.all([
+      loadForecastData(),
+      loadSeasons()
+    ]);
+
+    // ⭐ لو الجدول فاضي، اعرض بانر "احسب التنبؤات"
+    let infoBannerHtml = '';
+    if (forecastData.length === 0) {
+      infoBannerHtml = `
+        <div class="info-banner">
+          <i data-lucide="sparkles"></i>
+          <div style="flex:1">
+            <strong>مفيش تنبؤات محسوبة بعد</strong>
+            النظام بيحسب التنبؤات من تاريخ المبيعات (آخر 90 يوم). اضغط على "تحديث التنبؤات" لبدء الحساب.
+            <div>
+              <button class="btn btn-primary btn-sm" id="calcFromBannerBtn" style="margin-top:8px">
+                <i data-lucide="zap"></i>
+                حساب التنبؤات الآن
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Filters
+    const horizonOptions = (cfg.FORECAST && cfg.FORECAST.HORIZONS) || [7, 14, 30, 60, 90];
+    const statusOptions = (cfg.FORECAST && cfg.FORECAST.STOCK_STATUSES) || [
+      { value: 'critical', label: 'حرج', color: 'var(--danger)' },
+      { value: 'low', label: 'منخفض', color: 'var(--gold)' },
+      { value: 'ok', label: 'جيد', color: 'var(--success)' }
+    ];
+
+    const filtersHtml = `
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label class="filter-label">المدى (يوم)</label>
+          <select class="filter-select" id="filterHorizon">
+            ${horizonOptions.map(h => `<option value="${h}" ${filters.horizon === h ? 'selected' : ''}>${h} يوم</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">المخزن</label>
+          <select class="filter-select" id="filterWarehouse">
+            <option value="">كل المخازن</option>
+            ${warehouses.map(w => `<option value="${w.id}" ${filters.warehouse === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">الحالة</label>
+          <select class="filter-select" id="filterStatus">
+            <option value="">كل الحالات</option>
+            ${statusOptions.map(s => `<option value="${s.value}" ${filters.status === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-group" style="min-width:auto;flex:0 0 auto">
+          <label class="filter-label">&nbsp;</label>
+          <button class="btn btn-ghost" id="applyFiltersBtn" style="padding:10px 16px">
+            <i data-lucide="filter"></i>تطبيق
+          </button>
+        </div>
+      </div>
+    `;
+
+    const tabsHtml = `
+      <div class="tabs">
+        <button class="tab ${currentTab === 'forecast' ? 'active' : ''}" data-tab="forecast">
+          <i data-lucide="trending-up" style="width:14px;height:14px;vertical-align:middle;margin-left:4px"></i>
+          تنبؤات المخزون
+        </button>
+        <button class="tab ${currentTab === 'seasons' ? 'active' : ''}" data-tab="seasons">
+          <i data-lucide="calendar-days" style="width:14px;height:14px;vertical-align:middle;margin-left:4px"></i>
+          المواسم
+        </button>
+      </div>
+    `;
+
+    let contentHtml = '';
+    if (currentTab === 'forecast') {
+      contentHtml = renderForecastTab(computeStats());
+    } else {
+      contentHtml = renderSeasonsTab();
+    }
+
+    container.innerHTML = infoBannerHtml + filtersHtml + tabsHtml + contentHtml;
+
+    // ⭐ ربط زر "حساب التنبؤات" في البانر
+    const calcFromBannerBtn = document.getElementById('calcFromBannerBtn');
+    if (calcFromBannerBtn) {
+      calcFromBannerBtn.onclick = calculateForecasts;
+    }
+
+    bindEvents();
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderForecastTab(stats) {
+    const filtered = forecastData.filter(f => {
+      if (filters.status && f.stock_status !== filters.status) return false;
+      return true;
+    });
+
+    const statsHtml = `
+      <div class="stats-grid">
+        <div class="stat-card info">
+          <div class="stat-icon blue"><i data-lucide="package"></i></div>
+          <div class="stat-label">إجمالي التنبؤات</div>
+          <div class="stat-value">${num(stats.total)}</div>
+          <div class="stat-sub">منتج</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-icon red"><i data-lucide="alert-triangle"></i></div>
+          <div class="stat-label">حالة حرجة</div>
+          <div class="stat-value" style="color:var(--danger)">${num(stats.critical)}</div>
+          <div class="stat-sub">يحتاج تدخل فوري</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon gold"><i data-lucide="alert-circle"></i></div>
+          <div class="stat-label">مخزون منخفض</div>
+          <div class="stat-value" style="color:var(--gold)">${num(stats.low)}</div>
+          <div class="stat-sub">قريب من النفاد</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-icon green"><i data-lucide="shopping-cart"></i></div>
+          <div class="stat-label">يحتاج طلب</div>
+          <div class="stat-value" style="color:var(--success)">${num(stats.needOrder)}</div>
+          <div class="stat-sub">${num(stats.totalOrderQty)} وحدة</div>
+        </div>
+      </div>
+    `;
+
+    if (filtered.length === 0) {
+      return statsHtml + `
+        <div class="card">
+          <div class="empty-state">
+            <i data-lucide="trending-up"></i>
+            <h3>لا توجد تنبؤات</h3>
+            <p>اضغط على "تحديث التنبؤات" لحساب التنبؤات من تاريخ المبيعات.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    return statsHtml + `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="list"></i><span>تفاصيل التنبؤات</span></div>
+          <span class="badge badge-info">${num(filtered.length)} منتج</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>المنتج</th>
+                <th>المخزن</th>
+                <th>الطلب المتوقع</th>
+                <th>المخزون المتوقع</th>
+                <th>حالة المخزون</th>
+                <th>الكمية الموصى بها</th>
+                <th>الثقة</th>
+                <th>الموسم</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map(f => {
+                const stockClass = f.stock_status === 'critical' ? 'danger' : (f.stock_status === 'low' ? 'warning' : 'success');
+                const stockLabel = f.stock_status === 'critical' ? 'حرج' : (f.stock_status === 'low' ? 'منخفض' : 'جيد');
+                const confClass = f.confidence_pct >= 70 ? 'high' : (f.confidence_pct >= 50 ? 'medium' : 'low');
+                const maxStock = Math.max(f.predicted_stock, f.predicted_demand, 1);
+                const stockPct = Math.min(100, Math.max(0, (f.predicted_stock / maxStock) * 100));
+
+                return `<tr>
+                  <td><strong>${esc(f.product_name)}</strong></td>
+                  <td>${esc(f.warehouse_name)}</td>
+                  <td><strong>${num(f.predicted_demand)}</strong></td>
+                  <td>${num(f.predicted_stock)}</td>
+                  <td>
+                    <div class="forecast-bar">
+                      <div class="forecast-bar-track">
+                        <div class="forecast-bar-fill ${f.stock_status}" style="width:${stockPct}%"></div>
+                      </div>
+                      <span class="badge badge-${stockClass}">${stockLabel}</span>
+                    </div>
+                  </td>
+                  <td>${f.recommended_order_qty > 0 ? `<strong style="color:var(--accent)">${num(f.recommended_order_qty)}</strong>` : '—'}</td>
+                  <td>
+                    <div class="confidence">
+                      <div class="confidence-dot ${confClass}"></div>
+                      <span style="font-weight:700">${Math.round(f.confidence_pct || 0)}%</span>
+                    </div>
+                  </td>
+                  <td>${f.season_tag ? `<span class="badge badge-purple">${esc(f.season_tag)}</span>` : '—'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSeasonsTab() {
+    if (seasonsData.length === 0) {
+      return `
+        <div class="card">
+          <div class="empty-state">
+            <i data-lucide="calendar-days"></i>
+            <h3>لا توجد مواسم معرّفة</h3>
+            <p>المواسم بتحدد فترات زيادة الطلب (رمضان، العيد، المدارس، إلخ). لما تضيف موسم، النظام هيستخدمه في حساب التنبؤات.</p>
+            <div style="margin-top:20px">
+              <button class="btn btn-primary" id="seedSeasonsBtn">
+                <i data-lucide="plus"></i>
+                إضافة المواسم الافتراضية
+              </button>
+              <a href="seasons.html" class="btn btn-ghost" style="margin-right:8px">
+                <i data-lucide="settings"></i>
+                إدارة المواسم
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+
+    return `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i data-lucide="calendar-days"></i><span>المواسم المعرّفة</span></div>
+          <a href="seasons.html" class="btn btn-ghost btn-sm"><i data-lucide="settings"></i>إدارة</a>
+        </div>
+        <div class="card-body">
+          <div class="seasons-grid">
+            ${seasonsData.map(s => {
+              const isActive = isSeasonActive(s, currentMonth);
+              const isPast = isSeasonPast(s, currentMonth);
+              const statusClass = isActive ? 'active' : (isPast ? 'past' : 'upcoming');
+              const statusLabel = isActive ? 'نشط الآن' : (isPast ? 'انتهى' : 'قادم');
+
+              return `<div class="season-card">
+                <div class="season-header">
+                  <div class="season-name">${esc(s.name)}</div>
+                  <div class="season-multiplier">×${num(s.demand_multiplier)}</div>
+                </div>
+                <div class="season-dates">
+                  ${s.start_day || 1}/${s.start_month} — ${s.end_day || 'آخر'}/${s.end_month}
+                </div>
+                <div class="season-status ${statusClass}">
+                  <i data-lucide="${isActive ? 'check-circle' : (isPast ? 'clock' : 'calendar')}" style="width:12px;height:12px"></i>
+                  ${statusLabel}
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function isSeasonActive(s, month) {
+    if (s.start_month === s.end_month) return month === s.start_month;
+    if (s.start_month <= s.end_month) return month >= s.start_month && month <= s.end_month;
+    return month >= s.start_month || month <= s.end_month;
+  }
+
+  function isSeasonPast(s, month) {
+    if (s.start_month <= s.end_month) return month > s.end_month;
+    return false;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // EVENTS
+  // ═══════════════════════════════════════════════════════════
+  function bindEvents() {
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        currentTab = tab.dataset.tab;
+        render();
+      };
+    });
+
+    const filterHorizon = document.getElementById('filterHorizon');
+    if (filterHorizon) {
+      filterHorizon.onchange = (e) => {
+        filters.horizon = Number(e.target.value);
+        render();
+      };
+    }
+
+    const filterWarehouse = document.getElementById('filterWarehouse');
+    if (filterWarehouse) {
+      filterWarehouse.onchange = (e) => {
+        filters.warehouse = e.target.value;
+        render();
+      };
+    }
+
+    const filterStatus = document.getElementById('filterStatus');
+    if (filterStatus) {
+      filterStatus.onchange = (e) => {
+        filters.status = e.target.value;
+        render();
+      };
+    }
+
+    const applyBtn = document.getElementById('applyFiltersBtn');
+    if (applyBtn) {
+      applyBtn.onclick = () => {
+        render();
+        toast('success', 'تم تطبيق الفلاتر');
+      };
+    }
+
+    const seedBtn = document.getElementById('seedSeasonsBtn');
+    if (seedBtn) {
+      seedBtn.onclick = seedDefaultSeasons;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SEED DEFAULT SEASONS
+  // ═══════════════════════════════════════════════════════════
+  async function seedDefaultSeasons() {
+    const btn = document.getElementById('seedSeasonsBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner sm"></div><span>جاري...</span>';
+    }
+
+    try {
+      const builtin = (cfg.SEASONS && cfg.SEASONS.BUILTIN) || [];
+      if (builtin.length === 0) {
+        toast('error', 'لا توجد مواسم افتراضية في الـ config');
+        return;
+      }
+
+      const rows = builtin.map(s => ({
+        company_id: session.company_id,
+        name: s.name,
+        season_type: s.type,
+        start_month: s.start_month,
+        start_day: s.start_day || null,
+        end_month: s.end_month,
+        end_day: s.end_day || null,
+        demand_multiplier: s.multiplier,
+        is_active: true,
+        notes: s.slug
+      }));
+
+      const { error } = await sb.from('seasonal_patterns').insert(rows);
+      if (error) throw error;
+
+      toast('success', 'تم إضافة المواسم الافتراضية');
+      await loadSeasons();
+      await render();
+    } catch (e) {
+      console.error('[Forecast] seedDefaultSeasons:', e);
+      toast('error', 'فشل: ' + (e.message || 'خطأ'));
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="plus"></i>إضافة المواسم الافتراضية';
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    session = await (window.Refad && Refad.requireSession ? Refad.requireSession() : Promise.resolve(null));
+    if (!session || !session.company_id) {
+      setTimeout(() => location.href = 'index.html', 1200);
+      return;
+    }
+
+    if (window.Refad && Refad.hasPermission) {
+      if (!Refad.hasPermission('forecast.view') && !Refad.hasPermission('inventory.view')) {
+        toast('error', 'غير مصرح — صلاحية forecast.view مطلوبة');
+        setTimeout(() => location.href = 'dashboard.html', 1500);
+        return;
+      }
+    }
+
+    const branchNameEl = document.getElementById('branchName');
+    if (branchNameEl) {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+      branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+
+    await render();
+
+    // ⭐ زر "تحديث التنبؤات" في الـ topbar
+    document.getElementById('calculateBtn').onclick = calculateForecasts;
+
+    // زر "تحديث" — يعيد تحميل البيانات فقط
+    document.getElementById('refreshBtn').onclick = async () => {
+      toast('info', 'جاري التحديث...');
+      await render();
+      toast('success', 'تم التحديث');
+    };
+
+    if (window.lucide) lucide.createIcons();
+    console.log('[Forecast v2.0] Ready');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})();
+</script>
+
+<script src="sidebar.js"></script>
+
+</body>
+</html>
