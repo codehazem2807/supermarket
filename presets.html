@@ -281,15 +281,19 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
   // ═══════════════════════════════════════════════════════════
   async function loadPresets() {
     try {
-      const { data, error } = await sb.from('preset_configs')
-        .select('*')
-        .order('sort_order');
+      const { data, error } = await sb.from('presets')
+        .select('slug, name, description, icon, settings')
+        .order('slug');
       if (error) throw error;
       presets = data || [];
       console.log('[Presets] Loaded', presets.length, 'presets');
     } catch (e) {
       console.error('[Presets] loadPresets:', e);
-      toast('error', 'فشل تحميل القوالب');
+      if (e && (e.code === 'PGRST205' || String(e.message || '').includes("Could not find the table 'public.presets'"))) {
+        toast('error', 'جدول القوالب غير موجود في قاعدة البيانات. نفّذ presets_migration.sql في Supabase SQL Editor ثم حدّث الصفحة.');
+      } else {
+        toast('error', 'فشل تحميل القوالب: ' + (e.message || 'خطأ غير معروف'));
+      }
       presets = [];
     }
   }
@@ -373,7 +377,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
       <div class="card" style="padding:60px;text-align:center">
         <i data-lucide="inbox" style="width:64px;height:64px;opacity:0.3;margin:0 auto 16px;display:block"></i>
         <h3 style="font-size:16px;font-weight:700;margin-bottom:6px">لا توجد قوالب متاحة</h3>
-        <p style="font-size:13px;color:var(--text-muted)">تأكد إن الـ Migration 002 اشتغلت (بتضيف 3 قوالب افتراضية).</p>
+        <p style="font-size:13px;color:var(--text-muted)">تأكد من تنفيذ presets_migration.sql لإضافة القوالب الافتراضية.</p>
       </div>
     `;
 
@@ -384,7 +388,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 
   function renderPresetCard(p) {
     const info = PRESET_INFO[p.slug] || {
-      name: p.name_ar || p.slug,
+      name: p.name || p.slug,
       description: p.description || '',
       icon: p.icon || 'box',
       class: 'chain',
@@ -461,11 +465,11 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
         <div style="font-weight:800;margin-bottom:8px;color:var(--text)">اللي هيحصل:</div>
         <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
           <i data-lucide="check-circle" style="width:14px;height:14px;color:var(--success);flex-shrink:0;margin-top:3px"></i>
-          <span>تحديث إعدادات الشركة (POS, مخزون, ضريبة, إلخ)</span>
+          <span>تفعيل المزايا المحددة في القالب للشركة</span>
         </div>
         <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
           <i data-lucide="check-circle" style="width:14px;height:14px;color:var(--success);flex-shrink:0;margin-top:3px"></i>
-          <span>تفعيل/تعطيل الـ Feature Flags المناسبة</span>
+          <span>تعطيل المزايا التي لا يشملها القالب الجديد</span>
         </div>
         <div style="display:flex;align-items:flex-start;gap:8px">
           <i data-lucide="info" style="width:14px;height:14px;color:var(--info);flex-shrink:0;margin-top:3px"></i>
@@ -500,20 +504,11 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
       });
       if (rpcErr) throw rpcErr;
 
-      // 2) سجّل الـ preset المطبّق في feature_flags
-      const { error: flagErr } = await sb.from('feature_flags').upsert({
-        company_id: session.company_id,
-        flag_key: 'preset.applied',
-        is_enabled: true,
-        config: { slug: slug, applied_at: new Date().toISOString(), applied_by: session.user_id }
-      }, { onConflict: 'company_id,flag_key' });
-      if (flagErr) console.warn('[Presets] Could not save applied preset flag:', flagErr);
-
       toast('success', 'تم تطبيق القالب بنجاح');
       closeConfirmModal();
       currentPresetSlug = slug;
 
-      // 3) trigger settings reload
+      // Reload settings after applying the preset.
       try {
         if (window.RefadSettings) {
           window.RefadSettings.invalidate();
@@ -524,7 +519,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
         }));
       } catch (e) { console.warn(e); }
 
-      // 4) أعد الـ render
+      // Re-render with the newly applied preset.
       setTimeout(() => render(), 500);
     } catch (e) {
       console.error('[Presets] applyPreset:', e);

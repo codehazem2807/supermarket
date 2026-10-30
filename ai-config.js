@@ -1,18 +1,22 @@
 /* ============================================================
-   ai-config.js — Refad ERP v8.0 Production
+   ai-config.js — Refad ERP v9.0
+   ⭐ v9.0: إصلاح الموديلات + إضافة الإحصائيات + قراءة الفواتير
    ─────────────────────────────────────────────────────────────
-   ✅ Gemini أولاً (حدود أعلى) → Groq fallback
-   ✅ qwen للصور (OCR فواتير)
-   ✅ allam-2-7b للعربي القصير
-   ✅ gpt-oss-120b للردود الذكية
-   ✅ gpt-oss-20b للسريع
-   ✅ Whisper للصوت
-   ✅ Prompt Guard للحماية
-   ✅ Retry + Fallback ذكي
+   ✅ Groq Vision (qwen/qwen3.8-27b) لقراءة الفواتير
+   ✅ Gemini fallback
+   ✅ getSystemStats() — إحصائيات السيستم
+   ✅ scanInvoice() — قراءة فواتير الشراء
+   ✅ chatWithStats() — شات مع الإحصائيات
+   ✅ ai_execute_query RPC
    ============================================================ */
-
 (function () {
   'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  if (!cfg) {
+    console.error('[AI] config.js لازم يتحمل الأول!');
+    return;
+  }
 
   // ═══════════════════════════════════════════════════════════
   // 🔑 API KEYS
@@ -20,9 +24,7 @@
   const KEYS = {
     GEMINI: 'AQ.Ab8RN6L26KH3vEkvsgGUuGmj6Q_WXvB9H1ewpNqh-mkTd-yufA',
     GROQ: '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',
-    OPENROUTER: '',
-    GOOGLE_SEARCH: 'ضع_مفتاح_جوجل_هنا',
-    GOOGLE_SEARCH_CX: 'ضع_CX_هنا'
+    OPENROUTER: ''
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -30,29 +32,18 @@
   // ═══════════════════════════════════════════════════════════
   const ENDPOINTS = {
     GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
-    GROQ: 'https://api.groq.com/openai/v1/chat/completions',
-    GROQ_AUDIO_TRANSCRIBE: 'https://api.groq.com/openai/v1/audio/transcriptions',
-    GROQ_AUDIO_SPEECH: 'https://api.groq.com/openai/v1/audio/speech',
-    GOOGLE_SEARCH: 'https://www.googleapis.com/customsearch/v1'
+    GROQ: 'https://api.groq.com/openai/v1/chat/completions'
   };
 
   // ═══════════════════════════════════════════════════════════
-  // 🎯 GROQ MODELS — من حسابك
+  // 🎯 GROQ MODELS
   // ═══════════════════════════════════════════════════════════
   const GROQ_MODELS = {
-    // للردود الذكية والتحليل
+    VISION: 'qwen/qwen3.8-27b',        // ✅ Vision + OCR
     SMART: 'openai/gpt-oss-120b',
-    // للردود السريعة البسيطة
     FAST: 'openai/gpt-oss-20b',
-    // للصور والفواتير (يدعم Vision)
-    VISION: 'qwen/qwen3.8-27b',
-    // للعربي (سياق قصير)
     ARABIC: 'allam-2-7b',
-    // تحويل الصوت لنص
     STT: 'whisper-large-v3-turbo',
-    // تحويل نص لصوت (عربي)
-    TTS_ARABIC: 'canopylabs/orpheus-arabic-saudi',
-    // حماية
     GUARD: 'meta-llama/llama-prompt-guard-2-86m'
   };
 
@@ -76,16 +67,27 @@
     'gemini-1.5-pro': { label: 'Gemini 1.5 Pro', badge: 'Google', provider: 'gemini' },
     'openai/gpt-oss-120b': { label: 'GPT-OSS-120B', badge: 'Groq', provider: 'groq' },
     'openai/gpt-oss-20b': { label: 'GPT-OSS-20B', badge: 'Groq', provider: 'groq' },
-    'qwen/qwen3.8-27b': { label: 'Qwen 3.8 27B', badge: 'Groq', provider: 'groq' },
-    'allam-2-7b': { label: 'ALLaM 2 7B (عربي)', badge: 'Groq', provider: 'groq' },
-    'openai/gpt-4o-mini': { label: 'GPT-4o Mini', badge: 'OpenRouter', provider: 'openrouter' }
+    'qwen/qwen3.8-27b': { label: 'Qwen 3.8 27B (Vision)', badge: 'Groq', provider: 'groq' },
+    'allam-2-7b': { label: 'ALLaM 2 7B (عربي)', badge: 'Groq', provider: 'groq' }
   };
 
   // ═══════════════════════════════════════════════════════════
-  // 🎯 TASK ROUTING — تبديل تلقائي حسب المهمة
+  // 🎯 TASK ROUTING
   // ═══════════════════════════════════════════════════════════
   const TASK_ROUTING = {
-    // 📊 للشات والتحليل — Gemini أولاً (حدود أعلى) ثم Groq
+    // قراءة الفواتير — Groq Vision أولاً
+    invoice: [
+      { provider: 'groq', model: GROQ_MODELS.VISION },
+      { provider: 'gemini', model: GEMINI_MODELS.FLASH }
+    ],
+
+    // إحصائيات
+    stats: [
+      { provider: 'gemini', model: GEMINI_MODELS.FLASH },
+      { provider: 'groq', model: GROQ_MODELS.SMART }
+    ],
+
+    // شات عام
     chat: [
       { provider: 'gemini', model: GEMINI_MODELS.FLASH },
       { provider: 'groq', model: GROQ_MODELS.SMART },
@@ -93,35 +95,24 @@
       { provider: 'groq', model: GROQ_MODELS.FAST }
     ],
 
-    // 📄 لمسح الفواتير — Qwen أولاً (يدعم الصور) ثم Gemini
-    invoice: [
-      { provider: 'groq', model: GROQ_MODELS.VISION },
-      { provider: 'gemini', model: GEMINI_MODELS.FLASH }
-    ],
-
-    // ⚡ للردود السريعة
-    quick: [
-      { provider: 'gemini', model: GEMINI_MODELS.FLASH_LITE },
-      { provider: 'groq', model: GROQ_MODELS.FAST }
-    ],
-
-    // 🧠 للتحليل العميق
-    analysis: [
-      { provider: 'gemini', model: GEMINI_MODELS.PRO },
-      { provider: 'gemini', model: GEMINI_MODELS.FLASH },
-      { provider: 'groq', model: GROQ_MODELS.SMART }
-    ],
-
-    // 🇸🇦 للعربي القصير (سؤال وجواب)
+    // عربي قصير
     arabic_short: [
       { provider: 'groq', model: GROQ_MODELS.ARABIC },
       { provider: 'gemini', model: GEMINI_MODELS.FLASH },
       { provider: 'groq', model: GROQ_MODELS.SMART }
     ],
 
-    // 🛡️ للحماية والفحص
-    guard: [
-      { provider: 'groq', model: GROQ_MODELS.GUARD }
+    // ردود سريعة
+    quick: [
+      { provider: 'gemini', model: GEMINI_MODELS.FLASH_LITE },
+      { provider: 'groq', model: GROQ_MODELS.FAST }
+    ],
+
+    // تحليل عميق
+    analysis: [
+      { provider: 'gemini', model: GEMINI_MODELS.PRO },
+      { provider: 'gemini', model: GEMINI_MODELS.FLASH },
+      { provider: 'groq', model: GROQ_MODELS.SMART }
     ]
   };
 
@@ -133,13 +124,12 @@
     const t = key.trim();
     if (t.length < 20) return false;
     if (/[\u0600-\u06FF]/.test(t)) return false;
-    if (t.indexOf('ضع_') !== -1 || t.indexOf('YOUR_') !== -1 || t.indexOf('placeholder') !== -1) return false;
+    if (t.indexOf('ضع_') !== -1 || t.indexOf('YOUR_') !== -1) return false;
 
     if (type === 'gemini') {
       return /^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{25,})$/.test(t);
     }
     if (type === 'groq') return /^gsk_[0-9A-Za-z]{40,}$/.test(t);
-    if (type === 'google_search') return /^[A-Za-z0-9_-]{30,}$/.test(t);
     return false;
   }
 
@@ -147,8 +137,7 @@
     return {
       gemini: isKeyValid(KEYS.GEMINI, 'gemini'),
       groq: isKeyValid(KEYS.GROQ, 'groq'),
-      openrouter: isKeyValid(KEYS.OPENROUTER, 'openrouter'),
-      google_search: isKeyValid(KEYS.GOOGLE_SEARCH, 'google_search')
+      openrouter: isKeyValid(KEYS.OPENROUTER, 'openrouter')
     };
   }
 
@@ -229,7 +218,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 🎯 SCHEMA — نفس schema المشروع
+  // 🎯 SCHEMA
   // ═══════════════════════════════════════════════════════════
   const SCHEMA = {
     companies: { description: 'الشركات', columns: ['id','name','email','phone','address','logo_url','currency','is_active'] },
@@ -269,8 +258,8 @@
   // 🎯 SOURCE OF TRUTH
   // ═══════════════════════════════════════════════════════════
   const SOURCE_OF_TRUTH = {
-    'رصيد العميل': 'v_party_balances WHERE party_type=\'customer\'',
-    'رصيد المورد': 'v_party_balances WHERE party_type=\'supplier\'',
+    'رصيد العميل': "v_party_balances WHERE party_type='customer'",
+    'رصيد المورد': "v_party_balances WHERE party_type='supplier'",
     'المخزون': 'v_stock_on_hand',
     'الأرباح': 'SUM(sales_invoice_items.total - (sales_invoice_items.quantity * sales_invoice_items.unit_cost))',
     'المبيعات اليومية': 'v_daily_sales'
@@ -289,23 +278,44 @@
         '2. company_id = ' + companyId + ' دائماً\n' +
         '3. LIMIT 500 دائماً\n\n' +
         '## المخرجات\nJSON فقط:\n' +
-        '{"query": "SELECT ... WHERE company_id = ' + companyId + ' ... LIMIT 500", "explanation": "شرح"}';
+        '{"query": "SELECT ... WHERE company_id = \'' + companyId + '\' ... LIMIT 500", "explanation": "شرح"}';
     },
 
     sqlFixer: function (companyId) {
       return 'أنت خبير SQL. الاستعلام ده فشل، صلحه.\n\n' +
         '## Schema\n' + SCHEMA_TEXT + '\n\n' +
         '## المخرجات\nJSON فقط:\n' +
-        '{"query": "SELECT المُصلَّح ... WHERE company_id = ' + companyId + ' ... LIMIT 500", "fix_reason": "السبب"}';
+        '{"query": "SELECT المُصلَّح ... WHERE company_id = \'' + companyId + '\' ... LIMIT 500", "fix_reason": "السبب"}';
     },
 
     analysis: 'أنت محلل أعمال ذكي في ERP سوبرماركت.\n\n' +
       '## الهيكل\n### الملخص\n### التفاصيل\n### التوصيات',
 
-    invoice: 'أنت محلل فواتير سوبرماركت. استخرج بيانات الفاتورة من الصورة وأرجع JSON فقط.\n\n' +
-      '## الشكل المطلوب\n' +
-      '{"supplier_name": null, "invoice_number": null, "invoice_date": "YYYY-MM-DD", "total_amount": 0, ' +
-      '"items": [{"name": "", "quantity": 0, "unit_price": 0, "discount": 0, "barcode": null, "unit": null, "expiry_date": null}]}'
+    invoice: `أنت محلل فواتير شراء سوبرماركت. استخرج البيانات التالية وأرجع JSON فقط:
+
+{
+  "supplier_name": "اسم المورد أو null",
+  "invoice_number": "رقم الفاتورة أو null",
+  "invoice_date": "YYYY-MM-DD أو null",
+  "total_amount": 0,
+  "items": [
+    {
+      "name": "اسم المنتج",
+      "barcode": "الباركود أو null",
+      "quantity": 0,
+      "unit_price": 0,
+      "discount": 0,
+      "unit": "الوحدة أو null",
+      "expiry_date": "YYYY-MM-DD أو null"
+    }
+  ]
+}
+
+قواعد:
+1. اقرأ كل الأرقام بدقة
+2. لو حقل مش موجود → null
+3. التأكد من تطابق الإجمالي مع مجموع الأصناف
+4. أرجع JSON فقط بدون أي نص إضافي`
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -339,20 +349,6 @@
             party_id: { type: 'string' }
           },
           required: ['party_type', 'party_id']
-        }
-      }
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'google_search',
-        description: 'بحث في جوجل للحصول على معلومات حديثة',
-        parameters: {
-          type: 'object',
-          properties: {
-            query: { type: 'string' }
-          },
-          required: ['query']
         }
       }
     }
@@ -417,8 +413,6 @@
     maxImageSize: 10 * 1024 * 1024
   };
 
-  // ✅ [الجزء 1 ينتهي هنا — انسخ اللي بعده في نفس الملف]
-  
   // ═══════════════════════════════════════════════════════════
   // 🎯 HELPERS
   // ═══════════════════════════════════════════════════════════
@@ -540,17 +534,24 @@
       }).join('\n') + '\n\n' +
       '## قواعد صارمة\n' +
       '1. استخدم `query_database` لأي بيانات (مفيش تخمين)\n' +
-      '2. استخدم `google_search` لو محتاج معلومات حديثة (أسعار السوق، أخبار، مقارنات)\n' +
-      '3. company_id = ' + companyId + ' تلقائياً في كل استعلام\n' +
-      '4. اعرض النتائج في جداول Markdown\n' +
-      '5. الأرقام المهمة بـ **bold**\n' +
-      '6. للأرصدة استخدم v_party_balances\n' +
-      '7. لو السؤال عن منتج أو سوق، استخدم google_search أولاً\n';
+      '2. company_id = ' + companyId + ' تلقائياً في كل استعلام\n' +
+      '3. اعرض النتائج في جداول Markdown\n' +
+      '4. الأرقام المهمة بـ **bold**\n' +
+      '5. للأرصدة استخدم v_party_balances\n';
 
     return prompt;
   }
 
   // ═══════════════════════════════════════════════════════════
+  // ⚠️ [الجزء 1 ينتهي هنا]
+  // ═══════════════════════════════════════════════════════════
+  // المحتوى التالي في الجزء 2:
+  //   - callGemini()
+  //   - callGroq()
+  //   - directAiCall()
+  //   - executeTool()
+  // ═══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
   // 🤖 GEMINI CALL
   // ═══════════════════════════════════════════════════════════
   async function callGemini(model, messages, systemPrompt, maxTokens, tools, imageBase64, imageMime, timeoutMs) {
@@ -714,57 +715,6 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 🔍 GOOGLE SEARCH
-  // ═══════════════════════════════════════════════════════════
-  async function callGoogleSearch(query, numResults) {
-    const key = (KEYS.GOOGLE_SEARCH || '').trim();
-    const cx = (KEYS.GOOGLE_SEARCH_CX || '').trim();
-
-    if (!key || !cx) {
-      return { ok: false, error: 'Google Search keys غير مضافة (GOOGLE_SEARCH + GOOGLE_SEARCH_CX)' };
-    }
-    if (!query || !query.trim()) {
-      return { ok: false, error: 'query مطلوب' };
-    }
-
-    const num = Math.min(numResults || 5, 10);
-    const url = ENDPOINTS.GOOGLE_SEARCH +
-      '?key=' + encodeURIComponent(key) +
-      '&cx=' + encodeURIComponent(cx) +
-      '&q=' + encodeURIComponent(query) +
-      '&num=' + num +
-      '&hl=ar';
-
-    try {
-      const res = await fetchWithTimeout(url, { method: 'GET' }, 20000);
-      const json = await res.json().catch(function () { return {}; });
-
-      if (!res.ok) {
-        const errMsg = (json && json.error && json.error.message) || ('HTTP ' + res.status);
-        return { ok: false, error: 'Google Search: ' + errMsg };
-      }
-
-      const items = json.items || [];
-      const results = items.map(function (item) {
-        return {
-          title: item.title,
-          link: item.link,
-          snippet: item.snippet
-        };
-      });
-
-      return {
-        ok: true,
-        query: query,
-        results: results,
-        total: (json.searchInformation && json.searchInformation.totalResults) || results.length
-      };
-    } catch (e) {
-      return { ok: false, error: 'Google Search network error: ' + (e.message || String(e)) };
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════
   // 🎯 DIRECT AI CALL — المحرك الأساسي مع التبديل
   // ═══════════════════════════════════════════════════════════
   async function directAiCall(params) {
@@ -793,7 +743,6 @@
 
     // لو مفيش أي محرك متاح
     if (attempts.length === 0) {
-      // حاول بأي محرك موجود
       if (ENGINE_STATUS.gemini) {
         attempts = [{ provider: 'gemini', model: GEMINI_MODELS.FLASH }];
       } else if (ENGINE_STATUS.groq) {
@@ -884,6 +833,11 @@
           return { error: errMsg };
         }
 
+        // Handle error response from RPC
+        if (data && typeof data === 'object' && data.error) {
+          return { error: data.error, detail: data.detail };
+        }
+
         const rows = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
         console.log('[AI Tool] Query returned', rows.length, 'rows');
 
@@ -914,12 +868,6 @@
         };
       }
 
-      // ─── google_search ───
-      if (toolName === 'google_search') {
-        const result = await callGoogleSearch(args.query, 5);
-        return result;
-      }
-
       return { error: 'أداة غير معروفة: ' + toolName };
     } catch (e) {
       console.error('[AI Tool] Exception:', e);
@@ -928,6 +876,20 @@
   }
 
   // ═══════════════════════════════════════════════════════════
+  // ⚠️ [الجزء 2 ينتهي هنا]
+  // ═══════════════════════════════════════════════════════════
+  // المحتوى التالي في الجزء 3:
+  //   - chatWithTools() — Agent loop
+  //   - scanInvoice() — قراءة الفواتير
+  //   - getSystemStats() — الإحصائيات
+  //   - chatWithStats() — شات مع الإحصائيات
+  //   - getStatus()
+  //   - EXPORTS النهائية
+  //   - console.log
+  // ═══════════════════════════════════════════════════════════
+
+
+  console.log('[AI] v9.0 Part 1 loaded');  // ═══════════════════════════════════════════════════════════
   // 🎯 CHAT WITH TOOLS — Agent Loop
   // ═══════════════════════════════════════════════════════════
   async function chatWithTools(opts) {
@@ -1003,7 +965,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 📸 INVOICE SCAN — نسخة مبسطة
+  // 📸 SCAN INVOICE — قراءة فواتير الشراء
   // ═══════════════════════════════════════════════════════════
   async function scanInvoice(imageBase64, mimeType) {
     if (!imageBase64) return { ok: false, error: 'الصورة مطلوبة' };
@@ -1052,6 +1014,184 @@
   }
 
   // ═══════════════════════════════════════════════════════════
+  // 📊 GET SYSTEM STATS — إحصائيات السيستم
+  // ═══════════════════════════════════════════════════════════
+  const STATS_QUERIES = {
+    overview: function (companyId) {
+      return `SELECT 
+        (SELECT count(*) FROM products WHERE company_id = '${companyId}' AND deleted_at IS NULL) AS total_products,
+        (SELECT count(*) FROM customers WHERE company_id = '${companyId}' AND deleted_at IS NULL) AS total_customers,
+        (SELECT count(*) FROM suppliers WHERE company_id = '${companyId}' AND deleted_at IS NULL) AS total_suppliers,
+        (SELECT count(*) FROM sales_invoices WHERE company_id = '${companyId}' AND status <> 'voided') AS total_invoices,
+        (SELECT COALESCE(SUM(total), 0) FROM sales_invoices WHERE company_id = '${companyId}' AND status <> 'voided') AS total_sales,
+        (SELECT COALESCE(SUM(total), 0) FROM purchase_orders WHERE company_id = '${companyId}' AND status = 'received') AS total_purchases
+      LIMIT 1`;
+    },
+
+    low_stock: function (companyId) {
+      return `SELECT p.name, p.min_stock, COALESCE(SUM(sl.quantity_left), 0) AS on_hand
+      FROM products p
+      LEFT JOIN stock_lots sl ON sl.product_id = p.id AND sl.is_quarantined = false
+      WHERE p.company_id = '${companyId}' AND p.is_active = true AND p.deleted_at IS NULL
+      GROUP BY p.id, p.name, p.min_stock
+      HAVING COALESCE(SUM(sl.quantity_left), 0) <= p.min_stock
+      ORDER BY COALESCE(SUM(sl.quantity_left), 0) ASC
+      LIMIT 20`;
+    },
+
+    expiring: function (companyId) {
+      return `SELECT p.name, sl.lot_number, sl.quantity_left, sl.expiry_date,
+        (sl.expiry_date - CURRENT_DATE) AS days_left
+      FROM stock_lots sl
+      JOIN products p ON p.id = sl.product_id
+      WHERE sl.company_id = '${companyId}' AND sl.quantity_left > 0 AND sl.is_quarantined = false
+        AND sl.expiry_date <= CURRENT_DATE + INTERVAL '30 days'
+      ORDER BY sl.expiry_date ASC
+      LIMIT 20`;
+    },
+
+    top_products: function (companyId) {
+      return `SELECT p.name, SUM(sii.quantity) AS total_qty, SUM(sii.total) AS total_revenue
+      FROM sales_invoice_items sii
+      JOIN products p ON p.id = sii.product_id
+      JOIN sales_invoices si ON si.id = sii.invoice_id
+      WHERE si.company_id = '${companyId}' AND si.status <> 'voided'
+      GROUP BY p.id, p.name
+      ORDER BY total_qty DESC
+      LIMIT 10`;
+    },
+
+    party_balances: function (companyId) {
+      return `SELECT party_type, name, balance
+      FROM v_party_balances
+      WHERE company_id = '${companyId}' AND balance > 0
+      ORDER BY balance DESC
+      LIMIT 20`;
+    },
+
+    sales_today: function (companyId) {
+      return `SELECT 
+        COUNT(*) AS invoices_count,
+        COALESCE(SUM(total), 0) AS total_sales,
+        COALESCE(SUM(paid), 0) AS total_paid,
+        COALESCE(SUM(remaining), 0) AS total_remaining
+      FROM sales_invoices
+      WHERE company_id = '${companyId}' 
+        AND status <> 'voided'
+        AND invoice_date::date = CURRENT_DATE
+      LIMIT 1`;
+    },
+
+    sales_month: function (companyId) {
+      return `SELECT 
+        COUNT(*) AS invoices_count,
+        COALESCE(SUM(total), 0) AS total_sales,
+        COALESCE(SUM(paid), 0) AS total_paid
+      FROM sales_invoices
+      WHERE company_id = '${companyId}' 
+        AND status <> 'voided'
+        AND invoice_date >= date_trunc('month', CURRENT_DATE)
+      LIMIT 1`;
+    }
+  };
+
+  async function getSystemStats(companyId) {
+    const sb = window.Refad && window.Refad.sb;
+    if (!sb) return { ok: false, error: 'Supabase not ready' };
+    if (!companyId) return { ok: false, error: 'company_id مطلوب' };
+
+    try {
+      const results = {};
+      const tasks = Object.keys(STATS_QUERIES).map(async (key) => {
+        try {
+          const query = STATS_QUERIES[key](companyId);
+          const { data, error } = await sb.rpc('ai_execute_query', {
+            p_company_id: companyId,
+            p_query: query
+          });
+
+          if (error) {
+            console.warn('[AI Stats] ' + key + ' failed:', error.message);
+            results[key] = [];
+            return;
+          }
+
+          // Handle error response from RPC
+          if (data && typeof data === 'object' && !Array.isArray(data) && data.error) {
+            console.warn('[AI Stats] ' + key + ' RPC error:', data.error);
+            results[key] = [];
+            return;
+          }
+
+          results[key] = Array.isArray(data) ? data : (data && data.rows ? data.rows : []);
+        } catch (e) {
+          console.warn('[AI Stats] ' + key + ' exception:', e);
+          results[key] = [];
+        }
+      });
+
+      await Promise.all(tasks);
+
+      return { ok: true, data: results };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 💬 CHAT WITH STATS — شات مع الإحصائيات
+  // ═══════════════════════════════════════════════════════════
+  async function chatWithStats(userMessage, companyId, history) {
+    if (!userMessage || !userMessage.trim()) {
+      return { ok: false, error: 'الرسالة مطلوبة' };
+    }
+
+    // 1) Get stats
+    const stats = await getSystemStats(companyId);
+    if (!stats.ok) return { ok: false, error: stats.error };
+
+    // 2) Build context
+    const statsContext = Object.keys(stats.data).map(function (key) {
+      const rows = stats.data[key];
+      if (!rows || rows.length === 0) {
+        return '## ' + key + '\n(لا توجد بيانات)';
+      }
+      return '## ' + key + '\n```json\n' + JSON.stringify(rows, null, 2) + '\n```';
+    }).join('\n\n');
+
+    const systemPrompt = 'أنت محلل أعمال ذكي في Refad ERP (سوبرماركت).\n\n' +
+      '## بيانات الشركة الحالية\n' + statsContext + '\n\n' +
+      '## قواعد\n' +
+      '1. استخدم البيانات أعلاه للإجابة\n' +
+      '2. اعرض النتائج في جداول Markdown\n' +
+      '3. الأرقام المهمة بـ **bold**\n' +
+      '4. لو السؤال عن حاجة مش موجودة في البيانات، قول "مش موجود في البيانات الحالية"\n' +
+      '5. ردودك بالعربية';
+
+    const messages = (history || []).slice(-6).concat([
+      { role: 'user', content: userMessage }
+    ]);
+
+    // 3) Call AI
+    const result = await directAiCall({
+      messages: messages,
+      systemPrompt: systemPrompt,
+      maxTokens: 4096,
+      task: 'stats'
+    });
+
+    if (!result.ok) return { ok: false, error: result.error };
+
+    return {
+      ok: true,
+      text: result.text,
+      provider: result.provider,
+      model: result.model,
+      stats: stats.data
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // 📊 GET ENGINE STATUS
   // ═══════════════════════════════════════════════════════════
   function getStatus() {
@@ -1059,10 +1199,10 @@
       gemini: ENGINE_STATUS.gemini,
       groq: ENGINE_STATUS.groq,
       openrouter: ENGINE_STATUS.openrouter,
-      google_search: ENGINE_STATUS.google_search,
       models: {
         chat_primary: TASK_ROUTING.chat[0],
         invoice_primary: TASK_ROUTING.invoice[0],
+        stats_primary: TASK_ROUTING.stats[0],
         quick_primary: TASK_ROUTING.quick[0]
       }
     };
@@ -1072,7 +1212,7 @@
   // 📤 EXPORTS
   // ═══════════════════════════════════════════════════════════
   window.AI_CONFIG = {
-    VERSION: '8.0.0-production',
+    VERSION: '9.0.0-production',
     KEYS: KEYS,
     ENDPOINTS: ENDPOINTS,
     GROQ_MODELS: GROQ_MODELS,
@@ -1086,6 +1226,7 @@
     TOOLS: TOOLS,
     PERSONAS: PERSONAS,
     SETTINGS: SETTINGS,
+    STATS_QUERIES: STATS_QUERIES,
     ENGINE_STATUS: ENGINE_STATUS,
 
     // Methods
@@ -1107,8 +1248,11 @@
     directAiCall: directAiCall,
     executeTool: executeTool,
     chatWithTools: chatWithTools,
+
+    // ⭐ New in v9.0
     scanInvoice: scanInvoice,
-    callGoogleSearch: callGoogleSearch,
+    getSystemStats: getSystemStats,
+    chatWithStats: chatWithStats,
 
     // Status
     getStatus: getStatus
@@ -1118,11 +1262,10 @@
   // ✅ STATUS CHECK ON LOAD
   // ═══════════════════════════════════════════════════════════
   (function checkStatus() {
-    console.log('%c[AI Config] v8.0.0 Production', 'color:#8b5cf6;font-weight:bold;font-size:13px');
+    console.log('%c[AI Config] v9.0.0 Production', 'color:#8b5cf6;font-weight:bold;font-size:13px');
     console.log('%c📊 Engine Status:', 'color:#3b82f6;font-weight:bold');
     console.log('  Gemini:', ENGINE_STATUS.gemini ? '✅' : '❌');
     console.log('  Groq:', ENGINE_STATUS.groq ? '✅' : '❌');
-    console.log('  Google Search:', ENGINE_STATUS.google_search ? '✅' : '❌ (محتاج API key)');
 
     if (ENGINE_STATUS.gemini && ENGINE_STATUS.groq) {
       console.log('%c✅ Gemini + Groq شغالين — استقرار عالي', 'color:#10b981;font-weight:bold');
@@ -1137,7 +1280,12 @@
     console.log('%c🎯 Routing:', 'color:#8b5cf6;font-weight:bold');
     console.log('  Chat:', TASK_ROUTING.chat[0].provider + '/' + TASK_ROUTING.chat[0].model);
     console.log('  Invoice:', TASK_ROUTING.invoice[0].provider + '/' + TASK_ROUTING.invoice[0].model);
-    console.log('  Quick:', TASK_ROUTING.quick[0].provider + '/' + TASK_ROUTING.quick[0].model);
+    console.log('  Stats:', TASK_ROUTING.stats[0].provider + '/' + TASK_ROUTING.stats[0].model);
+
+    console.log('%c✨ New Functions:', 'color:#10b981;font-weight:bold');
+    console.log('  - AI_CONFIG.getSystemStats(companyId)');
+    console.log('  - AI_CONFIG.scanInvoice(base64, mimeType)');
+    console.log('  - AI_CONFIG.chatWithStats(message, companyId, history)');
   })();
 
 })();

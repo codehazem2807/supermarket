@@ -1351,6 +1351,7 @@ tbody tr:last-child td{border-bottom:none}
     const expectedDate = document.getElementById('poExpectedDate').value;
     const notes = document.getElementById('poNotes').value.trim();
 
+    let cashMovementFailed = false;
     const items = [];
     document.querySelectorAll('#poItems .po-item-row:not(.head)').forEach(row => {
       const productSel = row.querySelector('.po-product');
@@ -1533,17 +1534,21 @@ tbody tr:last-child td{border-bottom:none}
       if (paymentMethod === 'cash' && currentSession && !editingPoId) {
         const supplier = suppliers.find(s => s.id === supplierId);
         const supplierName = supplier ? supplier.name : '';
-        await recordCashMovement(
+        cashMovementFailed = !(await recordCashMovement(
           'purchase_payment',
           round2(total),
           'دفع مورد — ' + supplierName + ' — ' + poPayload.po_number,
           'purchase_order',
           poId,
           currentSession.id
-        );
+        ));
       }
 
-      toast('success', (editingPoId ? 'تم تحديث ' : 'تم إنشاء ') + 'أمر الشراء — ' + money(total));
+      if (cashMovementFailed) {
+        toast('warning', 'تم حفظ أمر الشراء لكن تعذر تسجيل حركة الدرج؛ أبلغ المدير قبل الإغلاق');
+      } else {
+        toast('success', (editingPoId ? 'تم تحديث ' : 'تم إنشاء ') + 'أمر الشراء — ' + money(total));
+      }
       document.getElementById('poModal').classList.remove('show');
       editingPoId = null;
       await loadPOs();

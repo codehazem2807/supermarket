@@ -36,7 +36,7 @@
   --font-family:'Segoe UI','Cairo',Tahoma,sans-serif;
 }
 [data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--bg-card:#1e293b;--card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
-*{margin:0;padding:0;box-sizing:border-box}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
 button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
@@ -140,7 +140,6 @@ tbody tr:last-child td{border-bottom:none}
 .other-session-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);gap:10px;flex-wrap:wrap}
 .other-session-row:last-child{border-bottom:none}
 
-/* Action buttons */
 .action-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
 .action-btn{padding:14px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:700;color:var(--text);cursor:pointer;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
 .action-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--accent)}
@@ -154,7 +153,6 @@ tbody tr:last-child td{border-bottom:none}
 .action-btn.purchase{color:var(--info)}
 .action-btn.purchase:hover{background:var(--info-soft);border-color:var(--info)}
 
-/* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(6px)}
 .modal-overlay.show{display:flex;animation:fadeIn .2s}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -169,7 +167,6 @@ tbody tr:last-child td{border-bottom:none}
 .modal-body{padding:22px 24px}
 .modal-footer{padding:18px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
 
-/* Category chips */
 .cat-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
 .cat-chip{padding:8px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
 .cat-chip:hover{border-color:var(--accent);transform:translateY(-1px)}
@@ -200,6 +197,11 @@ tbody tr:last-child td{border-bottom:none}
   .stats-grid{grid-template-columns:1fr 1fr}
   .quick-cash{grid-template-columns:repeat(2,1fr)}
   .action-buttons{grid-template-columns:1fr 1fr}
+  .form-input,.form-select{font-size:16px}
+  .modal{max-width:100%;max-height:96vh;margin-top:auto;border-radius:24px 24px 0 0}
+  .modal-overlay{align-items:flex-end;padding:0}
+  .modal-footer{flex-direction:column}
+  .modal-footer .btn{width:100%;justify-content:center;min-height:48px}
 }
 </style>
 </head>
@@ -266,7 +268,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- Modal: Cash Movement (Withdraw/Deposit) -->
+<!-- Modal: Cash Movement -->
 <div class="modal-overlay" id="cashModal">
   <div class="modal">
     <div class="modal-header">
@@ -318,6 +320,7 @@ tbody tr:last-child td{border-bottom:none}
   let currentWarehouse = null;
   let cashMovements = [];
   let sessionExpenses = [];
+  let invoicePayments = [];
 
   let expenseCategory = 'supplies';
   let cashMovementType = 'withdrawal';
@@ -341,19 +344,10 @@ tbody tr:last-child td{border-bottom:none}
     };
   })();
 
-  const EXPENSE_CATEGORIES = {
-    rent: { label: 'إيجار', icon: 'home' },
-    utilities: { label: 'مرافق', icon: 'zap' },
-    salaries: { label: 'مرتبات', icon: 'users' },
-    supplies: { label: 'مستلزمات', icon: 'package' },
-    maintenance: { label: 'صيانة', icon: 'wrench' },
-    transport: { label: 'نقل', icon: 'truck' },
-    other: { label: 'أخرى', icon: 'more-horizontal' }
-  };
-
   const MOVEMENT_INFO = {
     sale: { label: 'بيع', color: 'var(--success)', icon: 'shopping-cart', dir: 'in' },
     return: { label: 'مرتجع', color: 'var(--danger)', icon: 'rotate-ccw', dir: 'out' },
+    void: { label: 'عكس إلغاء فاتورة', color: 'var(--danger)', icon: 'ban', dir: 'out' },
     expense: { label: 'مصروف', color: 'var(--danger)', icon: 'receipt', dir: 'out' },
     withdrawal: { label: 'سحب', color: 'var(--gold)', icon: 'arrow-up-circle', dir: 'out' },
     deposit: { label: 'إيداع', color: 'var(--success)', icon: 'arrow-down-circle', dir: 'in' },
@@ -362,9 +356,6 @@ tbody tr:last-child td{border-bottom:none}
     closing: { label: 'إغلاق', color: 'var(--text-muted)', icon: 'stop-circle', dir: 'out' }
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // LOADERS
-  // ═══════════════════════════════════════════════════════════
   async function loadContext() {
     try {
       const [regRes, whRes] = await Promise.all([
@@ -397,6 +388,7 @@ tbody tr:last-child td{border-bottom:none}
         .order('opened_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (res.error) throw res.error;
 
       currentSession = res.data;
 
@@ -410,8 +402,10 @@ tbody tr:last-child td{border-bottom:none}
         } catch (e) {}
       }
     } catch (e) {
-      console.warn('[Session] loadActiveSession:', e);
+      console.error('[Session] loadActiveSession:', e);
+      toast('error', 'تعذر التحقق من حالة الوردية');
       currentSession = null;
+      throw e;
     }
   }
 
@@ -466,8 +460,13 @@ tbody tr:last-child td{border-bottom:none}
     if (!currentSession) return null;
     try {
       const res = await sb.from('v_pos_session_summary').select('*').eq('session_id', currentSession.id).maybeSingle();
+      if (res.error) throw res.error;
       return res.data;
-    } catch (e) { return null; }
+    } catch (e) {
+      console.error('[Session] loadSessionSummary:', e);
+      toast('error', 'تعذر تحميل ملخص الوردية');
+      throw e;
+    }
   }
 
   async function loadInvoices() {
@@ -479,61 +478,90 @@ tbody tr:last-child td{border-bottom:none}
         .eq('session_id', currentSession.id)
         .neq('status', 'voided')
         .order('invoice_date', { ascending: false });
+      if (res.error) throw res.error;
       return res.data || [];
     } catch (e) {
-      return [];
+      console.error('[Session] loadInvoices:', e);
+      toast('error', 'تعذر تحميل فواتير الوردية');
+      throw e;
     }
   }
 
-  // ⭐ NEW: تحميل حركات الدرج
+  async function loadInvoicePayments(invoices) {
+    const invoiceIds = invoices.map(invoice => invoice.id);
+    if (invoiceIds.length === 0) {
+      invoicePayments = [];
+      return;
+    }
+
+    const { data, error } = await sb.from('invoice_payments')
+      .select('invoice_id, payment_method, amount')
+      .in('invoice_id', invoiceIds);
+    if (error) {
+      console.error('[Session] loadInvoicePayments:', error);
+      toast('error', 'تعذر تحميل تفاصيل الدفعات المختلطة');
+      throw error;
+    }
+    invoicePayments = data || [];
+  }
+
   async function loadCashMovements() {
     if (!currentSession) { cashMovements = []; return; }
     try {
-      const { data } = await sb.from('cash_movements')
+      const { data, error } = await sb.from('cash_movements')
         .select('*')
         .eq('session_id', currentSession.id)
         .order('created_at', { ascending: false });
+      if (error) throw error;
       cashMovements = data || [];
     } catch (e) {
-      console.warn('[Session] loadCashMovements:', e);
-      cashMovements = [];
+      console.error('[Session] loadCashMovements:', e);
+      toast('error', 'تعذر تحميل حركات الدرج');
+      throw e;
     }
   }
 
-  // ⭐ NEW: تحميل مصاريف الوردية
   async function loadSessionExpenses() {
     if (!currentSession) { sessionExpenses = []; return; }
     try {
-      const { data } = await sb.from('expenses')
+      const { data, error } = await sb.from('expenses')
         .select('*')
         .eq('session_id', currentSession.id)
         .order('created_at', { ascending: false });
+      if (error) throw error;
       sessionExpenses = data || [];
     } catch (e) {
-      console.warn('[Session] loadSessionExpenses:', e);
-      sessionExpenses = [];
+      console.error('[Session] loadSessionExpenses:', e);
+      toast('error', 'تعذر تحميل مصاريف الوردية');
+      throw e;
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // COMPUTE CASH
-  // ═══════════════════════════════════════════════════════════
   function computeCashSummary(invoices) {
     const openingCash = Number(currentSession?.opening_cash || 0);
 
-    // من الفواتير
-    const cashSales = invoices.filter(i => i.payment_method === 'cash').reduce((s, i) => s + Number(i.paid || 0), 0);
-    const cardSales = invoices.filter(i => i.payment_method === 'card').reduce((s, i) => s + Number(i.paid || 0), 0);
+    const saleCashMovements = cashMovements
+      .filter(m => m.movement_type === 'sale' && m.direction !== 'out' && (!m.payment_method || String(m.payment_method).toLowerCase() === 'cash'))
+      .reduce((s, m) => s + Number(m.amount || 0), 0);
+    const cashSales = saleCashMovements;
     const creditSales = invoices.filter(i => i.payment_method === 'credit').reduce((s, i) => s + Number(i.total || 0), 0);
-    const mixedSales = invoices.filter(i => i.payment_method === 'mixed').reduce((s, i) => s + Number(i.paid || 0), 0);
+    const mixedInvoices = invoices.filter(i => i.payment_method === 'mixed');
+    const mixedSales = 0;
+    const mixedCardSales = mixedInvoices.reduce((total, invoice) => total +
+      invoicePayments.filter(payment => payment.invoice_id === invoice.id && payment.payment_method === 'card')
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0), 0);
+    const cardSales = invoices.filter(i => i.payment_method === 'card')
+      .reduce((s, i) => s + Number(i.paid || 0), 0) + mixedCardSales;
 
-    // من الحركات
     const withdrawals = cashMovements.filter(m => m.movement_type === 'withdrawal').reduce((s, m) => s + Number(m.amount), 0);
     const deposits = cashMovements.filter(m => m.movement_type === 'deposit').reduce((s, m) => s + Number(m.amount), 0);
     const expensesFromCash = cashMovements.filter(m => m.movement_type === 'expense').reduce((s, m) => s + Number(m.amount), 0);
     const purchasePayments = cashMovements.filter(m => m.movement_type === 'purchase_payment').reduce((s, m) => s + Number(m.amount), 0);
 
-    const expectedCash = openingCash + cashSales + mixedSales + deposits - withdrawals - expensesFromCash - purchasePayments;
+    const otherCashMovements = cashMovements
+      .filter(m => m.movement_type !== 'sale' && (!m.payment_method || m.payment_method === 'cash'))
+      .reduce((sum, movement) => sum + (movement.direction === 'in' ? 1 : -1) * Number(movement.amount || 0), 0);
+    const expectedCash = openingCash + cashSales + mixedSales + otherCashMovements;
 
     return {
       openingCash,
@@ -541,6 +569,7 @@ tbody tr:last-child td{border-bottom:none}
       cardSales,
       creditSales,
       mixedSales,
+      mixedCardSales,
       withdrawals,
       deposits,
       expensesFromCash,
@@ -549,12 +578,14 @@ tbody tr:last-child td{border-bottom:none}
     };
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════════════════════════
   async function render() {
     const container = document.getElementById('mainContent');
-    await loadActiveSession();
+    try {
+      await loadActiveSession();
+    } catch (e) {
+      container.innerHTML = '<div class="card"><div class="card-body">تعذر التحقق من حالة الوردية. حدّث الصفحة بعد التأكد من الاتصال.</div></div>';
+      return;
+    }
 
     const isOpen = !!currentSession;
     const otherSessions = await loadOtherSessions();
@@ -624,7 +655,7 @@ tbody tr:last-child td{border-bottom:none}
       document.getElementById('openSessionBtn').onclick = openSession;
     } else {
       const [summary, invoices] = await Promise.all([loadSessionSummary(), loadInvoices()]);
-      await Promise.all([loadCashMovements(), loadSessionExpenses()]);
+      await Promise.all([loadCashMovements(), loadSessionExpenses(), loadInvoicePayments(invoices)]);
 
       const cash = computeCashSummary(invoices);
       const invoiceCount = invoices.length;
@@ -654,7 +685,7 @@ tbody tr:last-child td{border-bottom:none}
           <div class="stat-card success">
             <div class="stat-icon green"><i data-lucide="trending-up"></i></div>
             <div class="stat-label">إجمالي المبيعات</div>
-            <div class="stat-value" style="color:var(--success)">${money(Number(summary?.total_sales || 0))}</div>
+            <div class="stat-value" style="color:var(--success)">${money(invoices.reduce((s, i) => s + Number(i.total || 0), 0))}</div>
             <div class="stat-sub">${invoiceCount} فاتورة</div>
           </div>
           <div class="stat-card info">
@@ -677,7 +708,6 @@ tbody tr:last-child td{border-bottom:none}
           </div>
         </div>
 
-        <!-- Action buttons -->
         <div class="action-buttons">
           <button class="action-btn expense" id="addExpenseBtn">
             <i data-lucide="receipt"></i>
@@ -733,7 +763,6 @@ tbody tr:last-child td{border-bottom:none}
           </div>
         </div>
 
-        <!-- Cash Movements -->
         ${cashMovements.length > 0 ? `
         <div class="card">
           <div class="card-header">
@@ -770,7 +799,6 @@ tbody tr:last-child td{border-bottom:none}
         </div>
         ` : ''}
 
-        <!-- Invoices -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">
@@ -826,12 +854,125 @@ tbody tr:last-child td{border-bottom:none}
       document.getElementById('depositBtn').onclick = () => openCashModal('deposit');
     }
 
+    await renderSessionHistory(container);
     if (window.lucide) lucide.createIcons();
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // MODALS
-  // ═══════════════════════════════════════════════════════════
+  const SESSION_MOVEMENT_LABELS = {
+    sale: 'مبيعات نقدية', return: 'مرتجعات', void: 'إلغاء فواتير', expense: 'مصاريف',
+    withdrawal: 'سحب', deposit: 'إيداع', purchase_payment: 'دفعات مشتريات'
+  };
+
+  async function renderSessionHistory(container) {
+    let rows = [];
+    try {
+      const { data, error } = await sb.from('pos_sessions')
+        .select('*')
+        .eq('company_id', session.company_id)
+        .eq('branch_id', session.active_branch_id)
+        .neq('status', 'open')
+        .order('opened_at', { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      rows = data || [];
+    } catch (e) {
+      console.warn('[Session] history:', e);
+      return;
+    }
+
+    const userIds = [...new Set(rows.flatMap(r => [r.cashier_id, r.opened_by]).filter(Boolean))];
+    const regIds = [...new Set(rows.map(r => r.register_id).filter(Boolean))];
+    const [usersRes, regsRes] = await Promise.all([
+      userIds.length ? sb.from('users').select('id, full_name').in('id', userIds) : { data: [] },
+      regIds.length ? sb.from('registers').select('id, name').in('id', regIds) : { data: [] }
+    ]);
+    const userMap = Object.fromEntries((usersRes.data || []).map(u => [u.id, u.full_name]));
+    const regMap = Object.fromEntries((regsRes.data || []).map(r => [r.id, r.name]));
+
+    const old = document.getElementById('sessionHistoryCard');
+    if (old) old.remove();
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = 'sessionHistoryCard';
+    card.style.marginTop = '16px';
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="history"></i><span>الورديات السابقة</span></div>
+      </div>
+      <div class="card-body" style="overflow-x:auto">
+        ${rows.length === 0 ? '<div style="color:var(--text-muted);text-align:center;padding:16px">لا توجد ورديات سابقة</div>' : `
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="text-align:right;color:var(--text-muted)">
+            <th style="padding:8px">الكاشير</th><th>الدرج</th><th>الفتح</th><th>الإغلاق</th>
+            <th>الافتتاحي</th><th>المبيعات</th><th>المرتجعات</th><th>المتوقع</th><th>المعدود</th><th>الفرق</th><th></th>
+          </tr></thead>
+          <tbody>
+          ${rows.map(r => {
+            const diff = Number(r.difference || 0);
+            const diffColor = Math.abs(diff) < 0.005 ? 'var(--success)' : 'var(--danger)';
+            return `
+            <tr style="border-top:1px solid var(--border)">
+              <td style="padding:8px">${esc(userMap[r.cashier_id || r.opened_by] || '—')}</td>
+              <td>${esc(regMap[r.register_id] || '—')}</td>
+              <td>${fmtDateTime(r.opened_at)}</td>
+              <td>${r.closed_at ? fmtDateTime(r.closed_at) : '—'}</td>
+              <td>${money(Number(r.opening_cash || 0))}</td>
+              <td>${money(Number(r.total_sales || 0))}</td>
+              <td>${money(Number(r.total_returns || 0))}</td>
+              <td>${money(Number(r.expected_cash ?? r.closing_cash ?? 0))}</td>
+              <td>${r.counted_cash == null && r.actual_cash == null ? '—' : money(Number(r.counted_cash ?? r.actual_cash ?? 0))}</td>
+              <td style="color:${diffColor};font-weight:700">${money(diff)}</td>
+              <td><button class="btn btn-secondary" data-session-detail="${r.id}">تفاصيل</button></td>
+            </tr>
+            <tr id="detail-${r.id}" style="display:none"><td colspan="11" style="padding:10px;background:var(--bg-soft)"></td></tr>`;
+          }).join('')}
+          </tbody>
+        </table>`}
+      </div>`;
+    container.appendChild(card);
+
+    card.querySelectorAll('[data-session-detail]').forEach(btn => {
+      btn.onclick = () => toggleSessionDetail(btn.dataset.sessionDetail);
+    });
+  }
+
+  async function toggleSessionDetail(id) {
+    const row = document.getElementById('detail-' + id);
+    if (!row) return;
+    if (row.style.display !== 'none') { row.style.display = 'none'; return; }
+    row.style.display = '';
+    const cell = row.firstElementChild;
+    if (cell.dataset.loaded) return;
+    cell.textContent = 'جاري التحميل...';
+    try {
+      const [inv, mov] = await Promise.all([
+        sb.from('sales_invoices').select('invoice_number, total, status, payment_method').eq('session_id', id),
+        sb.from('cash_movements').select('movement_type, direction, amount, description, created_at').eq('session_id', id)
+      ]);
+      if (inv.error) throw inv.error;
+      if (mov.error) throw mov.error;
+      const invoices = (inv.data || []).filter(i => i.status !== 'voided');
+      const byMethod = {};
+      invoices.forEach(i => { byMethod[i.payment_method] = (byMethod[i.payment_method] || 0) + Number(i.total || 0); });
+      const methodLabels = { cash: 'نقدي', card: 'بطاقة', credit: 'آجل', mixed: 'مختلط' };
+      const byType = {};
+      (mov.data || []).forEach(m => { byType[m.movement_type] = (byType[m.movement_type] || 0) + Number(m.amount || 0); });
+      cell.innerHTML = `
+        <div style="display:flex;gap:32px;flex-wrap:wrap">
+          <div><strong>الفواتير (${invoices.length})</strong>
+            ${Object.entries(byMethod).map(([k, v]) => `<div>${esc(methodLabels[k] || k)}: ${money(v)}</div>`).join('') || '<div>—</div>'}
+          </div>
+          <div><strong>حركات الدرج (${(mov.data || []).length})</strong>
+            ${Object.entries(byType).map(([k, v]) => `<div>${esc(SESSION_MOVEMENT_LABELS[k] || k)}: ${money(v)}</div>`).join('') || '<div>—</div>'}
+          </div>
+        </div>`;
+      cell.dataset.loaded = '1';
+    } catch (e) {
+      console.error('[Session] detail:', e);
+      cell.textContent = 'تعذر تحميل التفاصيل';
+    }
+  }
+
   function openModal(id) {
     document.getElementById(id).classList.add('show');
     if (window.lucide) lucide.createIcons();
@@ -862,9 +1003,6 @@ tbody tr:last-child td{border-bottom:none}
     openModal('cashModal');
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // SAVE EXPENSE
-  // ═══════════════════════════════════════════════════════════
   async function saveExpense() {
     const desc = document.getElementById('expDesc').value.trim();
     const amount = Number(document.getElementById('expAmount').value) || 0;
@@ -878,38 +1016,17 @@ tbody tr:last-child td{border-bottom:none}
     btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
 
     try {
-      // 1. سجل المصروف
-      const { data: expData, error: expErr } = await sb.from('expenses').insert({
-        company_id: session.company_id,
-        branch_id: session.active_branch_id,
-        session_id: currentSession.id,
-        category: expenseCategory,
-        description: desc,
-        amount: amount,
-        payment_method: 'cash',
-        expense_date: new Date().toISOString().slice(0, 10),
-        status: 'paid',
-        created_by: session.user_id
-      }).select().single();
-
-      if (expErr) throw expErr;
-
-      // 2. سجل حركة درج
-      const { error: movErr } = await sb.from('cash_movements').insert({
-        company_id: session.company_id,
-        branch_id: session.active_branch_id,
-        session_id: currentSession.id,
-        movement_type: 'expense',
-        direction: 'out',
-        amount: amount,
-        payment_method: 'cash',
-        reference_type: 'expense',
-        reference_id: expData.id,
-        description: desc,
-        created_by: session.user_id
+      const { error } = await sb.rpc('record_cash_expense', {
+        p_company: session.company_id,
+        p_branch: session.active_branch_id,
+        p_session: currentSession.id,
+        p_category: expenseCategory,
+        p_description: desc,
+        p_amount: amount,
+        p_expense_date: new Date().toISOString().slice(0, 10),
+        p_payment_method: 'cash'
       });
-
-      if (movErr) throw movErr;
+      if (error) throw error;
 
       toast('success', 'تم تسجيل المصروف من الدرج');
       closeModal('expenseModal');
@@ -922,9 +1039,6 @@ tbody tr:last-child td{border-bottom:none}
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // SAVE CASH MOVEMENT
-  // ═══════════════════════════════════════════════════════════
   async function saveCashMovement() {
     const amount = Number(document.getElementById('cashAmount').value) || 0;
     const desc = document.getElementById('cashDesc').value.trim();
@@ -937,17 +1051,13 @@ tbody tr:last-child td{border-bottom:none}
     btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
 
     try {
-      const { error } = await sb.from('cash_movements').insert({
-        company_id: session.company_id,
-        branch_id: session.active_branch_id,
-        session_id: currentSession.id,
-        movement_type: cashMovementType,
-        direction: cashMovementType === 'withdrawal' ? 'out' : 'in',
-        amount: amount,
-        payment_method: 'cash',
-        reference_type: 'manual',
-        description: desc || (cashMovementType === 'withdrawal' ? 'سحب نقدي' : 'إيداع نقدي'),
-        created_by: session.user_id
+      const { error } = await sb.rpc('record_cash_movement', {
+        p_company: session.company_id,
+        p_branch: session.active_branch_id,
+        p_session: currentSession.id,
+        p_movement_type: cashMovementType,
+        p_amount: amount,
+        p_description: desc || (cashMovementType === 'withdrawal' ? 'سحب نقدي' : 'إيداع نقدي')
       });
 
       if (error) throw error;
@@ -963,9 +1073,6 @@ tbody tr:last-child td{border-bottom:none}
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // OPEN/CLOSE SESSION
-  // ═══════════════════════════════════════════════════════════
   async function openSession() {
     const opening = Number(document.getElementById('openingCash').value) || 0;
     const btn = document.getElementById('openSessionBtn');
@@ -1049,9 +1156,6 @@ tbody tr:last-child td{border-bottom:none}
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // INIT
-  // ═══════════════════════════════════════════════════════════
   async function init() {
     try {
       const { data: { user } } = await sb.auth.getUser();
@@ -1084,7 +1188,6 @@ tbody tr:last-child td{border-bottom:none}
       toast('success', 'تم التحديث');
     };
 
-    // ⭐ Modal events
     document.querySelectorAll('[data-close]').forEach(btn => {
       btn.onclick = () => closeModal(btn.dataset.close);
     });
@@ -1092,7 +1195,6 @@ tbody tr:last-child td{border-bottom:none}
       m.onclick = (e) => { if (e.target === m) m.classList.remove('show'); };
     });
 
-    // ⭐ Category chips (expense)
     document.querySelectorAll('#expCatChips .cat-chip').forEach(chip => {
       chip.onclick = () => {
         document.querySelectorAll('#expCatChips .cat-chip').forEach(c => c.classList.remove('active'));
@@ -1101,7 +1203,6 @@ tbody tr:last-child td{border-bottom:none}
       };
     });
 
-    // ⭐ Type chips (cash movement)
     document.querySelectorAll('#cashTypeChips .cat-chip').forEach(chip => {
       chip.onclick = () => {
         document.querySelectorAll('#cashTypeChips .cat-chip').forEach(c => c.classList.remove('active'));
@@ -1110,7 +1211,6 @@ tbody tr:last-child td{border-bottom:none}
       };
     });
 
-    // ⭐ Quick amounts
     document.querySelectorAll('#expQuickAmounts .quick-cash-btn').forEach(b => {
       b.onclick = () => { document.getElementById('expAmount').value = b.dataset.amt; };
     });
@@ -1118,7 +1218,6 @@ tbody tr:last-child td{border-bottom:none}
       b.onclick = () => { document.getElementById('cashAmount').value = b.dataset.amt; };
     });
 
-    // ⭐ Save buttons
     document.getElementById('saveExpenseBtn').onclick = saveExpense;
     document.getElementById('saveCashBtn').onclick = saveCashMovement;
 
@@ -1128,7 +1227,7 @@ tbody tr:last-child td{border-bottom:none}
     });
 
     if (window.lucide) lucide.createIcons();
-    console.log('[Session v3.0] Ready');
+    console.log('[Session v4.0] Ready');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

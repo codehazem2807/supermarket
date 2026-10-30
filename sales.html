@@ -434,6 +434,12 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
   let currentPage = 1;
   const PAGE_SIZE = 25;
 
+  function hasAnyPermission(permissions) {
+    return !!(session && permissions.some(permission =>
+      session.is_owner || (window.Refad && Refad.hasPermission && Refad.hasPermission(permission, session))
+    ));
+  }
+
   const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
   const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
   const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:3})};
@@ -738,7 +744,7 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
       '<div class="receipt-footer">شكراً لتعاملكم معنا</div>' +
     '</div>';
 
-    if (invoice.status === 'voided') {
+    if (invoice.status === 'voided' || invoice.status === 'returned') {
       html += '<div style="margin-top:16px;padding:14px;background:var(--danger-soft);border-radius:8px;border-right:3px solid var(--danger)">' +
         '<strong style="color:var(--danger)">هذه الفاتورة ملغاة</strong>' +
         '<p style="font-size:12px;color:var(--text-muted);margin-top:4px">السبب: ' + esc(invoice.void_reason || '—') + '</p>' +
@@ -753,14 +759,16 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
 
     printBtn.onclick = function () { window.print(); };
 
+    const canVoid = hasAnyPermission(['pos.void', 'pos.full', 'sales.void', 'sales.full', 'sales.manage']);
+    const canReturn = hasAnyPermission(['pos.refund', 'pos.return', 'pos.full', 'sales.full', 'sales.manage']);
     if (invoice.status === 'voided') {
       voidBtn.style.display = 'none';
       returnBtn.style.display = 'none';
     } else {
-      voidBtn.style.display = 'inline-flex';
-      voidBtn.onclick = () => openVoidModal(invoice.id);
-      returnBtn.style.display = 'inline-flex';
-      returnBtn.onclick = () => openReturnModal(invoice.id, items);
+      voidBtn.style.display = canVoid ? 'inline-flex' : 'none';
+      voidBtn.onclick = canVoid ? () => openVoidModal(invoice.id) : null;
+      returnBtn.style.display = canReturn ? 'inline-flex' : 'none';
+      returnBtn.onclick = canReturn ? () => openReturnModal(invoice.id, items) : null;
     }
 
     if (window.lucide) lucide.createIcons();
@@ -777,6 +785,11 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   async function confirmVoid() {
+    if (!hasAnyPermission(['pos.void', 'pos.full', 'sales.void', 'sales.full', 'sales.manage'])) {
+      toast('error', 'لا تملك صلاحية إلغاء الفواتير');
+      return;
+    }
+
     const errEl = document.getElementById('voidFormError');
     errEl.classList.remove('show');
     const id = document.getElementById('voidInvoiceId').value;
@@ -890,6 +903,11 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   async function confirmReturn() {
+    if (!hasAnyPermission(['pos.refund', 'pos.return', 'pos.full', 'sales.full', 'sales.manage'])) {
+      toast('error', 'لا تملك صلاحية تسجيل المرتجعات');
+      return;
+    }
+
     const errEl = document.getElementById('returnFormError');
     errEl.classList.remove('show');
     const invoiceId = document.getElementById('returnInvoiceId').value;
@@ -924,24 +942,6 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
         p_reason: reason
       });
       if (res.error) throw res.error;
-
-      // ⭐ تحديث status فقط لو كل الأصناف اترجعت
-      const origItemsRes = await sb.from('sales_invoice_items').select('product_id, quantity').eq('invoice_id', invoiceId);
-      const origItems = origItemsRes.data || [];
-      const allReturnsRes = await sb.from('sales_returns').select('id').eq('original_invoice_id', invoiceId);
-      const allReturnIds = (allReturnsRes.data || []).map(r => r.id);
-      let returnItemsRes = { data: [] };
-      if (allReturnIds.length > 0) {
-        returnItemsRes = await sb.from('sales_return_items').select('product_id, quantity').in('return_id', allReturnIds);
-      }
-      const returnedQtyMap = {};
-      (returnItemsRes.data || []).forEach(ri => {
-        returnedQtyMap[ri.product_id] = (returnedQtyMap[ri.product_id] || 0) + Number(ri.quantity || 0);
-      });
-      const isFullyReturned = origItems.every(oi => (returnedQtyMap[oi.product_id] || 0) >= Number(oi.quantity || 0));
-      if (isFullyReturned) {
-        await sb.from('sales_invoices').update({ status: 'returned' }).eq('id', invoiceId);
-      }
 
       toast('success', 'تم إنشاء المرتجع');
       document.getElementById('returnModal').classList.remove('show');

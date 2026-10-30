@@ -290,6 +290,7 @@ tbody tr:last-child td{border-bottom:none}
   let expenses = [];
   let filters = { category: '', date_from: '', date_to: '', search: '' };
   let editingId = null;
+  let canManageExpenses = false;
   let selectedCategory = 'rent';
 
   const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
@@ -518,10 +519,10 @@ tbody tr:last-child td{border-bottom:none}
                     <td><strong style="color:var(--danger)">${money(e.amount)}</strong></td>
                     <td><span class="badge badge-${sCls}">${sTxt}</span></td>
                     <td>
-                      <div style="display:flex;gap:4px">
+                      ${canManageExpenses ? `<div style="display:flex;gap:4px">
                         <button class="btn btn-ghost btn-sm" data-edit="${e.id}" title="تعديل" style="padding:5px 8px"><i data-lucide="edit-2" style="width:12px;height:12px"></i></button>
                         <button class="btn btn-ghost btn-sm" data-delete="${e.id}" title="حذف" style="padding:5px 8px;background:var(--danger-soft);color:var(--danger)"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
-                      </div>
+                      </div>` : '—'}
                     </td>
                   </tr>`;
                 }).join('')}
@@ -564,10 +565,14 @@ tbody tr:last-child td{border-bottom:none}
 
     document.querySelectorAll('[data-delete]').forEach(btn => {
       btn.onclick = async () => {
+        if (!canManageExpenses) {
+          toast('error', 'لا تملك صلاحية إدارة المصاريف');
+          return;
+        }
         const id = btn.dataset.delete;
         if (!confirm('حذف هذا المصروف؟')) return;
         try {
-          const { error } = await sb.from('expenses').delete().eq('id', id);
+          const { error } = await sb.rpc('delete_expense', { p_expense: id });
           if (error) throw error;
           toast('success', 'تم الحذف');
           await render();
@@ -627,6 +632,11 @@ tbody tr:last-child td{border-bottom:none}
   // SAVE
   // ═══════════════════════════════════════════════════════════
   async function saveExpense() {
+    if (!canManageExpenses) {
+      toast('error', 'لا تملك صلاحية إدارة المصاريف');
+      return;
+    }
+
     const description = document.getElementById('expDescription').value.trim();
     const amount = Number(document.getElementById('expAmount').value) || 0;
     const paymentMethod = document.getElementById('expPaymentMethod').value;
@@ -652,6 +662,9 @@ tbody tr:last-child td{border-bottom:none}
     btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
 
     try {
+      const existingExpense = editingId ? expenses.find(expense => expense.id === editingId) : null;
+      const needsCashLedger = paymentMethod === 'cash' ||
+        (existingExpense && existingExpense.payment_method === 'cash');
       const payload = {
         company_id: session.company_id,
         branch_id: session.active_branch_id,
@@ -667,14 +680,46 @@ tbody tr:last-child td{border-bottom:none}
       };
 
       let result;
-      if (editingId) {
-        result = await sb.from('expenses').update(payload).eq('id', editingId).select().single();
-      } else {
-        payload.created_by = session.user_id;
-        result = await sb.from('expenses').insert(payload).select().single();
-      }
+      if (needsCashLedger) {
+        let currentSessionId = null;
+        if (paymentMethod === 'cash') {
+          const { data: currentSession, error: sessionError } = await sb.from('pos_sessions')
+            .select('id')
+            .eq('company_id', session.company_id)
+            .eq('branch_id', session.active_branch_id)
+            .eq('status', 'open')
+            .order('opened_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (sessionError) throw sessionError;
+          if (!currentSession) throw new Error('افتح وردية قبل تسجيل مصروف نقدي من الدرج');
+          currentSessionId = currentSession.id;
+        }
 
-      if (result.error) throw result.error;
+        const { error } = await sb.rpc('record_cash_expense', {
+          p_company: session.company_id,
+          p_branch: session.active_branch_id,
+          p_session: currentSessionId,
+          p_category: selectedCategory,
+          p_description: description,
+          p_amount: amount,
+          p_expense_date: expenseDate,
+          p_payment_method: paymentMethod,
+          p_vendor_name: vendor || null,
+          p_reference_number: reference || null,
+          p_notes: notes || null,
+          p_expense_id: editingId || null
+        });
+        if (error) throw error;
+      } else {
+        if (editingId) {
+          result = await sb.from('expenses').update(payload).eq('id', editingId).select().single();
+        } else {
+          payload.created_by = session.user_id;
+          result = await sb.from('expenses').insert(payload).select().single();
+        }
+        if (result.error) throw result.error;
+      }
 
       toast('success', editingId ? 'تم التعديل' : 'تم إضافة المصروف');
       closeModal();
@@ -697,6 +742,9 @@ tbody tr:last-child td{border-bottom:none}
       setTimeout(() => location.href = 'index.html', 1200);
       return;
     }
+    canManageExpenses = !!(session.is_owner ||
+      (window.Refad && Refad.hasPermission && Refad.hasPermission('expenses.manage', session)));
+    document.getElementById('addExpenseBtn').style.display = canManageExpenses ? 'inline-flex' : 'none';
 
     const branchNameEl = document.getElementById('branchName');
     if (branchNameEl) {

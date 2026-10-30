@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>المحادثات — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root{
+  --primary:#0B2C4D;--primary-light:#1e4a73;--primary-dark:#061a2e;
+  --accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B;--gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444;--danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981;--success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6;--info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6;--purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9;--bg-soft:#f8fafc;--bg-card:#ffffff;
+  --card:#ffffff;--text:#0f172a;--text-muted:#64748b;
+  --border:#e2e8f0;--border-soft:#f1f5f9;
+  --radius:14px;--radius-sm:10px;--radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--card:#1e293b;--bg-card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;cursor:pointer}input,textarea{font-family:inherit}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+.chat-layout{display:flex;height:100vh;margin-right:260px;transition:margin-right 0.3s}
+body.sidebar-collapsed .chat-layout{margin-right:72px}
+@media(max-width:1024px){.chat-layout{margin-right:0!important}}
+
+/* ═══════════ SIDEBAR (Conversations List) ═══════════ */
+.conv-sidebar{width:340px;background:var(--card);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.conv-header{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0}
+.conv-header h1{font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px}
+.conv-header h1 svg{width:18px;height:18px;color:var(--accent)}
+.conv-header-actions{display:flex;gap:4px}
+.conv-header-btn{width:32px;height:32px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:all 0.15s;cursor:pointer}
+.conv-header-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.conv-header-btn svg{width:15px;height:15px}
+
+.conv-search{padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.conv-search-wrap{position:relative}
+.conv-search-wrap input{width:100%;padding:8px 34px 8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-soft);color:var(--text);font-size:13px}
+.conv-search-wrap input:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.conv-search-wrap svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-muted);pointer-events:none}
+
+.conv-list{flex:1;overflow-y:auto;padding:4px}
+.conv-item{display:flex;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background 0.15s;align-items:center;border:1px solid transparent}
+.conv-item:hover{background:var(--bg-soft)}
+.conv-item.active{background:var(--accent-soft);border-color:var(--accent)}
+.conv-avatar{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;position:relative}
+.conv-avatar.group{background:linear-gradient(135deg,var(--purple),#6d28d9)}
+.conv-avatar .online-dot{position:absolute;bottom:-2px;right:-2px;width:12px;height:12px;border-radius:50%;background:var(--success);border:2px solid var(--card)}
+.conv-info{flex:1;min-width:0}
+.conv-name{font-size:13.5px;font-weight:800;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
+.conv-name svg{width:12px;height:12px;color:var(--text-muted)}
+.conv-preview{font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.conv-time{font-size:10px;color:var(--text-muted);white-space:nowrap}
+.conv-unread{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.conv-pin{color:var(--gold);font-size:11px}
+
+.conv-empty{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.conv-empty svg{width:48px;height:48px;opacity:0.3;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto}
+.conv-empty h3{font-size:14px;color:var(--text);margin-bottom:4px;font-weight:800}
+.conv-empty p{font-size:12px}
+
+/* ═══════════ CHAT AREA ═══════════ */
+.chat-area{flex:1;display:flex;flex-direction:column;background:var(--bg);min-width:0;position:relative}
+
+.chat-header{padding:14px 20px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.chat-header-avatar{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;position:relative}
+.chat-header-avatar.group{background:linear-gradient(135deg,var(--purple),#6d28d9)}
+.chat-header-info{flex:1;min-width:0}
+.chat-header-name{font-size:15px;font-weight:800;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-header-status{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+.chat-header-status .status-dot{width:7px;height:7px;border-radius:50%;background:var(--success)}
+.chat-header-actions{display:flex;gap:4px}
+.chat-header-btn{width:36px;height:36px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:all 0.15s;cursor:pointer}
+.chat-header-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.chat-header-btn svg{width:16px;height:16px}
+
+.chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:6px;background-image:radial-gradient(circle at 20% 20%,rgba(20,184,166,0.03) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(139,92,246,0.03) 0%,transparent 50%)}
+
+.msg-date-divider{align-self:center;padding:4px 12px;background:var(--bg-soft);border-radius:12px;font-size:10.5px;color:var(--text-muted);font-weight:700;margin:8px 0;border:1px solid var(--border)}
+
+.msg-row{display:flex;gap:8px;align-items:flex-end;max-width:75%;margin-bottom:2px}
+.msg-row.mine{align-self:flex-start;flex-direction:row-reverse}
+.msg-row.theirs{align-self:flex-end}
+.msg-avatar{width:28px;height:28px;border-radius:50%;background:var(--info);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0}
+.msg-content{display:flex;flex-direction:column;gap:2px;min-width:0}
+.msg-sender{font-size:10.5px;color:var(--text-muted);font-weight:700;padding:0 4px}
+.msg-bubble{padding:9px 13px;border-radius:16px;font-size:13.5px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap;position:relative}
+.msg-row.mine .msg-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.msg-row.theirs .msg-bubble{background:var(--card);color:var(--text);border:1px solid var(--border);border-bottom-left-radius:4px}
+.msg-time{font-size:9.5px;color:var(--text-muted);padding:0 6px;display:flex;align-items:center;gap:3px}
+.msg-row.mine .msg-time{justify-content:flex-start}
+.msg-row.theirs .msg-time{justify-content:flex-end}
+.msg-time svg{width:10px;height:10px}
+
+.msg-attachments{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.msg-attachment{max-width:200px;max-height:200px;border-radius:8px;cursor:pointer;object-fit:cover;border:1px solid var(--border)}
+.msg-attachment-file{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(0,0,0,0.08);border-radius:8px;font-size:11.5px;font-weight:600;text-decoration:none;color:inherit}
+.msg-row.mine .msg-attachment-file{background:rgba(255,255,255,0.2);color:#fff}
+.msg-attachment-file svg{width:14px;height:14px}
+
+.chat-empty-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center}
+.chat-empty-area svg{width:80px;height:80px;opacity:0.2;margin-bottom:16px}
+.chat-empty-area h2{font-size:18px;font-weight:800;color:var(--text);margin-bottom:6px}
+.chat-empty-area p{font-size:13px;color:var(--text-muted);max-width:400px}
+
+/* ═══════════ INPUT AREA ═══════════ */
+.chat-input-area{padding:12px 16px;background:var(--card);border-top:1px solid var(--border);flex-shrink:0}
+.chat-input-toolbar{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.chat-toolbar-btn{width:32px;height:32px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:all 0.15s;cursor:pointer;position:relative}
+.chat-toolbar-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.chat-toolbar-btn svg{width:15px;height:15px}
+
+.chat-input-row{display:flex;gap:8px;align-items:flex-end}
+.chat-textarea{flex:1;resize:none;border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-family:inherit;font-size:14px;line-height:1.5;color:var(--text);background:var(--bg-soft);outline:none;max-height:120px;min-height:42px;transition:all 0.15s}
+.chat-textarea:focus{border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.chat-send-btn{width:44px;height:44px;border-radius:50%;border:none;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0}
+.chat-send-btn:hover:not(:disabled){background:var(--accent-dark);transform:scale(1.05)}
+.chat-send-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.chat-send-btn svg{width:18px;height:18px}
+
+.chat-attachment-preview{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.attachment-chip{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;font-size:11.5px;font-weight:600;color:var(--text)}
+.attachment-chip svg{width:12px;height:12px}
+.attachment-chip-remove{width:18px;height:18px;border-radius:50%;border:none;background:var(--danger);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:-4px}
+.attachment-chip-remove svg{width:10px;height:10px}
+
+/* Emoji picker */
+.emoji-picker{position:absolute;bottom:100%;right:16px;margin-bottom:8px;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:10px;width:320px;max-width:calc(100vw - 32px);display:none;z-index:100}
+.emoji-picker.show{display:block}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-height:200px;overflow-y:auto}
+.emoji-btn{width:100%;aspect-ratio:1;border:none;background:none;font-size:20px;cursor:pointer;border-radius:6px;transition:background 0.15s;display:flex;align-items:center;justify-content:center;padding:0}
+.emoji-btn:hover{background:var(--bg-soft)}
+
+/* Modal for new conversation */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:5000;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:16px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn 0.25s cubic-bezier(0.4,0,0.2,1)}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1}
+.modal-header h3{font-size:16px;font-weight:800;display:flex;align-items:center;gap:10px}
+.modal-header h3 svg{width:18px;height:18px;color:var(--accent)}
+.modal-close{background:none;border:none;color:var(--text-muted);padding:6px;border-radius:8px;cursor:pointer}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-close svg{width:18px;height:18px}
+.modal-body{padding:20px 22px}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card)}
+
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px;color:var(--text)}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:14px;transition:all 0.15s;font-family:inherit}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);background:var(--card);box-shadow:0 0 0 3px var(--accent-soft)}
+.form-textarea{resize:vertical;min-height:70px}
+
+.user-picker-list{max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-xs)}
+.user-picker-item{display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border-soft);cursor:pointer;transition:background 0.15s;align-items:center}
+.user-picker-item:last-child{border-bottom:none}
+.user-picker-item:hover{background:var(--bg-soft)}
+.user-picker-item.selected{background:var(--accent-soft)}
+.user-picker-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
+.user-picker-info{flex:1;min-width:0}
+.user-picker-name{font-size:13px;font-weight:700;color:var(--text)}
+.user-picker-role{font-size:11px;color:var(--text-muted)}
+.user-picker-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.user-picker-item.selected .user-picker-check{background:var(--accent);border-color:var(--accent);color:#fff}
+.user-picker-check svg{width:12px;height:12px}
+
+/* Image lightbox */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+.lightbox.show{display:flex}
+.lightbox img{max-width:95%;max-height:95%;border-radius:8px;box-shadow:0 20px 80px rgba(0,0,0,0.5)}
+.lightbox-close{position:absolute;top:20px;left:20px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.lightbox-close:hover{background:rgba(255,255,255,0.2)}
+.lightbox-close svg{width:22px;height:22px}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast 0.3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}.toast.error svg{color:var(--danger)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+/* Mobile */
+@media(max-width:768px){
+  .conv-sidebar{position:fixed;top:0;right:0;bottom:0;width:85vw;max-width:340px;z-index:100;transform:translateX(100%);transition:transform 0.3s;box-shadow:-10px 0 30px rgba(0,0,0,0.3)}
+  .conv-sidebar.show{transform:translateX(0)}
+  .chat-header{padding:10px 14px}
+  .chat-header-avatar{width:36px;height:36px}
+  .chat-header-name{font-size:14px}
+  .chat-messages{padding:14px}
+  .msg-row{max-width:88%}
+  .chat-mobile-back{display:flex!important}
+}
+.chat-mobile-back{display:none;width:36px;height:36px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.chat-mobile-back svg{width:18px;height:18px}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<div class="chat-layout">
+  <!-- Conversations sidebar -->
+  <aside class="conv-sidebar" id="convSidebar">
+    <div class="conv-header">
+      <h1><i data-lucide="message-circle"></i> المحادثات</h1>
+      <div class="conv-header-actions">
+        <button class="conv-header-btn" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+        <button class="conv-header-btn" id="newConvBtn" title="محادثة جديدة"><i data-lucide="plus"></i></button>
+      </div>
+    </div>
+    <div class="conv-search">
+      <div class="conv-search-wrap">
+        <i data-lucide="search"></i>
+        <input type="text" id="searchInput" placeholder="ابحث في المحادثات...">
+      </div>
+    </div>
+    <div class="conv-list" id="convList">
+      <div class="conv-empty">
+        <i data-lucide="loader"></i>
+        <h3>جاري التحميل...</h3>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Chat area -->
+  <section class="chat-area">
+    <div id="chatHeaderSlot"></div>
+    <div id="chatBodySlot" style="flex:1;display:flex;flex-direction:column;min-height:0">
+      <div class="chat-empty-area">
+        <i data-lucide="messages-square"></i>
+        <h2>اختر محادثة للبدء</h2>
+        <p>اختر محادثة من القائمة أو ابدأ محادثة جديدة</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- New conversation modal -->
+<div class="modal-overlay" id="newConvModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i data-lucide="message-circle-plus"></i> محادثة جديدة</h3>
+      <button class="modal-close" data-close="newConvModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">نوع المحادثة</label>
+        <select class="form-select" id="convType">
+          <option value="direct">محادثة فردية</option>
+          <option value="group">مجموعة</option>
+        </select>
+      </div>
+      <div class="form-group" id="groupNameGroup" style="display:none">
+        <label class="form-label">اسم المجموعة</label>
+        <input type="text" class="form-input" id="groupName" placeholder="مثال: فريق المخزون">
+      </div>
+      <div class="form-group">
+        <label class="form-label">اختر الأعضاء</label>
+        <div class="user-picker-list" id="userPicker">
+          <div class="conv-empty" style="padding:20px">
+            <i data-lucide="loader"></i>
+            <h3>جاري التحميل...</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="newConvModal">إلغاء</button>
+      <button class="btn btn-primary" id="createConvBtn"><i data-lucide="check"></i> إنشاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose"><i data-lucide="x"></i></button>
+  <img id="lightboxImg" src="" alt="">
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let conversations = [];
+  let activeConvId = null;
+  let activeConv = null;
+  let messages = [];
+  let users = [];
+  let selectedUserIds = [];
+  let pendingAttachments = [];
+  let realtimeChannel = null;
+  let pollTimer = null;
+  let searchQuery = '';
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const timeAgo = (window.Refad && Refad.timeAgo) || function(d){return ''};
+  const fmtDateTime = (window.Refad && Refad.fmtDateTime) || function(d){if(!d)return'—';return new Date(d).toLocaleString('ar-EG')};
+
+  function safeToast(type, msg) {
+    const t = window.Refad && window.Refad.toast;
+    if (t && typeof t === 'object') (t[type] || t.info || function(){}) (msg);
+    else if (typeof t === 'function') t(type, msg);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOAD
+  // ═══════════════════════════════════════════════════════════
+  async function loadConversations() {
+    try {
+      const convs = await window.Refad.chat.conversations();
+      conversations = convs || [];
+      await enrichConversations();
+      renderConversations();
+    } catch (e) {
+      console.error('[Chat] loadConversations failed:', e);
+    }
+  }
+
+  async function enrichConversations() {
+    if (conversations.length === 0) return;
+
+    const allUserIds = new Set();
+    conversations.forEach(c => {
+      (c.participants || []).forEach(p => allUserIds.add(p.user_id));
+    });
+
+    if (allUserIds.size > 0) {
+      const ids = Array.from(allUserIds);
+      const { data: usersData } = await sb.from('users')
+        .select('id, full_name, email, role_id')
+        .in('id', ids);
+      const userMap = {};
+      (usersData || []).forEach(u => userMap[u.id] = u);
+
+      conversations.forEach(c => {
+        c._participants_enriched = (c.participants || []).map(p => ({
+          ...p,
+          full_name: userMap[p.user_id]?.full_name || 'مستخدم',
+          email: userMap[p.user_id]?.email || ''
+        }));
+        if (c.type === 'direct') {
+          const other = c._participants_enriched.find(p => p.user_id !== session.user_id);
+          c._display_name = other?.full_name || 'محادثة';
+          c._initial = (c._display_name || '?').charAt(0).toUpperCase();
+        } else {
+          c._display_name = c.name || 'مجموعة';
+          c._initial = '👥';
+        }
+      });
+    }
+
+    // Load last messages
+    for (const c of conversations) {
+      try {
+        const { data: lastMsgs } = await sb.from('chat_messages')
+          .select('body, created_at, sender_id, is_deleted')
+          .eq('conversation_id', c.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (lastMsgs && lastMsgs.length > 0) {
+          c._last_message = lastMsgs[0].body;
+          c._last_message_at = lastMsgs[0].created_at;
+        }
+      } catch (e) {}
+    }
+  }
+
+  async function loadUnreadCounts() {
+    for (const c of conversations) {
+      try {
+        const myPart = (c.participants || []).find(p => p.user_id === session.user_id);
+        if (!myPart) continue;
+        const lastRead = myPart.last_read_at || '1970-01-01';
+        const { count } = await sb.from('chat_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('conversation_id', c.id)
+          .eq('is_deleted', false)
+          .gt('created_at', lastRead)
+          .neq('sender_id', session.user_id);
+        c._unread = count || 0;
+      } catch (e) { c._unread = 0; }
+    }
+  }
+
+  async function loadUsers() {
+    try {
+      const { data } = await sb.from('users')
+        .select('id, full_name, email, role_id')
+        .eq('company_id', session.company_id)
+        .eq('is_active', true)
+        .neq('id', session.user_id)
+        .is('deleted_at', null)
+        .order('full_name');
+      users = data || [];
+      return users;
+    } catch (e) {
+      console.warn('[Chat] loadUsers failed:', e);
+      users = [];
+      return [];
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER CONVERSATIONS
+  // ═══════════════════════════════════════════════════════════
+  async function renderConversations() {
+    const list = document.getElementById('convList');
+    if (!list) return;
+
+    await loadUnreadCounts();
+
+    let filtered = conversations;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(c => (c._display_name || '').toLowerCase().includes(q));
+    }
+
+    filtered.sort((a, b) => {
+      const aTime = a._last_message_at || a.last_message_at || '';
+      const bTime = b._last_message_at || b.last_message_at || '';
+      return new Date(bTime) - new Date(aTime);
+    });
+
+    if (filtered.length === 0) {
+      list.innerHTML = `
+        <div class="conv-empty">
+          <i data-lucide="message-square-dashed"></i>
+          <h3>لا توجد محادثات</h3>
+          <p>اضغط + لبدء محادثة جديدة</p>
+        </div>
+      `;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    list.innerHTML = filtered.map(c => {
+      const isActive = c.id === activeConvId;
+      const isGroup = c.type === 'group';
+      const preview = c._last_message || 'لا توجد رسائل بعد';
+      const timeStr = c._last_message_at ? timeAgo(c._last_message_at) : '';
+      const unread = c._unread || 0;
+
+      return `
+        <div class="conv-item ${isActive ? 'active' : ''}" data-conv-id="${esc(c.id)}">
+          <div class="conv-avatar ${isGroup ? 'group' : ''}">
+            ${isGroup ? '👥' : esc(c._initial || '?')}
+          </div>
+          <div class="conv-info">
+            <div class="conv-name">
+              ${isGroup ? '<i data-lucide="users"></i>' : ''}
+              ${esc(c._display_name || 'محادثة')}
+            </div>
+            <div class="conv-preview">${esc(preview)}</div>
+          </div>
+          <div class="conv-meta">
+            ${timeStr ? `<div class="conv-time">${esc(timeStr)}</div>` : ''}
+            ${unread > 0 ? `<div class="conv-unread">${unread > 99 ? '99+' : unread}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+    list.querySelectorAll('.conv-item').forEach(el => {
+      el.onclick = () => openConversation(el.dataset.convId);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // OPEN CONVERSATION
+  // ═══════════════════════════════════════════════════════════
+  async function openConversation(convId) {
+    activeConvId = convId;
+    activeConv = conversations.find(c => c.id === convId);
+
+    if (!activeConv) return;
+
+    renderConversations();
+    renderChatHeader();
+    await loadMessages();
+
+    // Mark read
+    await window.Refad.chat.markRead(convId);
+
+    // Close mobile sidebar
+    if (window.innerWidth <= 768) {
+      document.getElementById('convSidebar').classList.remove('show');
+    }
+  }
+
+  function renderChatHeader() {
+    const slot = document.getElementById('chatHeaderSlot');
+    if (!slot || !activeConv) return;
+
+    const isGroup = activeConv.type === 'group';
+    const name = activeConv._display_name || 'محادثة';
+    const initial = isGroup ? '👥' : (activeConv._initial || '?');
+    const subtitle = isGroup
+      ? `${(activeConv.participants || []).length} عضو`
+      : 'متصل الآن';
+
+    slot.innerHTML = `
+      <div class="chat-header">
+        <button class="chat-mobile-back" id="mobileBackBtn"><i data-lucide="arrow-right"></i></button>
+        <div class="chat-header-avatar ${isGroup ? 'group' : ''}">${esc(initial)}</div>
+        <div class="chat-header-info">
+          <div class="chat-header-name">${esc(name)}</div>
+          <div class="chat-header-status">
+            ${!isGroup ? '<span class="status-dot"></span>' : ''}
+            <span>${esc(subtitle)}</span>
+          </div>
+        </div>
+        <div class="chat-header-actions">
+          <button class="chat-header-btn" id="convInfoBtn" title="معلومات"><i data-lucide="info"></i></button>
+        </div>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+
+    document.getElementById('mobileBackBtn').onclick = () => {
+      document.getElementById('convSidebar').classList.add('show');
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOAD MESSAGES
+  // ═══════════════════════════════════════════════════════════
+  async function loadMessages() {
+    if (!activeConvId) return;
+    try {
+      const msgs = await window.Refad.chat.messages(activeConvId);
+      messages = msgs || [];
+      await enrichMessages();
+      renderChatBody();
+    } catch (e) {
+      console.error('[Chat] loadMessages failed:', e);
+    }
+  }
+
+  async function enrichMessages() {
+    if (messages.length === 0) return;
+    const senderIds = [...new Set(messages.map(m => m.sender_id).filter(Boolean))];
+    if (senderIds.length === 0) return;
+    const { data } = await sb.from('users')
+      .select('id, full_name')
+      .in('id', senderIds);
+    const map = {};
+    (data || []).forEach(u => map[u.id] = u);
+    messages.forEach(m => {
+      m._sender_name = map[m.sender_id]?.full_name || 'مستخدم';
+      m._sender_initial = (m._sender_name || '?').charAt(0).toUpperCase();
+    });
+  }
+
+  function renderChatBody() {
+    const slot = document.getElementById('chatBodySlot');
+    if (!slot) return;
+
+    if (messages.length === 0) {
+      slot.innerHTML = `
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty-area">
+            <i data-lucide="message-square"></i>
+            <h2>لا توجد رسائل بعد</h2>
+            <p>ابدأ المحادثة بإرسال رسالة</p>
+          </div>
+        </div>
+        ${renderInputArea()}
+      `;
+    } else {
+      let lastDate = null;
+      const messagesHtml = messages.map(m => {
+        const isMine = m.sender_id === session.user_id;
+        const msgDate = new Date(m.created_at).toDateString();
+        let dateDivider = '';
+        if (msgDate !== lastDate) {
+          lastDate = msgDate;
+          dateDivider = `<div class="msg-date-divider">${formatDateDivider(m.created_at)}</div>`;
+        }
+
+        const attachmentsHtml = renderAttachments(m.attachments);
+
+        return `
+          ${dateDivider}
+          <div class="msg-row ${isMine ? 'mine' : 'theirs'}">
+            ${!isMine && activeConv.type === 'group' ? `<div class="msg-avatar">${esc(m._sender_initial)}</div>` : ''}
+            <div class="msg-content">
+              ${!isMine && activeConv.type === 'group' ? `<div class="msg-sender">${esc(m._sender_name)}</div>` : ''}
+              ${m.body ? `<div class="msg-bubble">${esc(m.body)}</div>` : ''}
+              ${attachmentsHtml}
+              <div class="msg-time">${formatTime(m.created_at)} ${isMine ? '<i data-lucide="check-check"></i>' : ''}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      slot.innerHTML = `
+        <div class="chat-messages" id="chatMessages">${messagesHtml}</div>
+        ${renderInputArea()}
+      `;
+    }
+
+    if (window.lucide) lucide.createIcons();
+    bindInputArea();
+    bindAttachmentClicks();
+    scrollToBottom();
+  }
+
+  function renderAttachments(attachments) {
+    if (!attachments || attachments.length === 0) return '';
+    const html = attachments.map(a => {
+      if (a.type && a.type.startsWith('image/')) {
+        return `<img src="${esc(a.url)}" class="msg-attachment" data-img-url="${esc(a.url)}" alt="${esc(a.name)}">`;
+      }
+      return `<a href="${esc(a.url)}" target="_blank" class="msg-attachment-file"><i data-lucide="file"></i>${esc(a.name)}</a>`;
+    }).join('');
+    return `<div class="msg-attachments">${html}</div>`;
+  }
+
+  function renderInputArea() {
+    return `
+      <div class="chat-input-area" style="position:relative">
+        <div class="chat-attachment-preview" id="attachmentPreview" style="display:none"></div>
+        <div class="chat-input-toolbar">
+          <button class="chat-toolbar-btn" id="attachBtn" title="إرفاق ملف"><i data-lucide="paperclip"></i></button>
+          <button class="chat-toolbar-btn" id="imageBtn" title="إرفاق صورة"><i data-lucide="image"></i></button>
+          <button class="chat-toolbar-btn" id="emojiBtn" title="إيموجي"><i data-lucide="smile"></i></button>
+          <input type="file" id="fileInput" multiple style="display:none">
+          <input type="file" id="imageInput" accept="image/*" style="display:none">
+        </div>
+        <div class="emoji-picker" id="emojiPicker">
+          <div class="emoji-grid" id="emojiGrid"></div>
+        </div>
+        <div class="chat-input-row">
+          <textarea class="chat-textarea" id="chatTextarea" placeholder="اكتب رسالة..." rows="1"></textarea>
+          <button class="chat-send-btn" id="sendBtn" disabled><i data-lucide="send"></i></button>
+        </div>
+      </div>
+    `;
+  }
+
+  function bindInputArea() {
+    const textarea = document.getElementById('chatTextarea');
+    const sendBtn = document.getElementById('sendBtn');
+    const attachBtn = document.getElementById('attachBtn');
+    const imageBtn = document.getElementById('imageBtn');
+    const emojiBtn = document.getElementById('emojiBtn');
+    const fileInput = document.getElementById('fileInput');
+    const imageInput = document.getElementById('imageInput');
+    const emojiPicker = document.getElementById('emojiPicker');
+    const emojiGrid = document.getElementById('emojiGrid');
+
+    textarea.oninput = () => {
+      sendBtn.disabled = !textarea.value.trim() && pendingAttachments.length === 0;
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    };
+
+    textarea.onkeydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!sendBtn.disabled) sendMessage();
+      }
+    };
+
+    textarea.onpaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) addAttachment(file);
+        }
+      }
+    };
+
+    sendBtn.onclick = sendMessage;
+    attachBtn.onclick = () => fileInput.click();
+    imageBtn.onclick = () => imageInput.click();
+
+    fileInput.onchange = (e) => {
+      Array.from(e.target.files).forEach(f => addAttachment(f));
+      fileInput.value = '';
+    };
+    imageInput.onchange = (e) => {
+      Array.from(e.target.files).forEach(f => addAttachment(f));
+      imageInput.value = '';
+    };
+
+    // Emoji
+    emojiGrid.innerHTML = (cfg.CHAT.EMOJIS || []).map(e => `<button class="emoji-btn" type="button">${e}</button>`).join('');
+    emojiGrid.querySelectorAll('.emoji-btn').forEach(btn => {
+      btn.onclick = () => {
+        const pos = textarea.selectionStart || textarea.value.length;
+        const before = textarea.value.slice(0, pos);
+        const after = textarea.value.slice(pos);
+        textarea.value = before + btn.textContent + after;
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = pos + btn.textContent.length;
+        textarea.oninput();
+      };
+    });
+
+    emojiBtn.onclick = (e) => {
+      e.stopPropagation();
+      emojiPicker.classList.toggle('show');
+    };
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn')) {
+        emojiPicker.classList.remove('show');
+      }
+    });
+
+    renderAttachmentPreview();
+  }
+
+  function renderAttachmentPreview() {
+    const preview = document.getElementById('attachmentPreview');
+    if (!preview) return;
+    if (pendingAttachments.length === 0) {
+      preview.style.display = 'none';
+      preview.innerHTML = '';
+      return;
+    }
+    preview.style.display = 'flex';
+    preview.innerHTML = pendingAttachments.map((a, idx) => `
+      <div class="attachment-chip">
+        <i data-lucide="${a.file.type.startsWith('image/') ? 'image' : 'file'}"></i>
+        <span>${esc(a.file.name)}</span>
+        <button class="attachment-chip-remove" data-idx="${idx}"><i data-lucide="x"></i></button>
+      </div>
+    `).join('');
+    if (window.lucide) lucide.createIcons();
+    preview.querySelectorAll('.attachment-chip-remove').forEach(btn => {
+      btn.onclick = () => {
+        pendingAttachments.splice(Number(btn.dataset.idx), 1);
+        renderAttachmentPreview();
+        const sendBtn = document.getElementById('sendBtn');
+        const textarea = document.getElementById('chatTextarea');
+        if (sendBtn && textarea) {
+          sendBtn.disabled = !textarea.value.trim() && pendingAttachments.length === 0;
+        }
+      };
+    });
+  }
+
+  function bindAttachmentClicks() {
+    document.querySelectorAll('[data-img-url]').forEach(img => {
+      img.onclick = () => openLightbox(img.dataset.imgUrl);
+    });
+  }
+
+  function addAttachment(file) {
+    if (file.size > cfg.CHAT.MAX_ATTACHMENT_SIZE_MB * 1024 * 1024) {
+      safeToast('error', `الملف كبير جداً (الحد ${cfg.CHAT.MAX_ATTACHMENT_SIZE_MB}MB)`);
+      return;
+    }
+    if (!cfg.CHAT.ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+      safeToast('error', 'نوع الملف غير مسموح');
+      return;
+    }
+    if (pendingAttachments.length >= cfg.CHAT.MAX_ATTACHMENTS_PER_MESSAGE) {
+      safeToast('error', `الحد الأقصى ${cfg.CHAT.MAX_ATTACHMENTS_PER_MESSAGE} مرفقات`);
+      return;
+    }
+    pendingAttachments.push({ file });
+    renderAttachmentPreview();
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) sendBtn.disabled = false;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SEND MESSAGE
+  // ═══════════════════════════════════════════════════════════
+  async function sendMessage() {
+    const textarea = document.getElementById('chatTextarea');
+    const sendBtn = document.getElementById('sendBtn');
+    if (!textarea || !activeConvId) return;
+
+    const text = textarea.value.trim();
+    if (!text && pendingAttachments.length === 0) return;
+
+    sendBtn.disabled = true;
+    textarea.disabled = true;
+
+    try {
+      // Upload attachments
+      const attachments = [];
+      for (const att of pendingAttachments) {
+        const url = await uploadFile(att.file);
+        if (url) {
+          attachments.push({
+            url: url,
+            name: att.file.name,
+            type: att.file.type,
+            size: att.file.size
+          });
+        }
+      }
+
+      const msg = await window.Refad.chat.send(activeConvId, text, attachments);
+      if (msg) {
+        textarea.value = '';
+        textarea.style.height = 'auto';
+        pendingAttachments = [];
+        renderAttachmentPreview();
+
+        messages.push(msg);
+        await enrichMessages();
+        renderChatBody();
+      } else {
+        safeToast('error', 'فشل إرسال الرسالة');
+      }
+    } catch (e) {
+      console.error('[Chat] sendMessage failed:', e);
+      safeToast('error', 'فشل إرسال الرسالة');
+    } finally {
+      textarea.disabled = false;
+      textarea.focus();
+      const newTextarea = document.getElementById('chatTextarea');
+      const newSendBtn = document.getElementById('sendBtn');
+      if (newTextarea && newSendBtn) {
+        newSendBtn.disabled = !newTextarea.value.trim() && pendingAttachments.length === 0;
+      }
+    }
+  }
+
+  async function uploadFile(file) {
+    try {
+      const ext = (file.name.split('.').pop() || 'file').toLowerCase();
+      const path = `${session.company_id}/${session.user_id}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const { error } = await sb.storage.from(cfg.CHAT.STORAGE_BUCKET).upload(path, file, { cacheControl: '3600', upsert: false });
+      if (error) throw error;
+      const { data } = await sb.storage.from(cfg.CHAT.STORAGE_BUCKET).createSignedUrl(path, 3600 * 24 * 7);
+      return data?.signedUrl || null;
+    } catch (e) {
+      console.warn('[Chat] uploadFile failed:', e);
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // NEW CONVERSATION MODAL
+  // ═══════════════════════════════════════════════════════════
+  async function openNewConvModal() {
+    await loadUsers();
+    selectedUserIds = [];
+
+    const picker = document.getElementById('userPicker');
+    if (users.length === 0) {
+      picker.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">لا يوجد مستخدمون آخرون</div>';
+    } else {
+      picker.innerHTML = users.map(u => `
+        <div class="user-picker-item" data-user-id="${esc(u.id)}">
+          <div class="user-picker-avatar">${esc((u.full_name || '?').charAt(0).toUpperCase())}</div>
+          <div class="user-picker-info">
+            <div class="user-picker-name">${esc(u.full_name || 'مستخدم')}</div>
+            <div class="user-picker-role">${esc(u.email || '')}</div>
+          </div>
+          <div class="user-picker-check"><i data-lucide="check"></i></div>
+        </div>
+      `).join('');
+      if (window.lucide) lucide.createIcons();
+
+      picker.querySelectorAll('.user-picker-item').forEach(item => {
+        item.onclick = () => {
+          const uid = item.dataset.userId;
+          if (selectedUserIds.includes(uid)) {
+            selectedUserIds = selectedUserIds.filter(x => x !== uid);
+            item.classList.remove('selected');
+          } else {
+            const type = document.getElementById('convType').value;
+            if (type === 'direct' && selectedUserIds.length >= 1) {
+              safeToast('warning', 'محادثة فردية = شخص واحد فقط');
+              return;
+            }
+            selectedUserIds.push(uid);
+            item.classList.add('selected');
+          }
+        };
+      });
+    }
+
+    document.getElementById('convType').value = 'direct';
+    document.getElementById('groupNameGroup').style.display = 'none';
+    document.getElementById('groupName').value = '';
+    document.getElementById('newConvModal').classList.add('show');
+  }
+
+  async function createConversation() {
+    const type = document.getElementById('convType').value;
+    if (selectedUserIds.length === 0) {
+      safeToast('warning', 'اختر عضو واحد على الأقل');
+      return;
+    }
+
+    const btn = document.getElementById('createConvBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader"></i> جاري...';
+
+    try {
+      let convId;
+      if (type === 'direct') {
+        convId = await window.Refad.chat.createDirect(selectedUserIds[0]);
+      } else {
+        const name = document.getElementById('groupName').value.trim();
+        if (!name) { safeToast('warning', 'أدخل اسم المجموعة'); return; }
+        convId = await window.Refad.chat.createGroup(name, selectedUserIds);
+      }
+
+      if (convId) {
+        document.getElementById('newConvModal').classList.remove('show');
+        await loadConversations();
+        openConversation(convId);
+        safeToast('success', 'تم إنشاء المحادثة');
+      } else {
+        safeToast('error', 'فشل إنشاء المحادثة');
+      }
+    } catch (e) {
+      console.error('[Chat] createConversation failed:', e);
+      safeToast('error', 'فشل إنشاء المحادثة');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="check"></i> إنشاء';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════
+  function scrollToBottom() {
+    const el = document.getElementById('chatMessages');
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  function formatTime(dateStr) {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  function formatDateDivider(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (d.toDateString() === today.toDateString()) return 'اليوم';
+      if (d.toDateString() === yesterday.toDateString()) return 'أمس';
+      return d.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
+    } catch (e) { return ''; }
+  }
+
+  function openLightbox(url) {
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lightboxImg').src = url;
+    lb.classList.add('show');
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('show');
+    document.getElementById('lightboxImg').src = '';
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // EVENTS
+  // ═══════════════════════════════════════════════════════════
+  function bindEvents() {
+    document.getElementById('refreshBtn').onclick = async () => {
+      safeToast('info', 'جاري التحديث...');
+      await loadConversations();
+      if (activeConvId) await loadMessages();
+      safeToast('success', 'تم');
+    };
+
+    document.getElementById('newConvBtn').onclick = openNewConvModal;
+
+    document.getElementById('searchInput').oninput = (e) => {
+      searchQuery = e.target.value;
+      renderConversations();
+    };
+
+    document.getElementById('convType').onchange = (e) => {
+      document.getElementById('groupNameGroup').style.display = e.target.value === 'group' ? 'block' : 'none';
+    };
+
+    document.getElementById('createConvBtn').onclick = createConversation;
+
+    document.querySelectorAll('[data-close]').forEach(el => {
+      el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');
+    });
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.onclick = (e) => { if (e.target === m) m.classList.remove('show'); };
+    });
+
+    document.getElementById('lightbox').onclick = (e) => {
+      if (e.target.id === 'lightbox' || e.target.closest('#lightboxClose')) {
+        closeLightbox();
+      }
+    };
+
+    // Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeLightbox();
+        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    // Realtime
+    try {
+      realtimeChannel = window.Refad.chat.subscribe((msg) => {
+        if (msg.conversation_id === activeConvId) {
+          if (!messages.find(m => m.id === msg.id)) {
+            (async () => {
+              messages.push(msg);
+              await enrichMessages();
+              renderChatBody();
+              await window.Refad.chat.markRead(activeConvId);
+            })();
+          }
+        }
+        loadConversations();
+      });
+    } catch (e) {
+      console.warn('[Chat] Realtime failed, using polling:', e);
+      pollTimer = window.Refad.chat.startPolling(5000);
+    }
+
+    window.addEventListener('focus', () => {
+      loadConversations();
+      if (activeConvId) loadMessages();
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) { location.href = 'admin.html'; return; }
+      }
+    } catch (e) { console.warn('[Chat] admin check failed:', e); }
+
+    session = await (window.Refad && Refad.requireSession ? Refad.requireSession() : Promise.resolve(null));
+    if (!session || !session.company_id) {
+      setTimeout(() => location.href = 'index.html', 800);
+      return;
+    }
+
+    await loadConversations();
+    bindEvents();
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+
+<script src="sidebar.js"></script>
+<script src="notifications.js"></script>
+<script src="chat.js"></script>
+
+</body>
+</html>

@@ -486,10 +486,13 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
   // ═══════════════════════════════════════════════════════════
   function buildFilterOptions() {
     const entitySet = new Set();
-    const userSet = new Set();
+    const userOptions = new Map();
     allLogs.forEach(l => {
       if (l.entity_type) entitySet.add(l.entity_type);
-      if (l.user_email) userSet.add(l.user_email);
+      if (l.user_email || l.user_name) {
+        const key = l.user_id || l.user_email || l.user_name;
+        userOptions.set(key, l.user_name || l.user_email || '—');
+      }
     });
 
     const entitySel = document.getElementById('entityFilter');
@@ -500,7 +503,9 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
     entitySel.innerHTML = '<option value="">كل الكيانات</option>' +
       [...entitySet].sort().map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('');
     userSel.innerHTML = '<option value="">كل المستخدمين</option>' +
-      [...userSet].sort().map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join('');
+      [...userOptions.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'ar'))
+        .map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
 
     entitySel.value = curEntity;
     userSel.value = curUser;
@@ -524,10 +529,11 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
     filteredLogs = allLogs.filter(log => {
       if (q) {
         const userEmail = (log.user_email || '').toLowerCase();
+        const userName = (log.user_name || '').toLowerCase();
         const action = (log.action || '').toLowerCase();
         const entityType = (log.entity_type || '').toLowerCase();
         const entityId = (log.entity_id || '').toLowerCase();
-        if (!userEmail.includes(q) && !action.includes(q) &&
+        if (!userEmail.includes(q) && !userName.includes(q) && !action.includes(q) &&
             !entityType.includes(q) && !entityId.includes(q)) return false;
       }
       if (af) {
@@ -538,7 +544,7 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
         } else if (cat !== af) return false;
       }
       if (ef && log.entity_type !== ef) return false;
-      if (uf && log.user_email !== uf) return false;
+      if (uf && (log.user_id || log.user_email || log.user_name) !== uf) return false;
       if (df && log.created_at < df + 'T00:00:00') return false;
       if (dt && log.created_at > dt + 'T23:59:59') return false;
       return true;
@@ -661,11 +667,12 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
       const cat = getActionCategory(log.action);
       const iconName = getActionIcon(log.action);
       const actionLabel = getActionLabel(log.action);
-      const userInitial = (log.user_email || 'S').charAt(0).toUpperCase();
+      const userLabel = log.user_name || log.user_email || '—';
+      const userInitial = userLabel.charAt(0).toUpperCase();
       const isHighlighted = currentHighlightId && log.id === currentHighlightId;
       return `<tr class="${isHighlighted ? 'highlighted' : ''}" data-log-id="${esc(log.id)}">
         <td><div class="action-cell"><div class="action-icon ${cat}"><i data-lucide="${iconName}"></i></div><div class="action-info"><h4>${esc(actionLabel)}</h4><p>${esc(log.action || '—')}</p></div></div></td>
-        <td><div class="user-cell"><div class="user-avatar-sm">${esc(userInitial)}</div><span style="font-size:12px">${esc(log.user_email || '—')}</span></div></td>
+        <td><div class="user-cell"><div class="user-avatar-sm">${esc(userInitial)}</div><span style="font-size:12px">${esc(userLabel)}</span></div></td>
         <td>${log.entity_type ? `<span class="badge badge-info">${esc(log.entity_type)}</span>` : '—'}</td>
         <td style="font-size:12px;color:var(--text-muted)"><div>${fmtDateTime(log.created_at)}</div><div style="font-size:10.5px">${timeAgo(log.created_at)}</div></td>
         <td style="text-align:left"><button class="details-toggle" data-log-id="${esc(log.id)}">تفاصيل</button></td>
@@ -739,7 +746,7 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
                 <div class="timeline-item-time">${t}</div>
               </div>
               <div class="timeline-item-meta">
-                <span>👤 ${esc(log.user_email || '—')}</span>
+                <span>👤 ${esc(log.user_name || log.user_email || '—')}</span>
                 ${log.entity_type ? `<span class="badge badge-info">${esc(log.entity_type)}</span>` : ''}
                 ${log.entity_id ? `<span style="font-family:monospace;font-size:10px">#${esc(log.entity_id.slice(0, 8))}</span>` : ''}
               </div>
@@ -780,7 +787,7 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
     </div>`;
 
     html += `<div class="detail-row"><div class="detail-label">التاريخ</div><div class="detail-value">${fmtDateTime(log.created_at)} <span style="color:var(--text-muted);font-size:11px">(${timeAgo(log.created_at)})</span></div></div>`;
-    html += `<div class="detail-row"><div class="detail-label">المستخدم</div><div class="detail-value">${esc(log.user_email || '—')}</div></div>`;
+    html += `<div class="detail-row"><div class="detail-label">الموظف</div><div class="detail-value">${esc(log.user_name || log.user_email || '—')}${log.user_email && log.user_name ? ` <span style="color:var(--text-muted)">(${esc(log.user_email)})</span>` : ''}</div></div>`;
     if (log.entity_type) {
       html += `<div class="detail-row"><div class="detail-label">نوع الكيان</div><div class="detail-value"><span class="badge badge-info">${esc(log.entity_type)}</span></div></div>`;
     }
@@ -817,7 +824,7 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
     if (log.entity_type) {
       actions.push(`<button class="btn btn-ghost btn-sm" data-action="entity-type"><i data-lucide="list"></i>كل حركات ${esc(log.entity_type)}</button>`);
     }
-    if (log.user_email) {
+    if (log.user_email || log.user_name) {
       actions.push(`<button class="btn btn-ghost btn-sm" data-action="user"><i data-lucide="user"></i>كل حركات هذا المستخدم</button>`);
     }
     actions.push(`<button class="btn btn-ghost btn-sm" data-close="detailsModal">إغلاق</button>`);
@@ -843,12 +850,12 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
           applyFilters();
           toast('info', `عرض كل حركات نوع: ${log.entity_type}`);
         } else if (action === 'user') {
-          document.getElementById('userFilter').value = log.user_email;
+          document.getElementById('userFilter').value = log.user_id || log.user_email || log.user_name;
           document.getElementById('searchInput').value = '';
           document.getElementById('actionFilter').value = '';
           document.getElementById('entityFilter').value = '';
           applyFilters();
-          toast('info', `عرض كل حركات: ${log.user_email}`);
+          toast('info', `عرض كل حركات: ${log.user_name || log.user_email}`);
         }
       };
     });
@@ -868,7 +875,7 @@ tbody tr.highlighted:hover{background:var(--gold-soft)}
     const headers = ['التاريخ', 'المستخدم', 'الإجراء', 'التسمية', 'النوع', 'معرف الكيان', 'الفرع'];
     const rows = filteredLogs.map(log => [
       fmtDateTime(log.created_at),
-      log.user_email || '',
+      log.user_name || log.user_email || '',
       log.action || '',
       getActionLabel(log.action),
       log.entity_type || '',

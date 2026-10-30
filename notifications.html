@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>الإشعارات — رفاد سوبرماركت</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+
+<style>
+:root{
+  --primary:#0B2C4D;--primary-light:#1e4a73;--primary-dark:#061a2e;
+  --accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,0.1);
+  --gold:#F59E0B;--gold-soft:rgba(245,158,11,0.1);
+  --danger:#ef4444;--danger-soft:rgba(239,68,68,0.1);
+  --success:#10b981;--success-soft:rgba(16,185,129,0.1);
+  --info:#3b82f6;--info-soft:rgba(59,130,246,0.1);
+  --purple:#8b5cf6;--purple-soft:rgba(139,92,246,0.1);
+  --bg:#F1F5F9;--bg-soft:#f8fafc;--bg-card:#ffffff;
+  --card:#ffffff;--text:#0f172a;--text-muted:#64748b;
+  --border:#e2e8f0;--border-soft:#f1f5f9;
+  --radius:14px;--radius-sm:10px;--radius-xs:8px;
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 20px rgba(11,44,77,0.08);
+  --shadow-lg:0 10px 40px rgba(11,44,77,0.12);
+  --font-family:'Segoe UI',Tahoma,sans-serif;
+}
+[data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--card:#1e293b;--bg-card:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155;--border-soft:#1e293b}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-family);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;transition:background 0.2s,color 0.2s}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+.main{min-height:100vh}
+.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-xs);gap:12px;flex-wrap:wrap}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar h1{font-size:19px;font-weight:800;white-space:nowrap}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;border:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.15s;white-space:nowrap;text-decoration:none}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:white}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 4px 12px var(--accent-soft)}
+.btn-ghost{background:var(--bg-soft);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);border-color:var(--accent)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:white}
+.btn-success{background:var(--success-soft);color:var(--success)}
+.btn-success:hover{background:var(--success);color:white}
+.btn-sm{padding:7px 12px;font-size:12px}
+.btn-icon{padding:9px;width:38px;height:38px;justify-content:center}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
+
+.content{padding:24px;max-width:1400px;margin:0 auto}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.stat-card.info::before{background:var(--info)}
+.stat-card.warn::before{background:var(--gold)}
+.stat-card.success::before{background:var(--success)}
+.stat-card.danger::before{background:var(--danger)}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:6px}
+.stat-value{font-size:22px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:600}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
+.card-title svg{width:18px;height:18px;color:var(--accent)}
+
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 20px;background:var(--bg-soft);border-bottom:1px solid var(--border)}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap input{width:100%;padding:9px 36px 9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font-size:13px}
+.search-wrap input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.search-wrap svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none}
+.form-select{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text);font-size:13px}
+.form-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:0;padding:0 20px;background:var(--card);overflow-x:auto}
+.tab{padding:12px 16px;background:none;border:none;color:var(--text-muted);font-size:13px;font-weight:700;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;cursor:pointer}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab .tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bg-soft);color:var(--text-muted);font-size:10px;font-weight:800;margin-right:6px}
+.tab.active .tab-count{background:var(--accent-soft);color:var(--accent)}
+
+.notif-list{padding:8px}
+.notif-item{display:flex;gap:12px;padding:14px 16px;border-radius:12px;cursor:pointer;transition:background 0.15s;text-decoration:none;color:inherit;position:relative;border:1px solid transparent}
+.notif-item:hover{background:var(--bg-soft);border-color:var(--border)}
+.notif-item.unread{background:rgba(20,184,166,0.04);border-color:rgba(20,184,166,0.15)}
+.notif-item.unread::before{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:4px;height:60%;background:var(--accent);border-radius:0 4px 4px 0}
+
+.notif-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.notif-icon svg{width:20px;height:20px}
+
+.notif-content{flex:1;min-width:0}
+.notif-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;line-height:1.35}
+.notif-body{font-size:12.5px;color:var(--text-muted);line-height:1.5;margin-bottom:6px}
+.notif-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.notif-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);font-weight:600}
+.notif-meta-item svg{width:11px;height:11px}
+.notif-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:800}
+.notif-badge svg{width:10px;height:10px}
+
+.notif-actions{display:flex;gap:4px;flex-shrink:0;align-items:flex-start}
+.notif-action-btn{width:32px;height:32px;border-radius:8px;border:none;background:var(--bg-soft);color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;cursor:pointer}
+.notif-action-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.notif-action-btn.danger:hover{background:var(--danger-soft);color:var(--danger)}
+.notif-action-btn.success:hover{background:var(--success-soft);color:var(--success)}
+.notif-action-btn svg{width:14px;height:14px}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-muted)}
+.empty-state svg{width:56px;height:56px;margin-bottom:14px;opacity:0.4}
+.empty-state h3{font-size:16px;color:var(--text);margin-bottom:6px;font-weight:700}
+.empty-state p{font-size:13px;max-width:500px;margin:0 auto;line-height:1.6}
+.loading-state{padding:60px;text-align:center;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-top:1px solid var(--border);background:var(--bg-soft);flex-wrap:wrap}
+.pagination button{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+.pagination button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pagination button.active{background:var(--accent);color:white;border-color:var(--accent)}
+.pagination button:disabled{opacity:0.4;cursor:not-allowed}
+.pagination .page-info{font-size:12px;color:var(--text-muted);margin:0 8px}
+
+.toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast 0.3s ease-out}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+.toast.success{border-right-color:var(--success)}.toast.success svg{color:var(--success)}
+.toast.error{border-right-color:var(--danger)}.toast.error svg{color:var(--danger)}
+.toast.info{border-right-color:var(--info)}.toast.info svg{color:var(--info)}
+.toast.warning{border-right-color:var(--gold)}.toast.warning svg{color:var(--gold)}
+@keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+@media (max-width:768px){
+  .content{padding:16px}
+  .topbar{padding:0 16px}
+  .topbar h1{font-size:16px}
+  .filter-bar{flex-direction:column;align-items:stretch}
+  .filter-bar .form-select{width:100%}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .notif-item{padding:12px}
+  .notif-icon{width:38px;height:38px}
+}
+@media (max-width:480px){
+  .stat-value{font-size:18px}
+  .notif-actions{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<div id="refad-sidebar"></div>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <h1>الإشعارات</h1>
+        <div class="topbar-subtitle" id="branchName">—</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="تحديث"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn btn-ghost" id="markAllReadBtn"><i data-lucide="check-check"></i><span>قراءة الكل</span></button>
+      <button class="btn btn-danger btn-icon" id="deleteAllBtn" title="حذف الكل"><i data-lucide="trash-2"></i></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card info">
+        <div class="stat-label">إجمالي الإشعارات</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub">كل الأنواع</div>
+      </div>
+      <div class="stat-card warn">
+        <div class="stat-label">غير مقروء</div>
+        <div class="stat-value" id="statUnread" style="color:var(--gold)">—</div>
+        <div class="stat-sub">تحتاج مراجعة</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-label">حرجة</div>
+        <div class="stat-value" id="statDanger" style="color:var(--danger)">—</div>
+        <div class="stat-sub">تحتاج إجراء فوري</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label">مقروءة</div>
+        <div class="stat-value" id="statRead" style="color:var(--success)">—</div>
+        <div class="stat-sub">تمت مراجعتها</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card" style="padding:0;overflow:visible">
+      <div class="tabs">
+        <button class="tab active" data-filter="all">الكل <span class="tab-count" id="countAll">0</span></button>
+        <button class="tab" data-filter="unread">غير مقروء <span class="tab-count" id="countUnread">0</span></button>
+        <button class="tab" data-filter="low_stock">مخزون</button>
+        <button class="tab" data-filter="expiring_lot">صلاحية</button>
+        <button class="tab" data-filter="store_order">طلبات المتجر</button>
+        <button class="tab" data-filter="chat_message">رسائل</button>
+        <button class="tab" data-filter="system">نظام</button>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <i data-lucide="search"></i>
+          <input type="text" id="searchInput" placeholder="ابحث في الإشعارات...">
+        </div>
+        <select class="form-select" id="severityFilter">
+          <option value="">كل المستويات</option>
+          <option value="info">معلومة</option>
+          <option value="success">نجاح</option>
+          <option value="warning">تحذير</option>
+          <option value="danger">خطر</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="clearFilters"><i data-lucide="x"></i><span>مسح</span></button>
+      </div>
+
+      <div class="card-body" style="padding:0">
+        <div class="notif-list" id="notifList">
+          <div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>
+        </div>
+        <div class="pagination" id="pagination" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  let session = null;
+  let allItems = [];
+  let filteredItems = [];
+  let currentPage = 1;
+  const PAGE_SIZE = 20;
+  const state = {
+    filter: 'all',
+    search: '',
+    severity: ''
+  };
+
+  const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  const fmtDateTime = (window.Refad && Refad.fmtDateTime) || function(d){if(!d)return'—';return new Date(d).toLocaleString('ar-EG')};
+  const timeAgo = (window.Refad && Refad.timeAgo) || function(d){return ''};
+
+  function safeToast(type, msg) {
+    const t = window.Refad && window.Refad.toast;
+    if (t && typeof t === 'object') {
+      (t[type] || t.info || function(){}) (msg);
+    } else if (typeof t === 'function') {
+      t(type, msg);
+    }
+  }
+
+  function getType(value) {
+    return (cfg.NOTIFICATIONS.TYPES || []).find(t => t.value === value) || {
+      icon: 'bell', severity: 'info', color: 'var(--info)', label: value
+    };
+  }
+
+  function getSeverity(value) {
+    return (cfg.NOTIFICATIONS.SEVERITIES || []).find(s => s.value === value) || {
+      color: 'var(--info)', bg: 'var(--info-soft)', label: value
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOAD
+  // ═══════════════════════════════════════════════════════════
+  async function loadAll() {
+    try {
+      const items = await window.Refad.notifications.list({ limit: 200 });
+      allItems = items || [];
+      updateStats();
+      applyFilters();
+    } catch (e) {
+      console.error('[Notifications Page] loadAll failed:', e);
+      safeToast('error', 'فشل تحميل الإشعارات');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATS
+  // ═══════════════════════════════════════════════════════════
+  function updateStats() {
+    const total = allItems.length;
+    const unread = allItems.filter(n => !n.is_read).length;
+    const danger = allItems.filter(n => n.severity === 'danger' && !n.is_read).length;
+    const read = allItems.filter(n => n.is_read).length;
+
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statUnread').textContent = unread;
+    document.getElementById('statDanger').textContent = danger;
+    document.getElementById('statRead').textContent = read;
+
+    document.getElementById('countAll').textContent = total;
+    document.getElementById('countUnread').textContent = unread;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FILTERS
+  // ═══════════════════════════════════════════════════════════
+  function applyFilters() {
+    let items = allItems.slice();
+
+    if (state.filter === 'unread') {
+      items = items.filter(n => !n.is_read);
+    } else if (state.filter !== 'all') {
+      // By type or by category
+      if (state.filter === 'system') {
+        items = items.filter(n => n.type === 'system');
+      } else {
+        items = items.filter(n => n.type === state.filter);
+      }
+    }
+
+    if (state.severity) {
+      items = items.filter(n => n.severity === state.severity);
+    }
+
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      items = items.filter(n =>
+        (n.title || '').toLowerCase().includes(q) ||
+        (n.body || '').toLowerCase().includes(q)
+      );
+    }
+
+    filteredItems = items;
+    currentPage = 1;
+    render();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+  function render() {
+    const list = document.getElementById('notifList');
+
+    if (filteredItems.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <i data-lucide="inbox"></i>
+          <h3>لا توجد إشعارات</h3>
+          <p>${allItems.length === 0 ? 'لم يتم إنشاء أي إشعارات بعد. ستظهر هنا تلقائياً عند حدوث أي حدث مهم.' : 'لا توجد نتائج مطابقة للفلاتر.'}</p>
+        </div>
+      `;
+      document.getElementById('pagination').style.display = 'none';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    const pageItems = filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+    list.innerHTML = pageItems.map(n => {
+      const type = getType(n.type);
+      const sev = getSeverity(n.severity || type.severity);
+      return `
+        <div class="notif-item ${n.is_read ? '' : 'unread'}" data-id="${esc(n.id)}" data-link="${esc(n.link || '')}">
+          <div class="notif-icon" style="background:${sev.bg};color:${sev.color}">
+            <i data-lucide="${esc(type.icon)}"></i>
+          </div>
+          <div class="notif-content">
+            <div class="notif-title">${esc(n.title)}</div>
+            ${n.body ? `<div class="notif-body">${esc(n.body)}</div>` : ''}
+            <div class="notif-meta">
+              <span class="notif-badge" style="background:${sev.bg};color:${sev.color}">
+                <i data-lucide="circle"></i>${esc(sev.label)}
+              </span>
+              <span class="notif-meta-item"><i data-lucide="clock"></i>${timeAgo(n.created_at)}</span>
+              <span class="notif-meta-item"><i data-lucide="calendar"></i>${fmtDateTime(n.created_at)}</span>
+              ${n.is_read ? '<span class="notif-meta-item" style="color:var(--success)"><i data-lucide="check-check"></i>مقروء</span>' : ''}
+            </div>
+          </div>
+          <div class="notif-actions">
+            ${!n.is_read ? `<button class="notif-action-btn success" data-action="read" data-id="${esc(n.id)}" title="تحديد كمقروء"><i data-lucide="check"></i></button>` : ''}
+            <button class="notif-action-btn danger" data-action="delete" data-id="${esc(n.id)}" title="حذف"><i data-lucide="trash-2"></i></button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+    bindActions();
+    renderPagination(filteredItems.length, totalPages);
+  }
+
+  function bindActions() {
+    document.querySelectorAll('.notif-item').forEach(item => {
+      item.onclick = (e) => {
+        if (e.target.closest('.notif-action-btn')) return;
+        const id = item.dataset.id;
+        const link = item.dataset.link;
+        handleOpen(id, link);
+      };
+    });
+
+    document.querySelectorAll('[data-action="read"]').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        await window.Refad.notifications.markRead(btn.dataset.id);
+        const item = allItems.find(x => x.id === btn.dataset.id);
+        if (item) item.is_read = true;
+        updateStats();
+        applyFilters();
+      };
+    });
+
+    document.querySelectorAll('[data-action="delete"]').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        if (!confirm('حذف هذا الإشعار؟')) return;
+        await window.Refad.notifications.remove(btn.dataset.id);
+        allItems = allItems.filter(x => x.id !== btn.dataset.id);
+        updateStats();
+        applyFilters();
+        safeToast('success', 'تم حذف الإشعار');
+      };
+    });
+  }
+
+  async function handleOpen(id, link) {
+    const item = allItems.find(x => x.id === id);
+    if (item && !item.is_read) {
+      await window.Refad.notifications.markRead(id);
+      item.is_read = true;
+      updateStats();
+    }
+    if (link) {
+      window.location.href = link;
+    } else {
+      applyFilters();
+    }
+  }
+
+  function renderPagination(total, totalPages) {
+    const el = document.getElementById('pagination');
+    if (totalPages <= 1) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+
+    let html = `<button ${currentPage <= 1 ? 'disabled' : ''} data-p="${currentPage - 1}">‹ السابق</button>`;
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    for (let i = start; i <= end; i++) {
+      html += `<button class="${i === currentPage ? 'active' : ''}" data-p="${i}">${i}</button>`;
+    }
+    html += `<button ${currentPage >= totalPages ? 'disabled' : ''} data-p="${currentPage + 1}">التالي ›</button>`;
+    html += `<span class="page-info">${total} إشعار</span>`;
+    el.innerHTML = html;
+
+    el.querySelectorAll('button[data-p]').forEach(btn => {
+      btn.onclick = () => {
+        currentPage = Number(btn.dataset.p);
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════
+  async function markAllRead() {
+    await window.Refad.notifications.markAllRead();
+    allItems.forEach(n => n.is_read = true);
+    updateStats();
+    applyFilters();
+    safeToast('success', 'تم تحديد الكل كمقروء');
+  }
+
+  async function deleteAll() {
+    if (!confirm('حذف كل الإشعارات؟ لا يمكن التراجع.')) return;
+    const ids = allItems.map(n => n.id);
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      await window.Refad.notifications.remove(id);
+    }
+    allItems = [];
+    updateStats();
+    applyFilters();
+    safeToast('success', 'تم حذف كل الإشعارات');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // EVENTS
+  // ═══════════════════════════════════════════════════════════
+  function bindEvents() {
+    document.getElementById('refreshBtn').onclick = async () => {
+      safeToast('info', 'جاري التحديث...');
+      await loadAll();
+      safeToast('success', 'تم التحديث');
+    };
+
+    document.getElementById('markAllReadBtn').onclick = markAllRead;
+    document.getElementById('deleteAllBtn').onclick = deleteAll;
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        state.filter = tab.dataset.filter;
+        applyFilters();
+      };
+    });
+
+    document.getElementById('searchInput').oninput = (e) => {
+      state.search = e.target.value;
+      applyFilters();
+    };
+
+    document.getElementById('severityFilter').onchange = (e) => {
+      state.severity = e.target.value;
+      applyFilters();
+    };
+
+    document.getElementById('clearFilters').onclick = () => {
+      state.filter = 'all';
+      state.search = '';
+      state.severity = '';
+      document.getElementById('searchInput').value = '';
+      document.getElementById('severityFilter').value = '';
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.filter === 'all'));
+      applyFilters();
+    };
+
+    // Realtime update
+    window.addEventListener('refad:notification-received', async () => {
+      await loadAll();
+    });
+
+    window.addEventListener('refad:notification-unread-changed', () => {
+      loadAll();
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════
+  async function init() {
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        const { data: pa } = await sb.from('platform_admins')
+          .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
+        if (pa) { location.href = 'admin.html'; return; }
+      }
+    } catch (e) { console.warn('[Notifications] admin check failed:', e); }
+
+    session = await (window.Refad && Refad.requireSession ? Refad.requireSession() : Promise.resolve(null));
+    if (!session || !session.company_id) {
+      setTimeout(() => location.href = 'index.html', 800);
+      return;
+    }
+
+    const branchNameEl = document.getElementById('branchName');
+    if (branchNameEl) {
+      const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
+      branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+
+    await loadAll();
+    bindEvents();
+
+    // Realtime polling
+    try {
+      window.Refad.notifications.subscribe(() => {});
+    } catch (e) {
+      window.Refad.notifications.startPolling(30000);
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+
+<script src="sidebar.js"></script>
+<script src="notifications.js"></script>
+<script src="chat.js"></script>
+
+</body>
+</html>

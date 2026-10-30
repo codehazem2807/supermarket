@@ -11,7 +11,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
-<!-- ⭐ theme-manager + settings-manager قبل app.js -->
 <script src="config.js"></script>
 <script src="theme-manager.js"></script>
 <script src="settings-manager.js"></script>
@@ -215,6 +214,34 @@ tbody tr.selected{background:var(--accent-soft)}
 .markup-btn{padding:8px 4px;background:var(--bg-soft);border:1px solid var(--border);border-radius:6px;font-size:11.5px;font-weight:800;color:var(--text-muted);cursor:pointer;transition:all 0.15s}
 .markup-btn:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-dark)}
 
+/* ⭐ Opening Stock Section */
+.opening-stock-box {
+  background: linear-gradient(135deg, var(--success-soft), var(--info-soft));
+  border: 2px solid var(--success);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.opening-stock-box .os-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--success);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.opening-stock-box .os-title svg {
+  width: 16px;
+  height: 16px;
+}
+.opening-stock-box .os-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
 .toast-container{position:fixed;top:20px;left:20px;z-index:3000;display:flex;flex-direction:column;gap:10px}
 .toast{background:var(--card);border:1px solid var(--border);border-right:4px solid var(--accent);padding:14px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);max-width:400px;animation:slideInToast 0.3s ease-out}
 .toast svg{width:18px;height:18px;flex-shrink:0}
@@ -381,6 +408,7 @@ tbody tr.selected{background:var(--accent-soft)}
         <button class="tab active" data-product-tab="basic">أساسي</button>
         <button class="tab" data-product-tab="units">الوحدات</button>
         <button class="tab" data-product-tab="pricing">الأسعار</button>
+        <button class="tab" data-product-tab="opening_stock">رصيد أول المدة</button>
         <button class="tab" data-product-tab="barcodes">الباركودات</button>
         <button class="tab" data-product-tab="bundle" id="bundleTabBtn" style="display:none">المكونات</button>
         <button class="tab" data-product-tab="inventory">المخزون</button>
@@ -540,6 +568,50 @@ tbody tr.selected{background:var(--accent-soft)}
         </div>
       </div>
 
+      <!-- ⭐ رصيد أول المدة -->
+      <div data-product-panel="opening_stock" style="display:none">
+        <div class="opening-stock-box">
+          <div class="os-title">
+            <i data-lucide="package-open"></i>
+            <span>رصيد أول المدة (Opening Stock)</span>
+          </div>
+          <p style="font-size:12.5px;line-height:1.7;color:var(--text);margin-bottom:12px">
+            📌 استخدم هذا القسم لإضافة <strong>الكمية الموجودة حالياً</strong> من المنتج في المخزن.
+            <br>
+            سيتم إنشاء <strong>دفعة (lot)</strong> جديدة برقم فريد وتاريخ صلاحية، وسيتم تسجيل حركة مخزون من نوع <strong>"رصيد افتتاحي"</strong>.
+          </p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">الكمية الافتتاحية (بالوحدة الأساسية)</label>
+              <input type="number" class="form-input" id="prodOpeningQty" placeholder="0" step="0.01" min="0" value="0">
+              <div class="form-hint">سيتم إضافتها كمخزون فعلي</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">المخزن</label>
+              <select class="form-select" id="prodOpeningWarehouse">
+                <option value="">— اختر المخزن —</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">رقم الدفعة (Batch/Lot)</label>
+              <input type="text" class="form-input" id="prodOpeningLotNumber" placeholder="LOT-XXX (اختياري)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">تاريخ الصلاحية</label>
+              <input type="date" class="form-input" id="prodOpeningExpiry">
+              <div class="form-hint">مطلوب للمنتجات الغذائية</div>
+            </div>
+          </div>
+          <div class="os-hint">
+            💡 <strong>ملاحظة:</strong> إذا كان المنتج موجوداً بالفعل ولديه رصيد، فسيتم إضافة الكمية الجديدة كدفعة منفصلة.
+            <br>
+            ⚠️ هذه العملية لا يمكن التراجع عنها بسهولة — راجع الكمية قبل الحفظ.
+          </div>
+        </div>
+      </div>
+
       <div data-product-panel="barcodes" style="display:none">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
           أضف باركودات إضافية لنفس المنتج (مثلاً: باركود المُصنّع + باركود الشركة + باركود الوزن)
@@ -680,9 +752,9 @@ tbody tr.selected{background:var(--accent-soft)}
   let extraBarcodes = [];
   let selectedIds = new Set();
   let currentPage = 1;
+  let warehouses = [];
   const PAGE_SIZE = 25;
 
-  // ⭐ إعدادات المنتجات من RefadSettings
   let productSettings = {
     barcodeDefaultType: 'EAN13',
     barcodePrefix: '200',
@@ -714,7 +786,6 @@ tbody tr.selected{background:var(--accent-soft)}
     }
   }
 
-  // ⭐ تحميل إعدادات المنتجات
   async function loadProductSettings() {
     if (!window.RefadSettings) return;
     try {
@@ -723,13 +794,11 @@ tbody tr.selected{background:var(--accent-soft)}
       productSettings.autoGenerateBarcode = window.RefadSettings.get('barcode.auto_generate', true);
       productSettings.requireExpiryDate = window.RefadSettings.get('inventory.require_expiry_date', true);
       productSettings.defaultShelfLifeDays = window.RefadSettings.get('inventory.default_shelf_life_days', 365);
-      console.log('[Products] Settings loaded:', productSettings);
     } catch (e) {
       console.warn('[Products] Settings load failed:', e);
     }
   }
 
-  // ⭐ توليد باركود تلقائي
   function generateBarcode() {
     const prefix = productSettings.barcodePrefix || '200';
     const type = productSettings.barcodeDefaultType || 'EAN13';
@@ -756,6 +825,32 @@ tbody tr.selected{background:var(--accent-soft)}
   // ═══════════════════════════════════════════════════════════
   // LOADERS
   // ═══════════════════════════════════════════════════════════
+  async function loadWarehouses() {
+    try {
+      const res = await sb.from('warehouses')
+        .select('id, name, is_default')
+        .eq('company_id', session.company_id)
+        .is('deleted_at', null)
+        .eq('is_active', true)
+        .order('is_default', { ascending: false })
+        .order('name');
+      warehouses = res.data || [];
+      renderWarehouseOptions();
+    } catch (e) {
+      console.warn('[Products] loadWarehouses:', e);
+      warehouses = [];
+    }
+  }
+
+  function renderWarehouseOptions() {
+    const sel = document.getElementById('prodOpeningWarehouse');
+    if (!sel) return;
+    const defaultWh = warehouses.find(w => w.is_default) || warehouses[0];
+    sel.innerHTML = '<option value="">— اختر المخزن —</option>' + warehouses.map(w =>
+      '<option value="' + w.id + '"' + (w.id === (defaultWh ? defaultWh.id : '') ? ' selected' : '') + '>' + esc(w.name) + (w.is_default ? ' ⭐' : '') + '</option>'
+    ).join('');
+  }
+
   async function loadCategories() {
     const res = await sb.from('categories')
       .select('id, name, parent_id')
@@ -1074,7 +1169,15 @@ tbody tr.selected{background:var(--accent-soft)}
     document.getElementById('barcodeHint').textContent = '';
     document.getElementById('pluHint').textContent = '';
 
-    // امسح زر الطباعة القديم لو موجود
+    // Reset opening stock fields
+    const openingQty = document.getElementById('prodOpeningQty');
+    if (openingQty) openingQty.value = '0';
+    const openingLot = document.getElementById('prodOpeningLotNumber');
+    if (openingLot) openingLot.value = '';
+    const openingExpiry = document.getElementById('prodOpeningExpiry');
+    if (openingExpiry) openingExpiry.value = '';
+    renderWarehouseOptions();
+
     const oldPrint = document.querySelector('#productModal #printBarcodeBtn');
     if (oldPrint) oldPrint.remove();
 
@@ -1116,7 +1219,6 @@ tbody tr.selected{background:var(--accent-soft)}
         document.getElementById('bundleTabBtn').style.display = 'none';
       }
 
-      // ⭐ زر طباعة الباركود
       if (p.barcode) {
         const modalFooter = document.querySelector('#productModal .modal-footer');
         if (modalFooter) {
@@ -1151,15 +1253,21 @@ tbody tr.selected{background:var(--accent-soft)}
       document.getElementById('prodMinStock').value = 0;
       document.getElementById('prodReorderQty').value = 0;
 
-      // ⭐ مدة الصلاحية من الإعدادات
       document.getElementById('prodShelfLife').value = productSettings.defaultShelfLifeDays || 365;
 
-      // ⭐ توليد باركود تلقائي
       if (productSettings.autoGenerateBarcode) {
         const generated = generateBarcode();
         document.getElementById('prodBarcode').value = generated;
         document.getElementById('barcodeHint').textContent = '✨ تم توليد باركود تلقائياً — يمكنك تعديله';
         document.getElementById('barcodeHint').style.color = 'var(--accent)';
+      }
+
+      // Set default expiry = 1 year from now
+      const expiryInput = document.getElementById('prodOpeningExpiry');
+      if (expiryInput) {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 1);
+        expiryInput.value = d.toISOString().slice(0, 10);
       }
 
       document.getElementById('bundleTabBtn').style.display = 'none';
@@ -1425,7 +1533,17 @@ tbody tr.selected{background:var(--accent-soft)}
       }
     }
 
-    // ⭐ tax_rate_id
+    // ⭐ Opening stock data
+    const openingQty = Number(document.getElementById('prodOpeningQty').value) || 0;
+    const openingWarehouse = document.getElementById('prodOpeningWarehouse').value;
+    const openingLot = document.getElementById('prodOpeningLotNumber').value.trim();
+    const openingExpiry = document.getElementById('prodOpeningExpiry').value;
+
+    if (openingQty > 0) {
+      if (!openingWarehouse) { errEl.textContent = 'اختر المخزن لرصيد أول المدة'; errEl.classList.add('show'); return; }
+      if (productSettings.requireExpiryDate && !openingExpiry) { errEl.textContent = 'تاريخ الصلاحية مطلوب لرصيد أول المدة'; errEl.classList.add('show'); return; }
+    }
+
     let taxRateId = null;
     if (taxRatesList && taxRatesList.length > 0) {
       const matchedRate = Number(document.getElementById('prodTax').value) || 0;
@@ -1473,6 +1591,62 @@ tbody tr.selected{background:var(--accent-soft)}
         productId = res.data.id;
       }
 
+      // ⭐ Opening Stock — إضافة دفعة (lot) جديدة
+      if (openingQty > 0 && openingWarehouse && productId) {
+        try {
+          const lotNumber = openingLot || ('OPEN-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.random().toString(36).substring(2, 6).toUpperCase());
+          const expiryDate = openingExpiry || (function() {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() + 1);
+            return d.toISOString().slice(0, 10);
+          })();
+
+          const lotRes = await sb.from('stock_lots').insert({
+            company_id: session.company_id,
+            branch_id: session.active_branch_id,
+            warehouse_id: openingWarehouse,
+            product_id: productId,
+            lot_number: lotNumber,
+            quantity_in: openingQty,
+            quantity_left: openingQty,
+            effective_unit_cost: Number(payload.cost_price) || 0,
+            sale_price: Number(payload.sale_price) || 0,
+            expiry_date: expiryDate,
+            is_quarantined: false,
+            received_at: new Date().toISOString()
+          }).select('id').single();
+
+          if (lotRes.error) {
+            console.warn('[Products] Opening stock lot insert failed:', lotRes.error);
+            safeToast('warning', 'تم حفظ المنتج، لكن فشل إضافة رصيد أول المدة: ' + lotRes.error.message);
+          } else {
+            // تسجيل حركة مخزون
+            try {
+              await sb.from('inventory_movements').insert({
+                company_id: session.company_id,
+                branch_id: session.active_branch_id,
+                warehouse_id: openingWarehouse,
+                product_id: productId,
+                lot_id: lotRes.data.id,
+                movement_type: 'in',
+                quantity: openingQty,
+                unit_cost: Number(payload.cost_price) || 0,
+                reference_type: 'opening_stock',
+                reference_id: productId,
+                reason: 'رصيد أول المدة',
+                created_by: session.user_id
+              });
+              console.log('[Products] Opening stock added:', openingQty, 'units');
+            } catch (movErr) {
+              console.warn('[Products] Opening stock movement failed:', movErr);
+            }
+          }
+        } catch (osErr) {
+          console.warn('[Products] Opening stock error:', osErr);
+          safeToast('warning', 'تم حفظ المنتج، لكن فشل رصيد أول المدة');
+        }
+      }
+
       await sb.from('product_barcodes').delete().eq('product_id', productId);
       const validExtras = extraBarcodes.filter(b => b.barcode.trim());
       if (validExtras.length > 0) {
@@ -1503,7 +1677,7 @@ tbody tr.selected{background:var(--accent-soft)}
         await sb.from('bundle_items').delete().eq('bundle_product_id', id);
       }
 
-      safeToast('success', id ? 'تم تحديث المنتج' : 'تم إضافة المنتج');
+      safeToast('success', id ? 'تم تحديث المنتج' : 'تم إضافة المنتج' + (openingQty > 0 ? ' + رصيد أول المدة' : ''));
       document.getElementById('productModal').classList.remove('show');
       await loadProducts();
       renderStats();
@@ -1756,7 +1930,6 @@ tbody tr.selected{background:var(--accent-soft)}
   // INIT
   // ═══════════════════════════════════════════════════════════
   async function init() {
-    // ⭐ Session
     if (window.Refad && Refad.requireSession) {
       session = await Refad.requireSession();
     } else {
@@ -1779,10 +1952,8 @@ tbody tr.selected{background:var(--accent-soft)}
     }
     if (!session) return;
 
-    // ⭐ إعدادات المنتجات
     await loadProductSettings();
 
-    // ⭐ tax_rates
     try {
       const trRes = await sb.from('tax_rates')
         .select('id, name, rate')
@@ -1797,6 +1968,7 @@ tbody tr.selected{background:var(--accent-soft)}
       branchNameEl.textContent = companyName + ' — ' + (session.branch_name || '—');
     }
 
+    await loadWarehouses();
     await loadCategories();
     await loadProducts();
     renderStats();
@@ -1895,7 +2067,6 @@ tbody tr.selected{background:var(--accent-soft)}
       m.onclick = (e) => { if (e.target === m) m.classList.remove('show'); };
     });
 
-    // ⭐ استمع لتغييرات الإعدادات
     window.addEventListener('refad:settings-changed', async () => {
       await loadProductSettings();
       safeToast('info', 'تم تحديث إعدادات المنتجات');

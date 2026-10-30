@@ -124,6 +124,12 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 .product-item-barcode{font-size:11px;color:var(--text-muted);font-family:monospace}
 .product-item-price{font-size:12.5px;font-weight:800;color:var(--accent);flex-shrink:0}
 .product-item.no-barcode{opacity:0.5;cursor:not-allowed}
+.product-item-badge{display:inline-flex;align-items:center;margin-right:6px;padding:2px 6px;border-radius:20px;background:var(--gold-soft);color:#b45309;font-size:9px;font-weight:800}
+.label-products-summary{font-size:12px;color:var(--text-muted);line-height:1.6}
+.label-products-summary strong{color:var(--text)}
+.label-filter-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.label-filter-row .form-group{min-width:0}
+.print-label-code{font-family:monospace;font-size:9px;letter-spacing:.5px;color:#0f172a;direction:ltr}
 
 .labels-preview-container{background:var(--bg-soft);padding:20px;border-radius:var(--radius-sm);margin-top:16px}
 .print-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:white;padding:16px;border-radius:8px}
@@ -165,7 +171,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
   .topbar{padding:0 16px}
   .topbar h1{font-size:16px}
   .grid-2,.grid-3{grid-template-columns:1fr}
-  .form-row{grid-template-columns:1fr}
+  .form-row,.label-filter-row{grid-template-columns:1fr}
   .form-row.three{grid-template-columns:1fr}
   .print-grid{grid-template-columns:repeat(2,1fr)}
   .quick-types{grid-template-columns:repeat(2,1fr)}
@@ -281,7 +287,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
       <div class="card-header">
         <div class="card-title"><i data-lucide="printer"></i><span>طباعة ملصقات منتجات</span></div>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" id="selectAllProductsBtn"><i data-lucide="check-square"></i>تحديد الكل</button>
+          <button class="btn btn-ghost btn-sm" id="selectAllProductsBtn"><i data-lucide="check-square"></i>تحديد النتائج</button>
           <button class="btn btn-ghost btn-sm" id="clearSelectionBtn"><i data-lucide="square"></i>مسح</button>
         </div>
       </div>
@@ -305,6 +311,23 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
           </div>
         </div>
 
+        <div class="label-filter-row">
+          <div class="form-group">
+            <label class="form-label" for="labelProductScope">نطاق المنتجات</label>
+            <select class="form-select" id="labelProductScope">
+              <option value="all">كل الأصناف</option>
+              <option value="weighted">الأصناف الموزونة فقط</option>
+              <option value="category" disabled>حسب الفئة</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="labelCategory">الفئة</label>
+            <select class="form-select" id="labelCategory" disabled>
+              <option value="">اختر الفئة</option>
+            </select>
+          </div>
+        </div>
+
         <div class="form-group">
           <label class="form-label">بحث في المنتجات</label>
           <input type="text" class="form-input" id="productSearch" placeholder="بحث بالاسم أو الباركود...">
@@ -312,7 +335,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <button class="btn btn-ghost" id="loadProductsBtn"><i data-lucide="refresh-cw"></i>تحميل المنتجات</button>
-          <span style="font-size:12.5px;color:var(--text-muted)">محدد: <strong id="selectedCount">0</strong></span>
+          <span class="label-products-summary" id="productsSummary">محدد: <strong id="selectedCount">0</strong></span>
         </div>
 
         <div id="productsList" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--card)">
@@ -346,6 +369,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
   let currentBarcodeValue = '';
   let currentQrDataUrl = '';
   let products = [];
+  let categories = [];
   let selectedProducts = {};
 
   const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
@@ -653,53 +677,132 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     });
   }
 
+  function invalidateLabelsPreview() {
+    const preview = document.getElementById('labelsPreview');
+    if (preview) preview.style.display = 'none';
+  }
+
+  function getProductBarcode(product) {
+    return String(product.barcode || '').trim() || String(product.plu_code || '').trim();
+  }
+
+  function formatProductPrice(price) {
+    return window.Refad && typeof window.Refad.money === 'function'
+      ? window.Refad.money(Number(price) || 0, session && session.currency)
+      : Number(price || 0).toFixed(2) + ' ج.م';
+  }
+
   async function loadProductsForLabels() {
     const listEl = document.getElementById('productsList');
-    listEl.innerHTML = '<div class="loading-state"><div class="spinner"></div>جاري التحميل...</div>';
+    const loadButton = document.getElementById('loadProductsBtn');
+    listEl.innerHTML = '<div class="loading-state"><div class="spinner"></div>جاري تحميل المنتجات...</div>';
+    loadButton.disabled = true;
 
-    const res = await sb.from('products')
-      .select('id, name, barcode, plu_code, sale_price')
-      .eq('company_id', session.company_id)
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .order('name')
-      .limit(500);
+    try {
+      const pageSize = 1000;
+      const loadedProducts = [];
+      let offset = 0;
+      while (true) {
+        const res = await sb.from('products')
+          .select('id, name, barcode, plu_code, sale_price, is_weighed, category_id')
+          .eq('company_id', session.company_id)
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .order('name')
+          .order('id')
+          .range(offset, offset + pageSize - 1);
+        if (res.error) throw res.error;
+        const batch = res.data || [];
+        loadedProducts.push(...batch);
+        if (batch.length < pageSize) break;
+        offset += pageSize;
+      }
 
-    products = res.data || [];
-    if (products.length === 0) {
-      listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px 20px;font-size:12.5px">لا توجد منتجات</p>';
-      return;
+      products = loadedProducts;
+      const categoryRes = await sb.from('categories')
+        .select('id, name')
+        .eq('company_id', session.company_id)
+        .eq('is_active', true)
+        .order('name');
+      if (categoryRes.error) {
+        categories = [];
+        populateLabelCategories();
+        toast('warning', 'تعذر تحميل الفئات. ما زال بإمكانك طباعة كل الأصناف أو الأصناف الموزونة.');
+        console.warn('[Barcode] Category load failed:', categoryRes.error);
+      } else {
+        categories = categoryRes.data || [];
+        populateLabelCategories();
+      }
+
+      selectedProducts = {};
+      invalidateLabelsPreview();
+      renderProductsList();
+      if (products.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px 20px;font-size:12.5px">لا توجد منتجات نشطة</p>';
+      } else {
+        toast('success', 'تم تحميل ' + products.length + ' صنف');
+      }
+      return true;
+    } catch (error) {
+      console.error('[Barcode] Product load failed:', error);
+      listEl.innerHTML = '<p style="text-align:center;color:var(--danger);padding:30px 20px;font-size:12.5px">تعذر تحميل المنتجات. تحقق من الاتصال والصلاحيات ثم أعد المحاولة.</p>';
+      toast('error', 'فشل تحميل المنتجات: ' + (error.message || 'خطأ غير معروف'));
+      products = [];
+      categories = [];
+      selectedProducts = {};
+      populateLabelCategories();
+      updateSelectedCount();
+      return false;
+    } finally {
+      loadButton.disabled = false;
     }
-    renderProductsList();
+  }
+
+  function populateLabelCategories() {
+    const categorySelect = document.getElementById('labelCategory');
+    const scopeSelect = document.getElementById('labelProductScope');
+    const selectedCategory = categorySelect.value;
+    categorySelect.innerHTML = '<option value="">اختر الفئة</option>' + categories.map(category =>
+      '<option value="' + esc(category.id) + '"' + (category.id === selectedCategory ? ' selected' : '') + '>' + esc(category.name) + '</option>'
+    ).join('');
+    scopeSelect.querySelector('option[value="category"]').disabled = categories.length === 0;
+    categorySelect.disabled = scopeSelect.value !== 'category' || categories.length === 0;
+  }
+
+  function getFilteredProducts() {
+    const query = document.getElementById('productSearch').value.toLowerCase().trim();
+    const scope = document.getElementById('labelProductScope').value;
+    const categoryId = document.getElementById('labelCategory').value;
+    return products.filter(product => {
+      if (scope === 'weighted' && !product.is_weighed) return false;
+      if (scope === 'category' && (!categoryId || product.category_id !== categoryId)) return false;
+      if (!query) return true;
+      return (product.name || '').toLowerCase().includes(query) ||
+        getProductBarcode(product).includes(query);
+    });
   }
 
   function renderProductsList() {
     const listEl = document.getElementById('productsList');
-    const q = document.getElementById('productSearch').value.toLowerCase().trim();
-    let filtered = products;
-    if (q) {
-      filtered = products.filter(p =>
-        (p.name || '').toLowerCase().includes(q) ||
-        (p.barcode || '').includes(q) ||
-        (p.plu_code || '').includes(q)
-      );
-    }
+    const filtered = getFilteredProducts();
 
     if (filtered.length === 0) {
       listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:30px 20px;font-size:12.5px">لا نتائج</p>';
+      updateSelectedCount();
       return;
     }
 
     listEl.innerHTML = filtered.map(p => {
       const isChecked = selectedProducts[p.id];
-      const hasBarcode = !!(p.barcode || p.plu_code);
+      const barcodeValue = getProductBarcode(p);
+      const hasBarcode = !!barcodeValue;
       return '<div class="product-item' + (isChecked ? ' selected' : '') + (hasBarcode ? '' : ' no-barcode') + '" data-product-id="' + p.id + '">' +
         '<input type="checkbox" data-check-id="' + p.id + '"' + (isChecked ? ' checked' : '') + (hasBarcode ? '' : ' disabled') + '>' +
         '<div class="product-item-info">' +
-          '<div class="product-item-name">' + esc(p.name) + '</div>' +
-          '<div class="product-item-barcode">' + esc(p.barcode || p.plu_code || 'لا يوجد باركود') + '</div>' +
+          '<div class="product-item-name">' + esc(p.name) + (p.is_weighed ? '<span class="product-item-badge">موزون</span>' : '') + '</div>' +
+          '<div class="product-item-barcode">' + esc(barcodeValue || 'لا يوجد باركود') + '</div>' +
         '</div>' +
-        '<div class="product-item-price">' + Number(p.sale_price || 0).toFixed(2) + ' ج.م</div>' +
+        '<div class="product-item-price">' + esc(formatProductPrice(p.sale_price)) + (p.is_weighed ? ' / كجم' : '') + '</div>' +
       '</div>';
     }).join('');
 
@@ -717,6 +820,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
   function toggleProduct(pid, checked) {
     if (checked) selectedProducts[pid] = true;
     else delete selectedProducts[pid];
+    invalidateLabelsPreview();
     updateSelectedCount();
     const item = document.querySelector('.product-item[data-product-id="' + pid + '"]');
     if (item) item.classList.toggle('selected', checked);
@@ -724,21 +828,36 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 
   function updateSelectedCount() {
     const count = Object.keys(selectedProducts).length;
-    document.getElementById('selectedCount').textContent = count;
+    const filtered = getFilteredProducts();
+    const printableCount = filtered.filter(product => getProductBarcode(product)).length;
+    document.getElementById('productsSummary').innerHTML =
+      'محدد: <strong id="selectedCount">' + count + '</strong> — نتائج الفلتر: <strong>' + filtered.length +
+      '</strong>، القابلة للطباعة: <strong>' + printableCount + '</strong>';
     document.getElementById('printLabelsBtn').disabled = count === 0;
     document.getElementById('downloadPdfBtn').disabled = count === 0;
   }
 
   function selectAllProducts() {
-    products.forEach(p => {
-      if (p.barcode || p.plu_code) selectedProducts[p.id] = true;
+    selectedProducts = {};
+    const filtered = getFilteredProducts();
+    filtered.forEach(p => {
+      if (getProductBarcode(p)) selectedProducts[p.id] = true;
     });
+    invalidateLabelsPreview();
     renderProductsList();
-    toast('success', 'تم تحديد كل المنتجات ذات الباركود');
+    const selectedCount = Object.keys(selectedProducts).length;
+    const skipped = filtered.length - selectedCount;
+    if (selectedCount === 0) {
+      toast('warning', 'لا توجد أصناف في النتائج الحالية لديها باركود أو PLU للطباعة.');
+      return;
+    }
+    toast('success', 'تم تحديد ' + selectedCount + ' صنف من النتائج الحالية' +
+      (skipped ? '، واستبعاد ' + skipped + ' بدون باركود أو PLU.' : '.'));
   }
 
   function clearSelection() {
     selectedProducts = {};
+    invalidateLabelsPreview();
     renderProductsList();
     toast('info', 'تم مسح التحديد');
   }
@@ -755,11 +874,12 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     const grid = document.getElementById('printGrid');
     grid.innerHTML = '';
     let index = 0;
+    let failed = 0;
 
     selectedIds.forEach(pid => {
       const p = products.find(x => x.id === pid);
       if (!p) return;
-      const barcodeValue = p.barcode || p.plu_code;
+      const barcodeValue = getProductBarcode(p);
       if (!barcodeValue) return;
 
       let actualFormat = format;
@@ -784,7 +904,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 
         const priceDiv = document.createElement('div');
         priceDiv.className = 'print-label-price';
-        priceDiv.textContent = Number(p.sale_price || 0).toFixed(2) + ' ج.م';
+        priceDiv.textContent = formatProductPrice(p.sale_price) + (p.is_weighed ? ' / كجم' : '');
         label.appendChild(priceDiv);
 
         grid.appendChild(label);
@@ -801,30 +921,33 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
             margin: 2
           });
         } catch (e) {
-          svg.style.display = 'none';
+          label.remove();
+          failed++;
+          continue;
         }
         index++;
       }
     });
 
+    if (index === 0) {
+      document.getElementById('labelsPreview').style.display = 'none';
+      toast('error', 'تعذر إنشاء ملصقات. تحقق من صيغة الباركود المختارة.');
+      return false;
+    }
     document.getElementById('labelsPreview').style.display = 'block';
     if (window.lucide) lucide.createIcons();
-    toast('success', 'تم إنشاء ' + index + ' ملصق');
+    if (failed) toast('warning', 'تم إنشاء ' + index + ' ملصق وتجاوز ' + failed + ' ملصق لتعذر قراءة صيغة باركودها.');
+    else toast('success', 'تم إنشاء ' + index + ' ملصق');
+    return true;
   }
 
   function printLabels() {
-    if (document.getElementById('labelsPreview').style.display === 'none') {
-      generateLabelsPreview();
-      setTimeout(() => window.print(), 400);
-    } else {
-      window.print();
-    }
+    if (document.getElementById('labelsPreview').style.display === 'none' && !generateLabelsPreview()) return;
+    window.print();
   }
 
   function downloadPdf() {
-    if (document.getElementById('labelsPreview').style.display === 'none') {
-      generateLabelsPreview();
-    }
+    if (document.getElementById('labelsPreview').style.display === 'none' && !generateLabelsPreview()) return;
     toast('info', 'اختر "Save as PDF" في نافذة الطباعة');
     setTimeout(() => window.print(), 400);
   }
@@ -901,7 +1024,19 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 
     // Products events
     document.getElementById('loadProductsBtn').onclick = loadProductsForLabels;
-    document.getElementById('productSearch').oninput = renderProductsList;
+    document.getElementById('productSearch').oninput = () => {
+      invalidateLabelsPreview();
+      renderProductsList();
+    };
+    document.getElementById('labelProductScope').onchange = () => {
+      populateLabelCategories();
+      invalidateLabelsPreview();
+      renderProductsList();
+    };
+    document.getElementById('labelCategory').onchange = () => {
+      invalidateLabelsPreview();
+      renderProductsList();
+    };
     document.getElementById('selectAllProductsBtn').onclick = selectAllProducts;
     document.getElementById('clearSelectionBtn').onclick = clearSelection;
     document.getElementById('generateLabelsBtn').onclick = generateLabelsPreview;
@@ -909,10 +1044,9 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     document.getElementById('downloadPdfBtn').onclick = downloadPdf;
 
     // Refresh
-    document.getElementById('refreshBtn').onclick = () => {
+    document.getElementById('refreshBtn').onclick = async () => {
       toast('info', 'جاري التحديث...');
-      loadProductsForLabels();
-      toast('success', 'تم التحديث');
+      await loadProductsForLabels();
     };
 
     // ⭐ settings-changed listener

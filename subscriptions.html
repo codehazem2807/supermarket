@@ -8,6 +8,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+<script src="sidebar.js"></script>
 <style>
 :root{--primary:#0B2C4D;--accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,0.1);--gold:#F59E0B;--gold-soft:rgba(245,158,11,0.1);--danger:#ef4444;--danger-soft:rgba(239,68,68,0.1);--success:#10b981;--success-soft:rgba(16,185,129,0.1);--info:#3b82f6;--info-soft:rgba(59,130,246,0.1);--purple:#8b5cf6;--purple-soft:rgba(139,92,246,0.1);--bg:#F1F5F9;--bg-soft:#f8fafc;--card:#fff;--text:#0f172a;--text-muted:#64748b;--border:#e2e8f0;--border-soft:#f1f5f9;--radius:14px;--radius-sm:10px;--radius-xs:8px;--sidebar-w:260px;--topbar-h:64px}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -149,48 +154,11 @@ input,select,textarea{font-family:inherit}
 </head>
 <body>
 
+<div id="refad-sidebar"></div>
 <div class="layout">
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand">
-      <div class="sidebar-logo"><i data-lucide="shopping-cart"></i></div>
-      <div class="sidebar-brand-text"><h2 id="brandName">رفاد</h2><p>سوبرماركت</p></div>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section">الرئيسية</div>
-      <a class="nav-item" href="dashboard.html"><i data-lucide="layout-dashboard"></i><span>لوحة التحكم</span></a>
-      <a class="nav-item" href="pos.html"><i data-lucide="shopping-cart"></i><span>نقطة البيع</span></a>
-      <div class="nav-section">المخزون</div>
-      <a class="nav-item" href="products.html"><i data-lucide="package"></i><span>المنتجات</span></a>
-      <a class="nav-item" href="inventory.html"><i data-lucide="boxes"></i><span>المخزون</span></a>
-      <a class="nav-item" href="purchases.html"><i data-lucide="truck"></i><span>المشتريات</span></a>
-      <div class="nav-section">المبيعات</div>
-      <a class="nav-item" href="sales.html"><i data-lucide="receipt"></i><span>المبيعات</span></a>
-      <a class="nav-item" href="customers.html"><i data-lucide="users"></i><span>العملاء</span></a>
-      <a class="nav-item" href="suppliers.html"><i data-lucide="building-2"></i><span>الموردون</span></a>
-      <div class="nav-section">الإدارة</div>
-      <a class="nav-item" href="reports.html"><i data-lucide="bar-chart-3"></i><span>التقارير</span></a>
-      <a class="nav-item" href="barcode.html"><i data-lucide="barcode"></i><span>الباركود</span></a>
-      <a class="nav-item" href="users.html"><i data-lucide="user-cog"></i><span>المستخدمون</span></a>
-      <a class="nav-item" href="roles.html"><i data-lucide="shield"></i><span>الأدوار</span></a>
-      <a class="nav-item" href="branches.html"><i data-lucide="git-branch"></i><span>الفروع</span></a>
-      <a class="nav-item" href="company.html"><i data-lucide="building-2"></i><span>الشركة</span></a>
-      <a class="nav-item" href="audit_log.html"><i data-lucide="file-text"></i><span>سجل النشاط</span></a>
-      <a class="nav-item active" href="subscriptions.html"><i data-lucide="credit-card"></i><span>الاشتراكات</span></a>
-      <a class="nav-item" href="settings.html"><i data-lucide="settings"></i><span>الإعدادات</span></a>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="user-card">
-        <div class="user-avatar" id="userAvatar">A</div>
-        <div class="user-info"><h4 id="userName">—</h4><p id="userRole">—</p></div>
-        <button class="logout-btn" id="logoutBtn"><i data-lucide="log-out"></i></button>
-      </div>
-    </div>
-  </aside>
-
   <main class="main">
     <div class="topbar">
       <div class="topbar-left">
-        <button class="mobile-menu-btn" id="mobileMenuBtn"><i data-lucide="menu"></i></button>
         <div><h1>الاشتراكات</h1><div class="topbar-subtitle">إدارة الخطة والحدود</div></div>
       </div>
       <div class="topbar-actions">
@@ -289,7 +257,7 @@ input,select,textarea{font-family:inherit}
   }
 
   var cfg = window.REFAD_CONFIG;
-  var sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  var sb = window.Refad && window.Refad.sb;
   var session = null;
   var subscription = null;
   var usageStats = { users: 0, branches: 0, products: 0, invoices: 0 };
@@ -392,32 +360,11 @@ input,select,textarea{font-family:inherit}
   }
 
   function getSession() {
-    var token = localStorage.getItem(cfg.SESSION_KEY);
-    if (!token) return Promise.resolve(null);
-
-    return sb.auth.getUser(token).then(function (res) {
-      if (res.error || !res.data.user) return null;
-      var user = res.data.user;
-
-      return sb.from('users')
-        .select('id, company_id, branch_id, full_name, email, is_owner, is_active, deleted_at, roles(name, is_owner)')
-        .eq('id', user.id)
-        .maybeSingle()
-        .then(function (pRes) {
-          var profile = pRes.data;
-          if (!profile || profile.is_active === false || profile.deleted_at) return null;
-          var isOwner = !!(profile.is_owner || (profile.roles && profile.roles.is_owner));
-          if (!isOwner) return null;
-
-          return {
-            user_id: user.id,
-            company_id: profile.company_id,
-            full_name: profile.full_name,
-            email: profile.email,
-            is_owner: isOwner,
-            role_name: (profile.roles && profile.roles.name) || 'مالك'
-          };
-        });
+    if (!window.Refad || typeof window.Refad.requireSession !== 'function') {
+      return Promise.reject(new Error('تعذر تحميل نظام الجلسات والصلاحيات.'));
+    }
+    return window.Refad.requireSession().then(function (currentSession) {
+      return currentSession && currentSession.is_owner ? currentSession : null;
     });
   }
 
@@ -682,46 +629,16 @@ input,select,textarea{font-family:inherit}
     var plan = PLANS[planKey];
     if (!plan) return;
 
-    if (!confirm('ترقية الخطة إلى "' + plan.name + '"؟\n\nسيتم تحويلك لصفحة الدفع.')) return;
+    if (!confirm('إرسال طلب ترقية الخطة إلى "' + plan.name + '"؟\n\nسيصل الطلب لإدارة المنصة وسيتم تفعيله بعد الموافقة.')) return;
 
-    // Simulate upgrade
     var btn = event.target;
     btn.disabled = true;
 
-    var updates = {
-      plan: planKey,
-      status: 'active',
-      max_users: plan.limits.users,
-      max_branches: plan.limits.branches,
-      updated_at: new Date().toISOString()
-    };
-
-    var promise;
-    if (subscription) {
-      promise = sb.from('subscriptions').update(updates).eq('id', subscription.id);
-    } else {
-      updates.company_id = session.company_id;
-      updates.started_at = new Date().toISOString();
-      promise = sb.from('subscriptions').insert(updates);
-    }
-
-    promise.then(function (res) {
+    sb.rpc('request_subscription_change', { p_plan: planKey, p_type: 'upgrade', p_note: null })
+    .then(function (res) {
       if (res.error) throw res.error;
-      toast('success', 'تم ترقية الخطة إلى ' + plan.name);
-      return sb.from('audit_log').insert({
-        company_id: session.company_id,
-        user_id: session.user_id,
-        user_email: session.email,
-        action: 'subscription.upgrade',
-        entity_type: 'subscription',
-        new_values: { plan: planKey }
-      });
-    }).then(function () {
-      return loadSubscription();
-    }).then(function () {
-      renderCurrentPlan();
-      renderPlans();
-      renderUsageList();
+      toast('success', 'تم إرسال طلب الترقية إلى ' + plan.name + ' وسيتم إشعارك بالنتيجة');
+      btn.disabled = false;
     }).catch(function (e) {
       toast('error', 'فشل: ' + (e.message || 'خطأ'));
       btn.disabled = false;
@@ -750,28 +667,17 @@ input,select,textarea{font-family:inherit}
       }
       session = s;
 
-      document.getElementById('userName').textContent = session.full_name || 'مستخدم';
-      document.getElementById('userAvatar').textContent = (session.full_name || 'U').charAt(0).toUpperCase();
-      document.getElementById('userRole').textContent = session.role_name;
-
       loadAll();
 
       document.getElementById('refreshBtn').onclick = function () {
         toast('info', 'جاري التحديث...');
         loadAll().then(function () { toast('success', 'تم'); });
       };
-      document.getElementById('logoutBtn').onclick = function () {
-        sb.auth.signOut().then(function () {
-          localStorage.clear();
-          location.href = 'index.html';
-        });
-      };
-      document.getElementById('mobileMenuBtn').onclick = function () {
-        document.getElementById('sidebar').classList.toggle('open');
-      };
-
       if (window.lucide) lucide.createIcons();
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+    }).catch(function (error) {
+      console.error('[Subscriptions] Session check failed:', error);
+      toast('error', 'تعذر التحقق من الجلسة والصلاحيات. أعد تحميل الصفحة.');
     });
   }
 

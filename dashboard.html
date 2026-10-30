@@ -16,6 +16,7 @@
 <script src="settings-manager.js"></script>
 <script src="app.js"></script>
 <script src="theme.js"></script>
+<script src="ai-config.js"></script>
 
 <style>
 :root {
@@ -73,14 +74,12 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 
 .content{padding:24px;max-width:1600px}
 
-/* ⭐ NEW: Offline indicator */
 .offline-indicator{background:var(--gold-soft);color:var(--gold);border:1px solid var(--gold);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:16px;display:none;align-items:center;gap:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;text-decoration:none}
 .offline-indicator.show{display:flex}
 .offline-indicator:hover{background:var(--gold);color:#fff}
 .offline-indicator svg{width:18px;height:18px}
 .offline-indicator .count{background:rgba(0,0,0,0.2);padding:2px 8px;border-radius:10px;font-size:11px;margin-right:auto}
 
-/* ⭐ NEW: Session banner */
 .session-banner{background:var(--success-soft);border:1px solid var(--success);border-radius:var(--radius-sm);padding:12px 18px;margin-bottom:16px;display:none;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}
 .session-banner.show{display:flex}
 .session-banner svg{width:20px;height:20px;color:var(--success);flex-shrink:0}
@@ -90,7 +89,6 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 .session-banner .link{color:var(--success);text-decoration:none;font-weight:700;font-size:12.5px;white-space:nowrap}
 .session-banner .link:hover{text-decoration:underline}
 
-/* ⭐ NEW: Season banner */
 .season-banner{background:linear-gradient(135deg,var(--purple-soft),var(--gold-soft));border:1px solid var(--purple);border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:16px;display:none;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}
 .season-banner.show{display:flex}
 .season-banner .icon-wrap{width:44px;height:44px;border-radius:12px;background:var(--card);display:flex;align-items:center;justify-content:center;color:var(--purple);flex-shrink:0}
@@ -226,27 +224,398 @@ tbody tr:last-child td{border-bottom:none}
 .toast.warning svg{color:var(--gold)}
 @keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
 
-@media (max-width:1024px){
-  .refad-main-content{margin-right:0!important}
-  .grid-2{grid-template-columns:1fr}
+/* ═══════════════════════════════════════════════════════════
+   ⭐ AI ASSISTANT — العائم
+   ═══════════════════════════════════════════════════════════ */
+.ai-fab {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple), var(--accent));
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(139,92,246,0.5), 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 9998;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: ai-pulse 3s ease-in-out infinite;
 }
-@media (max-width:768px){
-  .content{padding:16px}
-  .topbar{padding:0 16px}
-  .greeting-banner{padding:20px}
-  .greeting-text h2{font-size:18px}
-  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:12px}
-  .kpi-card{padding:16px}
-  .kpi-value{font-size:20px}
-  .chart-container{height:150px}
-  .session-banner,.season-banner,.offline-indicator{padding:10px 14px;font-size:12px}
+.ai-fab.show {
+  display: flex;
 }
-@media (max-width:480px){
-  .kpi-grid{grid-template-columns:1fr}
-  .topbar h1{font-size:16px}
+.ai-fab:hover {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 12px 40px rgba(139,92,246,0.6), 0 6px 16px rgba(0,0,0,0.2);
+}
+.ai-fab:active {
+  transform: scale(0.95);
+}
+.ai-fab svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.2;
+}
+.ai-fab .ai-fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--success);
+  border: 3px solid var(--bg);
+  display: none;
+}
+.ai-fab .ai-fab-badge.show {
+  display: block;
+  animation: ai-badge-bounce 0.5s ease-out;
+}
+@keyframes ai-pulse {
+  0%, 100% {
+    box-shadow: 0 8px 32px rgba(139,92,246,0.4), 0 4px 12px rgba(0,0,0,0.15), 0 0 0 0 rgba(139,92,246,0.7);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(139,92,246,0.5), 0 4px 12px rgba(0,0,0,0.15), 0 0 0 12px rgba(139,92,246,0);
+  }
+}
+@keyframes ai-badge-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* AI Panel */
+.ai-panel {
+  position: fixed;
+  bottom: 100px;
+  left: 24px;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  max-height: 600px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 8px 20px rgba(0,0,0,0.1);
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: bottom left;
+  animation: ai-panel-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ai-panel.show {
+  display: flex;
+}
+@keyframes ai-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.ai-header {
+  background: linear-gradient(135deg, var(--purple), var(--accent));
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.ai-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ai-header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+.ai-header-avatar svg {
+  width: 20px;
+  height: 20px;
+}
+.ai-header-text h3 {
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0;
+}
+.ai-header-text p {
+  font-size: 11px;
+  opacity: 0.85;
+  margin: 2px 0 0 0;
+}
+.ai-close {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.ai-close:hover {
+  background: rgba(255,255,255,0.3);
+}
+.ai-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 200px;
+  max-height: 400px;
+}
+.ai-message {
+  display: flex;
+  gap: 8px;
+  animation: ai-message-in 0.3s ease-out;
+}
+@keyframes ai-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ai-message-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple), var(--accent));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.ai-message-avatar.user {
+  background: linear-gradient(135deg, var(--accent), var(--info));
+}
+.ai-message-avatar svg {
+  width: 15px;
+  height: 15px;
+}
+.ai-message-content {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-soft);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+.ai-message.user .ai-message-content {
+  background: var(--accent-soft);
+  color: var(--text);
+  border: 1px solid var(--accent-soft);
+}
+.ai-message-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.ai-message-content th,
+.ai-message-content td {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  text-align: right;
+}
+.ai-message-content th {
+  background: var(--card);
+  font-weight: 700;
+}
+.ai-message-content strong {
+  font-weight: 800;
+  color: var(--accent-dark);
+}
+.ai-message-content code {
+  background: var(--card);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.ai-typing {
+  display: flex;
+  gap: 4px;
+  padding: 8px 4px;
+}
+.ai-typing span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: ai-typing 1.4s ease-in-out infinite;
+}
+.ai-typing span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.ai-typing span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes ai-typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-8px); opacity: 1; }
+}
+
+.ai-suggestions {
+  padding: 0 20px 12px 20px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.ai-suggestion {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ai-suggestion:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.ai-input-wrap {
+  padding: 12px 16px 16px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: var(--card);
+  flex-shrink: 0;
+}
+.ai-input {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--bg-soft);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--text);
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+  transition: all 0.15s;
+}
+.ai-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--card);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.ai-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--purple), var(--accent));
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.ai-send:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(139,92,246,0.4);
+}
+.ai-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ai-send svg {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 768px) {
+  .content { padding: 16px; }
+  .topbar { padding: 0 16px; }
+  .greeting-banner { padding: 20px; }
+  .greeting-text h2 { font-size: 18px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .kpi-card { padding: 16px; }
+  .kpi-value { font-size: 20px; }
+  .chart-container { height: 150px; }
+  .session-banner, .season-banner, .offline-indicator { padding: 10px 14px; font-size: 12px; }
+  .grid-2 { grid-template-columns: 1fr; }
+  
+  .ai-fab {
+    bottom: 16px;
+    left: 16px;
+    width: 56px;
+    height: 56px;
+  }
+  .ai-fab svg {
+    width: 24px;
+    height: 24px;
+  }
+  .ai-panel {
+    bottom: 80px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 100px);
+  }
+  .ai-messages {
+    max-height: 300px;
+  }
+}
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .topbar h1 { font-size: 16px; }
 }
 </style>
-</head><body>
+</head>
+<body>
 
 <div id="refad-sidebar"></div>
 
@@ -266,7 +635,7 @@ tbody tr:last-child td{border-bottom:none}
 
   <div class="content">
 
-    <!-- ⭐ NEW: Offline Indicator -->
+    <!-- ⭐ Offline Indicator -->
     <a href="offline_queue.html" class="offline-indicator" id="offlineIndicator">
       <i data-lucide="wifi-off"></i>
       <span>يوجد عمليات معلقة بانتظار المزامنة</span>
@@ -274,7 +643,7 @@ tbody tr:last-child td{border-bottom:none}
       <i data-lucide="chevron-left"></i>
     </a>
 
-    <!-- ⭐ NEW: Session Banner -->
+    <!-- ⭐ Session Banner -->
     <div class="session-banner" id="sessionBanner">
       <i data-lucide="clock"></i>
       <div class="info">
@@ -284,7 +653,7 @@ tbody tr:last-child td{border-bottom:none}
       <a href="session.html" class="link">إدارة الوردية ←</a>
     </div>
 
-    <!-- ⭐ NEW: Season Banner -->
+    <!-- ⭐ Season Banner -->
     <div class="season-banner" id="seasonBanner">
       <div class="icon-wrap"><i data-lucide="calendar-days"></i></div>
       <div class="info">
@@ -325,7 +694,6 @@ tbody tr:last-child td{border-bottom:none}
         <div class="kpi-value" id="kpiSalesMonth">—</div>
         <div class="kpi-sub" id="kpiSalesMonthSub">من بداية الشهر</div>
       </div>
-      <!-- ⭐ NEW: Expenses KPI -->
       <div class="kpi-card danger">
         <div class="kpi-icon red"><i data-lucide="trending-down"></i></div>
         <div class="kpi-label">مصاريف الشهر</div>
@@ -394,19 +762,16 @@ tbody tr:last-child td{border-bottom:none}
               <div class="quick-action-icon" style="background:var(--danger-soft);color:var(--danger)"><i data-lucide="boxes"></i></div>
               <div class="quick-action-label">جرد المخزون</div>
             </a>
-            <!-- ⭐ NEW: Expenses -->
             <a href="expenses.html" class="quick-action">
               <div class="quick-action-icon" style="background:var(--danger-soft);color:var(--danger)"><i data-lucide="receipt"></i></div>
               <div class="quick-action-label">المصاريف</div>
               <span class="new-badge">جديد</span>
             </a>
-            <!-- ⭐ NEW: Forecast -->
             <a href="forecast.html" class="quick-action">
               <div class="quick-action-icon" style="background:var(--purple-soft);color:var(--purple)"><i data-lucide="trending-up"></i></div>
               <div class="quick-action-label">تنبؤ المخزون</div>
               <span class="new-badge">جديد</span>
             </a>
-            <!-- ⭐ NEW: Branch Compare -->
             <a href="branch_compare.html" class="quick-action">
               <div class="quick-action-icon" style="background:var(--info-soft);color:var(--info)"><i data-lucide="git-compare"></i></div>
               <div class="quick-action-label">مقارنة الفروع</div>
@@ -504,7 +869,7 @@ tbody tr:last-child td{border-bottom:none}
       </div>
     </div>
 
-    <!-- ⭐ NEW: Recent Expenses -->
+    <!-- Recent Expenses -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">
@@ -566,16 +931,72 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </main>
 
+<!-- ⭐ AI Assistant FAB -->
+<button class="ai-fab" id="aiFab" title="مساعد الذكاء الاصطناعي">
+  <i data-lucide="sparkles"></i>
+  <span class="ai-fab-badge" id="aiFabBadge"></span>
+</button>
+
+<!-- ⭐ AI Assistant Panel -->
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-header">
+    <div class="ai-header-left">
+      <div class="ai-header-avatar">
+        <i data-lucide="sparkles"></i>
+      </div>
+      <div class="ai-header-text">
+        <h3>المساعد الذكي</h3>
+        <p id="aiStatus">جاهز للمساعدة</p>
+      </div>
+    </div>
+    <button class="ai-close" id="aiCloseBtn" title="إغلاق">
+      <i data-lucide="x"></i>
+    </button>
+  </div>
+
+  <div class="ai-messages" id="aiMessages">
+    <div class="ai-message">
+      <div class="ai-message-avatar">
+        <i data-lucide="sparkles"></i>
+      </div>
+      <div class="ai-message-content">
+        أهلاً! 👋 أنا مساعدك الذكي في رفاد. أقدر أساعدك في:
+        <br>• 📊 إحصائيات فورية عن المبيعات والمخزون
+        <br>• 📸 قراءة فواتير الشراء
+        <br>• 💡 نصائح لتحسين الأداء
+        <br><br>اسألني أي حاجة!
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-suggestions" id="aiSuggestions">
+    <button class="ai-suggestion" data-q="إيه أعلى 5 منتجات مبيعاً؟">إيه أعلى 5 منتجات مبيعاً؟</button>
+    <button class="ai-suggestion" data-q="إيه المنتجات اللي قربت تخلص؟">المنتجات الناقصة</button>
+    <button class="ai-suggestion" data-q="إيه مبيعات النهاردة؟">مبيعات النهاردة</button>
+    <button class="ai-suggestion" data-q="مين العملاء اللي عليهم مديونية؟">العملاء المدينين</button>
+  </div>
+
+  <div class="ai-input-wrap">
+    <textarea class="ai-input" id="aiInput" placeholder="اسألني أي حاجة..." rows="1"></textarea>
+    <button class="ai-send" id="aiSendBtn" title="إرسال">
+      <i data-lucide="send"></i>
+    </button>
+  </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-  (function () {
+(function () {
   'use strict';
 
   const cfg = window.REFAD_CONFIG;
   const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
   let session = null;
   let currentChartRange = 7;
+  let aiPanelOpen = false;
+  let aiHistory = [];
+  let aiBusy = false;
 
   const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
   const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
@@ -627,7 +1048,6 @@ tbody tr:last-child td{border-bottom:none}
     return (data||[]).reduce((s,i)=>s+Number(i.total||0),0);
   }
 
-  // ⭐ NEW: مصاريف الشهر
   async function loadMonthExpenses() {
     try {
       const { data } = await sb.from('expenses')
@@ -639,7 +1059,6 @@ tbody tr:last-child td{border-bottom:none}
     } catch (e) { return 0; }
   }
 
-  // ⭐ NEW: أحدث المصاريف
   async function loadRecentExpenses() {
     try {
       const { data } = await sb.from('expenses')
@@ -652,7 +1071,6 @@ tbody tr:last-child td{border-bottom:none}
     } catch (e) { return []; }
   }
 
-  // ⭐ NEW: الوردية المفتوحة
   async function loadActiveSession() {
     try {
       let query = sb.from('pos_sessions')
@@ -671,7 +1089,6 @@ tbody tr:last-child td{border-bottom:none}
     } catch (e) { return null; }
   }
 
-  // ⭐ NEW: الموسم النشط
   async function loadActiveSeason() {
     try {
       const { data } = await sb.from('seasonal_patterns')
@@ -691,7 +1108,6 @@ tbody tr:last-child td{border-bottom:none}
     } catch (e) { return null; }
   }
 
-  // ⭐ NEW: Offline queue count
   function loadOfflineCount() {
     try {
       const raw = localStorage.getItem('refad_offline_queue_v1');
@@ -827,7 +1243,6 @@ tbody tr:last-child td{border-bottom:none}
     document.getElementById('kpiExpensesMonthSub').textContent = monthExpenses > 0 ? 'من بداية الشهر' : 'لا مصاريف بعد';
   }
 
-  // ⭐ NEW: render session banner
   function renderSessionBanner(activeSession) {
     const banner = document.getElementById('sessionBanner');
     if (!banner) return;
@@ -843,7 +1258,6 @@ tbody tr:last-child td{border-bottom:none}
     }
   }
 
-  // ⭐ NEW: render season banner
   function renderSeasonBanner(season) {
     const banner = document.getElementById('seasonBanner');
     if (!banner) return;
@@ -857,7 +1271,6 @@ tbody tr:last-child td{border-bottom:none}
     }
   }
 
-  // ⭐ NEW: render offline indicator
   function renderOfflineIndicator(count) {
     const el = document.getElementById('offlineIndicator');
     if (!el) return;
@@ -997,7 +1410,6 @@ tbody tr:last-child td{border-bottom:none}
     if (window.lucide) lucide.createIcons();
   }
 
-  // ⭐ NEW: render recent expenses
   function renderRecentExpenses(list) {
     const tbody = document.getElementById('recentExpensesTable');
     if (!tbody) return;
@@ -1068,6 +1480,199 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   // ═══════════════════════════════════════════════════════════
+  // AI ASSISTANT
+  // ═══════════════════════════════════════════════════════════
+  function openAIPanel() {
+    if (aiPanelOpen) return;
+    aiPanelOpen = true;
+    document.getElementById('aiPanel').classList.add('show');
+    document.getElementById('aiFabBadge').classList.remove('show');
+    setTimeout(() => {
+      document.getElementById('aiInput').focus();
+    }, 300);
+  }
+
+  function closeAIPanel() {
+    aiPanelOpen = false;
+    document.getElementById('aiPanel').classList.remove('show');
+  }
+
+  function addAIMessage(role, content) {
+    const messages = document.getElementById('aiMessages');
+    const msg = document.createElement('div');
+    msg.className = 'ai-message ' + (role === 'user' ? 'user' : '');
+    
+    const avatar = role === 'user'
+      ? '<i data-lucide="user"></i>'
+      : '<i data-lucide="sparkles"></i>';
+
+    msg.innerHTML = `
+      <div class="ai-message-avatar ${role === 'user' ? 'user' : ''}">${avatar}</div>
+      <div class="ai-message-content">${content}</div>
+    `;
+    messages.appendChild(msg);
+    messages.scrollTop = messages.scrollHeight;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function addAITyping() {
+    const messages = document.getElementById('aiMessages');
+    const msg = document.createElement('div');
+    msg.className = 'ai-message ai-typing-msg';
+    msg.id = 'aiTyping';
+    msg.innerHTML = `
+      <div class="ai-message-avatar"><i data-lucide="sparkles"></i></div>
+      <div class="ai-message-content">
+        <div class="ai-typing">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    `;
+    messages.appendChild(msg);
+    messages.scrollTop = messages.scrollHeight;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function removeAITyping() {
+    const typing = document.getElementById('aiTyping');
+    if (typing) typing.remove();
+  }
+
+  function formatAIMessage(text) {
+    if (!text) return '';
+    let html = esc(text);
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Tables (basic)
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
+  async function sendAIMessage(message) {
+    if (aiBusy) return;
+    if (!message || !message.trim()) return;
+
+    aiBusy = true;
+    document.getElementById('aiSendBtn').disabled = true;
+    document.getElementById('aiInput').disabled = true;
+
+    // Add user message
+    addAIMessage('user', esc(message));
+    aiHistory.push({ role: 'user', content: message });
+
+    // Add typing
+    addAITyping();
+
+    try {
+      // Check AI ready
+      if (!window.AI_CONFIG) {
+        throw new Error('AI غير محمّل');
+      }
+
+      // Use chatWithStats if available
+      let response;
+      if (typeof window.AI_CONFIG.chatWithStats === 'function') {
+        response = await window.AI_CONFIG.chatWithStats(message, session.company_id, aiHistory.slice(-6));
+      } else if (typeof window.AI_CONFIG.chatWithTools === 'function') {
+        response = await window.AI_CONFIG.chatWithTools({
+          session,
+          userMessage: message,
+          personaId: 'financial',
+          history: aiHistory.slice(-6)
+        });
+      } else {
+        throw new Error('AI chat غير متاح');
+      }
+
+      removeAITyping();
+
+      if (response && response.ok) {
+        addAIMessage('assistant', formatAIMessage(response.text || ''));
+        aiHistory.push({ role: 'assistant', content: response.text || '' });
+      } else {
+        addAIMessage('assistant', '<span style="color:var(--danger)">❌ عذراً، حصل خطأ: ' + esc(response?.error || 'غير معروف') + '</span>');
+      }
+    } catch (e) {
+      removeAITyping();
+      console.error('[AI] Error:', e);
+      addAIMessage('assistant', '<span style="color:var(--danger)">❌ ' + esc(e.message || 'حدث خطأ') + '</span>');
+    } finally {
+      aiBusy = false;
+      document.getElementById('aiSendBtn').disabled = false;
+      document.getElementById('aiInput').disabled = false;
+      document.getElementById('aiInput').focus();
+    }
+  }
+
+  function initAI() {
+    const fab = document.getElementById('aiFab');
+    const panel = document.getElementById('aiPanel');
+    const closeBtn = document.getElementById('aiCloseBtn');
+    const sendBtn = document.getElementById('aiSendBtn');
+    const input = document.getElementById('aiInput');
+    const suggestions = document.getElementById('aiSuggestions');
+
+    if (!fab || !panel) return;
+
+    // Show FAB only for owner
+    if (session && session.is_owner) {
+      fab.classList.add('show');
+    }
+
+    fab.onclick = () => {
+      if (aiPanelOpen) closeAIPanel();
+      else openAIPanel();
+    };
+
+    closeBtn.onclick = closeAIPanel;
+
+    // Send message
+    sendBtn.onclick = () => {
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      input.style.height = 'auto';
+      sendAIMessage(text);
+    };
+
+    // Enter to send
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    };
+
+    // Auto-resize textarea
+    input.oninput = () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    };
+
+    // Suggestions
+    if (suggestions) {
+      suggestions.querySelectorAll('.ai-suggestion').forEach(btn => {
+        btn.onclick = () => {
+          const q = btn.dataset.q;
+          if (q) {
+            input.value = q;
+            sendBtn.click();
+          }
+        };
+      });
+    }
+
+    // ESC to close
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && aiPanelOpen) {
+        closeAIPanel();
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // LOAD ALL
   // ═══════════════════════════════════════════════════════════
   async function loadAll() {
@@ -1104,12 +1709,7 @@ tbody tr:last-child td{border-bottom:none}
       renderAlerts({ lowStock, expiring });
       renderChart(chartData);
 
-      console.log('[Dashboard] Loaded all data',
-        '| Sales today:', todaySales.total,
-        '| Expenses month:', monthExpenses,
-        '| Session:', activeSession ? 'open' : 'closed',
-        '| Season:', activeSeason ? activeSeason.name : 'none',
-        '| Offline:', loadOfflineCount());
+      console.log('[Dashboard] Loaded all data');
     } catch(e) {
       console.error(e);
       toast('error', 'فشل تحميل البيانات: ' + e.message);
@@ -1123,36 +1723,10 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   // ═══════════════════════════════════════════════════════════
-  // DIAGNOSTIC
-  // ═══════════════════════════════════════════════════════════
-  function showDiagnostic(reason) {
-    document.body.innerHTML = `
-      <div style="
-        position:fixed;inset:0;background:#fff;z-index:99999;
-        display:flex;align-items:flex-start;justify-content:center;
-        padding:20px;font-family:'Segoe UI',Tahoma,sans-serif;direction:rtl;
-        overflow-y:auto;
-      ">
-        <div style="max-width:900px;width:100%;background:#fff;border:3px solid #ef4444;border-radius:16px;padding:24px;margin:20px auto;">
-          <h1 style="color:#ef4444;font-size:22px;margin-bottom:8px;font-weight:800;">⚠️ مشكلة في الجلسة</h1>
-          <p style="font-size:14px;margin-bottom:16px;color:#666;">${reason}</p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-            <button onclick="location.href='index.html'" style="
-              padding:12px 24px;background:#64748b;color:#fff;
-              border:none;border-radius:10px;font-size:15px;
-              cursor:pointer;font-weight:700;
-            ">🚪 تسجيل دخول جديد</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // ═══════════════════════════════════════════════════════════
   // INIT
   // ═══════════════════════════════════════════════════════════
   async function init() {
-    console.log('[Dashboard v2.0] Starting init...');
+    console.log('[Dashboard v3.0] Starting init...');
 
     // platform admin check
     try {
@@ -1161,7 +1735,6 @@ tbody tr:last-child td{border-bottom:none}
         const { data: pa } = await sb.from('platform_admins')
           .select('id').eq('id', user.id).eq('is_active', true).maybeSingle();
         if (pa) {
-          console.log('[Dashboard] ✅ Platform admin — redirecting');
           location.href = 'admin.html';
           return;
         }
@@ -1174,28 +1747,17 @@ tbody tr:last-child td{border-bottom:none}
     if (window.Refad && Refad.requireSession) {
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          console.log('[Dashboard] requireSession attempt ' + (attempt + 1) + '/3');
           session = await Refad.requireSession();
         } catch (e) {
           console.warn('[Dashboard] attempt ' + (attempt + 1) + ' failed:', e);
         }
-        if (session) {
-          console.log('[Dashboard] ✅ Session acquired on attempt ' + (attempt + 1));
-          break;
-        }
+        if (session) break;
         if (attempt < 2) await new Promise(r => setTimeout(r, 700));
       }
     }
 
-    if (!session) {
-      console.warn('[Dashboard] ❌ No session');
+    if (!session || !session.company_id) {
       location.href = 'index.html';
-      return;
-    }
-
-    if (!session.company_id) {
-      console.warn('[Dashboard] ❌ Session has no company_id');
-      showDiagnostic('الحساب ده مش مربوط بأي شركة (company_id = null). تواصل مع الأدمن.');
       return;
     }
 
@@ -1220,6 +1782,9 @@ tbody tr:last-child td{border-bottom:none}
     document.getElementById('greeting').textContent = 'أهلاً ' + (session.full_name || 'مستخدم') + ' 👋';
 
     await loadAll();
+
+    // AI Assistant (owner only)
+    initAI();
 
     // refresh
     document.getElementById('refreshBtn').onclick = async () => {
@@ -1251,7 +1816,7 @@ tbody tr:last-child td{border-bottom:none}
     }, 30000);
 
     if (window.lucide) lucide.createIcons();
-    console.log('[Dashboard v2.0] Ready');
+    console.log('[Dashboard v3.0] Ready — AI Assistant for owner only');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

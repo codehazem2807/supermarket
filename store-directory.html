@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B2C4D">
+<title>تصفح المتاجر — رفاد</title>
+<link rel="icon" type="image/png" href="logo.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="config.js"></script>
+<script src="store-api.js"></script>
+<style>
+:root{--primary:#0B2C4D;--accent:#14B8A6;--bg:#F1F5F9;--card:#fff;--text:#0f172a;--text-muted:#64748b;--border:#e2e8f0;--radius:14px}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.header{padding:40px 20px;text-align:center;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff}
+.header h1{font-size:32px;font-weight:900;margin-bottom:10px}
+.header p{font-size:15px;opacity:0.9}
+.container{max-width:1200px;margin:0 auto;padding:40px 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .28s ease,box-shadow .28s ease,border-color .28s ease;text-decoration:none;color:inherit;display:flex;flex-direction:column;box-shadow:0 5px 16px rgba(11,44,77,.055)}
+.card:hover{transform:perspective(900px) rotateX(2deg) rotateY(-2deg) translateY(-5px);box-shadow:0 22px 40px rgba(11,44,77,.16);border-color:var(--accent)}
+.card-hero{height:120px;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;padding:20px;position:relative;color:#fff}
+.card-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.4}
+.card-logo{width:56px;height:56px;border-radius:12px;background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;flex-shrink:0;position:relative;z-index:1;overflow:hidden}
+.card-logo img{width:100%;height:100%;object-fit:contain}
+.card-body{padding:16px;flex:1;display:flex;flex-direction:column;gap:8px}
+.card-name{font-size:16px;font-weight:800;line-height:1.3}
+.card-desc{font-size:12.5px;color:var(--text-muted);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;flex:1}
+.card-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.card-meta span{font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:700;background:var(--bg);color:var(--text-muted)}
+.loading{padding:80px 20px;text-align:center;color:var(--text-muted)}
+.spinner{width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:80px 20px;text-align:center;color:var(--text-muted)}
+.empty h2{font-size:20px;font-weight:800;margin-bottom:8px;color:var(--text)}
+@media(hover:none){.card:hover{transform:translateY(-2px)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.card:hover{transform:none}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏪 تصفح المتاجر</h1>
+  <p>اختر المتجر الذي تريد التسوق منه</p>
+</div>
+
+<div class="container">
+  <div class="grid" id="grid">
+    <div class="loading" style="grid-column:1/-1">
+      <div class="spinner"></div>
+      جاري تحميل المتاجر...
+    </div>
+  </div>
+</div>
+
+<script>
+(async function () {
+  'use strict';
+  const store = window.RefadStore;
+  if (!store) {
+    document.getElementById('grid').innerHTML = '<div class="empty" style="grid-column:1/-1"><h2>خطأ في التحميل</h2></div>';
+    return;
+  }
+
+  const grid = document.getElementById('grid');
+  const connection = store.getConnectionStatus && store.getConnectionStatus();
+  if (connection && !connection.configured) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h2>تعذر الاتصال بالنظام</h2><p>${store.esc(connection.message || 'تحقق من إعدادات الاتصال ثم أعد المحاولة.')}</p></div>`;
+    return;
+  }
+  const stores = await store.getStoreDirectory();
+
+  if (!stores || stores.length === 0) {
+    const failed = store.getLastError && store.getLastError();
+    grid.innerHTML = `
+      <div class="empty" style="grid-column:1/-1">
+        <h2>${failed ? 'تعذر تحميل المتاجر' : 'لا توجد متاجر متاحة'}</h2>
+        <p>${failed ? 'تحقق من الاتصال بالنظام وحاول مرة أخرى.' : 'لم يتم تفعيل أي متجر بعد'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = stores.map(s => {
+    const storeName = s.store_name || s.company_name || 'متجر';
+    const storeDesc = s.store_description || 'تسوق أونلاين';
+    const storeUrl = 'store.html?company=' + encodeURIComponent(s.company_slug || s.company_id);
+    const safeName = store.esc(storeName);
+    const safeDescription = store.esc(storeDesc);
+    const safePhone = store.esc(s.phone || '');
+    const safePrimary = /^#[0-9a-f]{3,8}$/i.test(s.primary_color || '') ? s.primary_color : '#0B2C4D';
+    const safeAccent = /^#[0-9a-f]{3,8}$/i.test(s.accent_color || '') ? s.accent_color : '#14B8A6';
+    const safeImage = value => {
+      if (!value) return '';
+      try {
+        const url = new URL(value, window.location.href);
+        return ['http:', 'https:'].includes(url.protocol) ? store.esc(url.href) : '';
+      } catch (e) {
+        return '';
+      }
+    };
+    const bannerUrl = safeImage(s.banner_url);
+    const logoUrl = safeImage(s.logo_url);
+
+    return `
+      <a href="${store.esc(storeUrl)}" class="card">
+        <div class="card-hero" style="background:linear-gradient(135deg,${safePrimary},${safeAccent})">
+          ${bannerUrl ? `<img src="${bannerUrl}" alt="${safeName}" loading="lazy">` : ''}
+          <div class="card-logo">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${safeName}" loading="lazy">` : safeName.charAt(0).toUpperCase()}
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-name">${safeName}</div>
+          <div class="card-desc">${safeDescription}</div>
+          <div class="card-meta">
+            ${s.delivery_enabled ? '<span>توصيل</span>' : ''}
+            ${s.pickup_enabled ? '<span>استلام</span>' : ''}
+            ${safePhone ? `<span>📞 ${safePhone}</span>` : ''}
+          </div>
+        </div>
+      </a>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+})();
+</script>
+
+</body>
+</html>

@@ -934,6 +934,50 @@ tbody tr:last-child td { border-bottom: none; }
 
       <!-- SUBSCRIPTIONS -->
       <div id="view-subscriptions" style="display:none">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">
+            <div class="card-title"><i data-lucide="inbox"></i><span>طلبات الاشتراك</span></div>
+          </div>
+          <div class="card-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>السوبرماركت</th>
+                    <th>الخطة الحالية</th>
+                    <th>الخطة المطلوبة</th>
+                    <th>مقدم الطلب</th>
+                    <th>التاريخ</th>
+                    <th>الحالة</th>
+                    <th style="text-align:left">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="subRequestsTable">
+                  <tr><td colspan="7" class="loading-state"><div class="spinner"></div>جاري التحميل...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">
+            <div class="card-title"><i data-lucide="bell"></i><span>إرسال إشعار</span></div>
+          </div>
+          <div class="card-body">
+            <div style="display:grid;gap:10px;max-width:560px">
+              <select id="notifyCompany" class="form-input"></select>
+              <input id="notifyTitle" class="form-input" placeholder="عنوان الإشعار">
+              <textarea id="notifyBody" class="form-input" rows="3" placeholder="نص الإشعار"></textarea>
+              <select id="notifySeverity" class="form-input">
+                <option value="info">معلومة</option>
+                <option value="warning">تنبيه</option>
+                <option value="success">نجاح</option>
+                <option value="error">هام</option>
+              </select>
+              <button class="btn btn-primary" onclick="AdminUI.sendNotification()"><i data-lucide="send"></i><span>إرسال</span></button>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-header">
             <div class="card-title"><i data-lucide="credit-card"></i><span>الاشتراكات</span></div>
@@ -1605,7 +1649,12 @@ tbody tr:last-child td { border-bottom: none; }
 
     if (view === 'companies') renderCompaniesTable('allCompaniesTable', companies, true, true);
     if (view === 'users') loadUsers().then(() => { renderUsersTable(); populateCompanyFilter(); });
-    if (view === 'subscriptions') loadSubscriptions().then(renderSubscriptionsTable);
+    if (view === 'subscriptions') {
+      loadSubscriptions().then(renderSubscriptionsTable);
+      loadSubRequests();
+      document.getElementById('notifyCompany').innerHTML = '<option value="">كل السوبرماركتات</option>' +
+        companies.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    }
     if (view === 'audit') loadAudit().then(renderAudit);
     if (view === 'settings') loadSettings().then(renderSettings);
     if (window.lucide) lucide.createIcons();
@@ -1629,10 +1678,62 @@ tbody tr:last-child td { border-bottom: none; }
     loadSalesChart().then(renderSalesChart);
   }
 
+  async function loadSubRequests() {
+    const tbody = document.getElementById('subRequestsTable');
+    const { data, error } = await sb.from('subscription_requests')
+      .select('*, companies(name)').order('created_at', { ascending: false }).limit(50);
+    if (error) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><h3>تعذر تحميل الطلبات</h3></td></tr>';
+      return;
+    }
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><h3>لا توجد طلبات</h3></td></tr>';
+      return;
+    }
+    const labels = { pending: 'معلق', approved: 'مقبول', rejected: 'مرفوض' };
+    tbody.innerHTML = data.map(r => `
+      <tr>
+        <td>${esc(r.companies?.name || '—')}</td>
+        <td>${esc(r.current_plan || '—')}</td>
+        <td>${esc(r.requested_plan)}</td>
+        <td>${esc(r.requested_by_name || '—')}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${timeAgo(r.created_at)}</td>
+        <td><span class="badge badge-info">${labels[r.status] || esc(r.status)}</span></td>
+        <td style="text-align:left">${r.status === 'pending' ? `
+          <button class="icon-btn success" onclick="AdminUI.reviewRequest('${r.id}', true)" title="موافقة"><i data-lucide="check"></i></button>
+          <button class="icon-btn danger" onclick="AdminUI.reviewRequest('${r.id}', false)" title="رفض"><i data-lucide="x"></i></button>` : ''}</td>
+      </tr>`).join('');
+    if (window.lucide) lucide.createIcons();
+  }
+
   // ═══════════════════════════════════════════════════════════
   // ACTIONS
   // ═══════════════════════════════════════════════════════════
   window.AdminUI = {
+    async reviewRequest(id, approve) {
+      const note = prompt(approve ? 'ملاحظة للعميل (اختياري)' : 'سبب الرفض');
+      if (note === null) return;
+      const { error } = await sb.rpc('review_subscription_request', { p_request: id, p_approve: approve, p_note: note || null, p_days: 30 });
+      if (error) { toast('error', 'فشل: ' + error.message); return; }
+      toast('success', approve ? 'تمت الموافقة وتفعيل الخطة' : 'تم رفض الطلب');
+      loadSubRequests();
+      loadSubscriptions().then(renderSubscriptionsTable);
+    },
+
+    async sendNotification() {
+      const title = document.getElementById('notifyTitle').value.trim();
+      if (!title) { toast('warning', 'اكتب عنوان الإشعار'); return; }
+      const { data, error } = await sb.rpc('admin_send_notification', {
+        p_company: document.getElementById('notifyCompany').value || null,
+        p_title: title,
+        p_body: document.getElementById('notifyBody').value.trim() || null,
+        p_severity: document.getElementById('notifySeverity').value
+      });
+      if (error) { toast('error', 'فشل: ' + error.message); return; }
+      toast('success', 'تم إرسال الإشعار إلى ' + data + ' سوبرماركت');
+      document.getElementById('notifyTitle').value = '';
+      document.getElementById('notifyBody').value = '';
+    },
     async toggleCompany(id, newActive) {
       if (!confirm(newActive ? 'تفعيل السوبرماركت؟' : 'تعطيل السوبرماركت؟')) return;
       const { error } = await sb.from('companies').update({ is_active: newActive }).eq('id', id);

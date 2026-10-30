@@ -1,7 +1,8 @@
 /* ============================================================
-   app.js — Refad ERP v3.8
-   FIX: session stability + no auto-logout + retry + cache
-   ⭐ v3.8: تحسينات للتوافق مع config v4.2 (transfers + counts)
+   app.js — Refad ERP v4.1
+   ⭐ v4.1: session stability + ensure company_id + settings reload after session
+   ⭐ v4.0: Notifications + Chat + Store helpers
+   ⭐ v3.8: transfers + counts helpers
    ⭐ v3.7: session stability
    ============================================================ */
 (function () {
@@ -14,13 +15,27 @@
   }
 
   let sb = null;
-  if (window.supabase && window.supabase.createClient) {
-    sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  let connectionIssue = null;
+  const isPlaceholderKey = !cfg.SUPABASE_ANON_KEY ||
+    cfg.SUPABASE_ANON_KEY === '******' ||
+    cfg.SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY';
+  if (!window.supabase || !window.supabase.createClient) {
+    connectionIssue = 'تعذر تحميل مكتبة Supabase.';
+  } else if (!cfg.SUPABASE_URL || isPlaceholderKey) {
+    connectionIssue = 'إعدادات Supabase غير مكتملة. تحقق من عنوان المشروع والمفتاح العام.';
+  } else {
+    try {
+      sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    } catch (e) {
+      connectionIssue = 'تعذر تهيئة الاتصال بـ Supabase.';
+      console.error('[Refad] Supabase client initialization failed:', e);
+    }
   }
 
   window.Refad = window.Refad || {};
   window.Refad.sb = sb;
   window.Refad.CONFIG = cfg;
+  window.Refad.connectionIssue = connectionIssue;
 
   // ═══════════════════════════════════════════════════════════
   // HELPERS
@@ -85,7 +100,8 @@
     const h = Math.floor(m / 60);
     if (h < 24) return 'منذ ' + h + ' ساعة';
     const days = Math.floor(h / 24);
-    return 'منذ ' + days + ' يوم';
+    if (days < 30) return 'منذ ' + days + ' يوم';
+    return fmtDate(d);
   }
 
   function today() { return new Date().toISOString().slice(0, 10); }
@@ -221,41 +237,41 @@
   // ═══════════════════════════════════════════════════════════
   // PERMISSIONS
   // ═══════════════════════════════════════════════════════════
-  function _getSessionPermissions() {
-    const s = window.Refad._session;
+  function _getSessionPermissions(session) {
+    const s = session || window.Refad._session;
     if (!s) return [];
     if (s.is_owner) return ['*'];
     return Array.isArray(s.permissions) ? s.permissions : [];
   }
 
-  function hasPermission(perm) {
+  function hasPermission(perm, session) {
     if (!perm) return true;
-    const perms = _getSessionPermissions();
+    const perms = _getSessionPermissions(session);
     if (perms.indexOf('*') !== -1) return true;
     if (perms.indexOf('admin.full') !== -1) return true;
     return perms.indexOf(perm) !== -1;
   }
 
-  function hasAnyPermission(permList) {
+  function hasAnyPermission(permList, session) {
     if (!permList || permList.length === 0) return true;
-    return permList.some(p => hasPermission(p));
+    return permList.some(p => hasPermission(p, session));
   }
 
-  function hasAllPermissions(permList) {
+  function hasAllPermissions(permList, session) {
     if (!permList || permList.length === 0) return true;
-    return permList.every(p => hasPermission(p));
+    return permList.every(p => hasPermission(p, session));
   }
 
   // ═══════════════════════════════════════════════════════════
   // ROUTES
   // ═══════════════════════════════════════════════════════════
-  function canAccessRoute(page) {
+  function canAccessRoute(page, session) {
     const routes = cfg.ROUTES || {};
     if (!(page in routes)) return true;
     const required = routes[page];
     if (!required) return true;
-    if (Array.isArray(required)) return hasAnyPermission(required);
-    return hasPermission(required);
+    if (Array.isArray(required)) return hasAnyPermission(required, session);
+    return hasPermission(required, session);
   }
 
   async function requirePermission(perm, redirectTo) {
@@ -267,9 +283,9 @@
     return false;
   }
 
-  async function requireRoute(page, redirectTo) {
+  async function requireRoute(page, redirectTo, session) {
     const pageName = page || (location.pathname.split('/').pop() || 'dashboard.html');
-    if (canAccessRoute(pageName)) return true;
+    if (canAccessRoute(pageName, session)) return true;
     toast('error', 'غير مصرح بالوصول لهذه الصفحة');
     setTimeout(function () {
       location.href = redirectTo || 'dashboard.html';
@@ -373,7 +389,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ⭐ SESSION
+  // SESSION
   // ═══════════════════════════════════════════════════════════
   async function waitForAuthSession(maxAttempts, delayMs) {
     maxAttempts = maxAttempts || 10;
@@ -580,10 +596,54 @@
       return null;
     }
 
+    // ⭐ v4.1: ensure session.company_id is set
+    if (!session.company_id) {
+      console.warn('[Refad] Session has no company_id — cannot proceed');
+      toast('error', 'خطأ في الجلسة — المستخدم غير مرتبط بشركة. جاري تسجيل الخروج...');
+      setTimeout(function () {
+        try {
+          localStorage.removeItem(cfg.SESSION_KEY);
+          localStorage.removeItem('refad_refresh_token');
+        } catch (e) {}
+        location.href = 'index.html';
+      }, 2000);
+      return null;
+    }
+
+    const currentPage = location.pathname.split('/').pop() || 'dashboard.html';
+    if (!await requireRoute(currentPage, 'dashboard.html')) return null;
+
+    // Debug info
+    console.log('[DEBUG] Session loaded:', {
+      user_id: session.user_id,
+      company_id: session.company_id,
+      active_branch_id: session.active_branch_id,
+      is_owner: session.is_owner,
+      role_name: session.role_name
+    });
+
     try {
       await applyThemeAndSettings(session);
     } catch (e) {
       console.warn('[Refad] applyThemeAndSettings threw (ignored):', e);
+    }
+
+    // ⭐ v4.1: Force reload settings AFTER session is fully loaded
+    if (window.RefadSettings) {
+      try {
+        // Invalidate stale cache from previous session/company
+        if (window.RefadSettings.getCompanyId && window.RefadSettings.getCompanyId() !== session.company_id) {
+          console.log('[Refad] Company changed — invalidating settings cache');
+          if (window.RefadSettings.invalidate) window.RefadSettings.invalidate();
+        }
+        await window.RefadSettings.reload(sb);
+        if (window.RefadSettings.applyRuntimeEffects) {
+          try { window.RefadSettings.applyRuntimeEffects(); } catch (e) {}
+        }
+        console.log('[Refad] ✅ Settings reloaded after session (company:', session.company_id + ')');
+      } catch (e) {
+        console.warn('[Refad] Post-session settings reload failed:', e);
+      }
     }
 
     loadFeatureFlags().catch(() => {});
@@ -665,9 +725,18 @@
       localStorage.removeItem(cfg.COMPANY_KEY);
       localStorage.removeItem('refad_pos_cart_v5');
       localStorage.removeItem('refad_active_warehouse');
+      localStorage.removeItem('refad_active_warehouse_name');
+      localStorage.removeItem(cfg.CACHE_KEYS?.NOTIFICATIONS_UNREAD || 'refad_cached_notif_unread');
+      localStorage.removeItem(cfg.CACHE_KEYS?.CHAT_UNREAD || 'refad_cached_chat_unread');
+      localStorage.removeItem(cfg.CACHE_KEYS?.CHAT_CONVERSATIONS || 'refad_cached_chat_convs');
     } catch (e) {}
 
     try { sessionStorage.clear(); } catch (e) {}
+
+    // Clear settings cache
+    if (window.RefadSettings && window.RefadSettings.clearAll) {
+      try { window.RefadSettings.clearAll(); } catch (e) {}
+    }
 
     window.Refad._session = null;
     emit(cfg.EVENTS?.USER_LOGGED_OUT || 'refad:user-logged-out');
@@ -776,6 +845,7 @@
         branch_id: session.active_branch_id,
         user_id: session.user_id,
         user_email: session.email,
+        user_name: session.full_name,
         action: action,
         entity_type: entityType,
         entity_id: entityId,
@@ -812,6 +882,15 @@
     const s = window.Refad._session;
     if (!s) return null;
     const whs = await getWarehouses();
+    if (!whs || whs.length === 0) return null;
+
+    let storedId = null;
+    try { storedId = localStorage.getItem(cfg.CACHE_KEYS?.WAREHOUSE_ACTIVE || 'refad_active_warehouse'); } catch (e) {}
+    if (storedId) {
+      const w = whs.find(x => x.id === storedId);
+      if (w) return w;
+    }
+
     if (s.active_warehouse_id) {
       const w = whs.find(x => x.id === s.active_warehouse_id);
       if (w) return w;
@@ -819,16 +898,24 @@
     return whs.find(w => w.is_default) || whs[0] || null;
   }
 
-  function setActiveWarehouse(warehouseId) {
+  function setActiveWarehouse(warehouseId, warehouseName) {
     if (window.Refad._session) {
       window.Refad._session.active_warehouse_id = warehouseId;
     }
-    try { localStorage.setItem('refad_active_warehouse', warehouseId); } catch (e) {}
-    emit(cfg.EVENTS?.WAREHOUSE_CHANGED || 'refad:warehouse-changed', { warehouse_id: warehouseId });
+    try {
+      localStorage.setItem(cfg.CACHE_KEYS?.WAREHOUSE_ACTIVE || 'refad_active_warehouse', warehouseId);
+      if (warehouseName) {
+        localStorage.setItem(cfg.CACHE_KEYS?.WAREHOUSE_ACTIVE_NAME || 'refad_active_warehouse_name', warehouseName);
+      }
+    } catch (e) {}
+    emit(cfg.EVENTS?.WAREHOUSE_CHANGED || 'refad:warehouse-changed', {
+      warehouse_id: warehouseId,
+      warehouse_name: warehouseName
+    });
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ⭐ NEW: TRANSFERS HELPERS (v3.8)
+  // TRANSFERS HELPERS
   // ═══════════════════════════════════════════════════════════
   async function getTransfers(filter) {
     if (!sb || !window.Refad._session) return [];
@@ -874,6 +961,577 @@
   }
 
   // ═══════════════════════════════════════════════════════════
+  // NOTIFICATIONS HELPERS
+  // ═══════════════════════════════════════════════════════════
+  let _notifPollTimer = null;
+  let _notifChannel = null;
+  let _notifUnread = 0;
+
+  async function getNotifications(filter) {
+    if (!sb || !window.Refad._session) return [];
+    filter = filter || {};
+    try {
+      let q = sb.from('notifications')
+        .select('*')
+        .eq('company_id', window.Refad._session.company_id)
+        .order('created_at', { ascending: false });
+
+      q = q.or('user_id.is.null,user_id.eq.' + window.Refad._session.user_id);
+
+      if (filter.unread_only) q = q.eq('is_read', false);
+      if (filter.type) q = q.eq('type', filter.type);
+      if (filter.severity) q = q.eq('severity', filter.severity);
+      if (filter.limit) q = q.limit(filter.limit);
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn('[Refad] getNotifications failed:', e);
+      return [];
+    }
+  }
+
+  async function getUnreadNotificationCount() {
+    if (!sb || !window.Refad._session) return 0;
+    try {
+      const { count, error } = await sb.from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', window.Refad._session.company_id)
+        .eq('is_read', false)
+        .or('user_id.is.null,user_id.eq.' + window.Refad._session.user_id);
+
+      if (error) throw error;
+      _notifUnread = count || 0;
+      return _notifUnread;
+    } catch (e) {
+      console.warn('[Refad] getUnreadNotificationCount failed:', e);
+      return 0;
+    }
+  }
+
+  async function markNotificationRead(notificationId) {
+    if (!sb) return false;
+    try {
+      await sb.from('notifications').update({
+        is_read: true,
+        read_at: new Date().toISOString()
+      }).eq('id', notificationId);
+      _notifUnread = Math.max(0, _notifUnread - 1);
+      emit(cfg.EVENTS?.NOTIFICATION_READ || 'refad:notification-read', { id: notificationId });
+      emit(cfg.EVENTS?.NOTIFICATION_UNREAD_CHANGED || 'refad:notification-unread-changed', { count: _notifUnread });
+      return true;
+    } catch (e) {
+      console.warn('[Refad] markNotificationRead failed:', e);
+      return false;
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    if (!sb || !window.Refad._session) return false;
+    try {
+      await sb.from('notifications').update({
+        is_read: true,
+        read_at: new Date().toISOString()
+      })
+        .eq('company_id', window.Refad._session.company_id)
+        .eq('is_read', false)
+        .or('user_id.is.null,user_id.eq.' + window.Refad._session.user_id);
+      _notifUnread = 0;
+      emit(cfg.EVENTS?.NOTIFICATION_UNREAD_CHANGED || 'refad:notification-unread-changed', { count: 0 });
+      return true;
+    } catch (e) {
+      console.warn('[Refad] markAllNotificationsRead failed:', e);
+      return false;
+    }
+  }
+
+  async function deleteNotification(notificationId) {
+    if (!sb) return false;
+    try {
+      await sb.from('notifications').delete().eq('id', notificationId);
+      emit(cfg.EVENTS?.NOTIFICATION_RECEIVED || 'refad:notification-received', { removed: notificationId });
+      return true;
+    } catch (e) {
+      console.warn('[Refad] deleteNotification failed:', e);
+      return false;
+    }
+  }
+
+  async function subscribeToNotifications(callback) {
+    if (!sb || !window.Refad._session) return null;
+    try {
+      if (_notifChannel) {
+        await sb.removeChannel(_notifChannel);
+        _notifChannel = null;
+      }
+      _notifChannel = sb.channel('refad-notifications-' + window.Refad._session.user_id)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: 'company_id=eq.' + window.Refad._session.company_id
+        }, function (payload) {
+          const n = payload.new;
+          if (!n.user_id || n.user_id === window.Refad._session.user_id) {
+            _notifUnread++;
+            if (typeof callback === 'function') callback(n);
+            emit(cfg.EVENTS?.NOTIFICATION_RECEIVED || 'refad:notification-received', n);
+            emit(cfg.EVENTS?.NOTIFICATION_UNREAD_CHANGED || 'refad:notification-unread-changed', { count: _notifUnread });
+          }
+        })
+        .subscribe();
+      return _notifChannel;
+    } catch (e) {
+      console.warn('[Refad] subscribeToNotifications failed:', e);
+      return null;
+    }
+  }
+
+  function startNotificationPolling(intervalMs) {
+    if (_notifPollTimer) clearInterval(_notifPollTimer);
+    const tick = async function () {
+      const count = await getUnreadNotificationCount();
+      emit(cfg.EVENTS?.NOTIFICATION_UNREAD_CHANGED || 'refad:notification-unread-changed', { count: count });
+    };
+    tick();
+    _notifPollTimer = setInterval(tick, intervalMs || cfg.NOTIFICATIONS?.POLL_INTERVAL_MS || 30000);
+    return _notifPollTimer;
+  }
+
+  function stopNotificationPolling() {
+    if (_notifPollTimer) {
+      clearInterval(_notifPollTimer);
+      _notifPollTimer = null;
+    }
+  }
+
+  function getNotifUnreadCount() {
+    return _notifUnread;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CHAT HELPERS
+  // ═══════════════════════════════════════════════════════════
+  let _chatPollTimer = null;
+  let _chatChannel = null;
+  let _chatUnread = 0;
+
+  async function getConversations(filter) {
+    if (!sb || !window.Refad._session) return [];
+    filter = filter || {};
+    try {
+      const { data: parts, error: pErr } = await sb.from('chat_participants')
+        .select('conversation_id, last_read_at, is_muted, is_pinned')
+        .eq('user_id', window.Refad._session.user_id);
+      if (pErr) throw pErr;
+      const convIds = (parts || []).map(p => p.conversation_id);
+      if (convIds.length === 0) return [];
+
+      let q = sb.from('chat_conversations')
+        .select('*')
+        .in('id', convIds)
+        .eq('company_id', window.Refad._session.company_id)
+        .order('last_message_at', { ascending: false });
+
+      if (filter.type) q = q.eq('type', filter.type);
+      if (filter.limit) q = q.limit(filter.limit);
+
+      const { data, error } = await q;
+      if (error) throw error;
+
+      const { data: allParts } = await sb.from('chat_participants')
+        .select('conversation_id, user_id, role')
+        .in('conversation_id', convIds);
+      const partsByConv = {};
+      (allParts || []).forEach(p => {
+        if (!partsByConv[p.conversation_id]) partsByConv[p.conversation_id] = [];
+        partsByConv[p.conversation_id].push(p);
+      });
+
+      return (data || []).map(c => ({
+        ...c,
+        participants: partsByConv[c.id] || []
+      }));
+    } catch (e) {
+      console.warn('[Refad] getConversations failed:', e);
+      return [];
+    }
+  }
+
+  async function getChatMessages(conversationId, options) {
+    if (!sb) return [];
+    options = options || {};
+    try {
+      let q = sb.from('chat_messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(options.limit || cfg.CHAT?.MESSAGES_PAGE_SIZE || 50);
+
+      if (options.before) q = q.lt('created_at', options.before);
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []).reverse();
+    } catch (e) {
+      console.warn('[Refad] getChatMessages failed:', e);
+      return [];
+    }
+  }
+
+  async function sendChatMessage(conversationId, body, attachments) {
+    if (!sb || !window.Refad._session) return null;
+    try {
+      const payload = {
+        conversation_id: conversationId,
+        sender_id: window.Refad._session.user_id,
+        body: body || '',
+        attachments: attachments || []
+      };
+      const { data, error } = await sb.from('chat_messages').insert(payload).select('*').single();
+      if (error) throw error;
+      emit(cfg.EVENTS?.CHAT_MESSAGE_SENT || 'refad:chat-message-sent', data);
+      return data;
+    } catch (e) {
+      console.warn('[Refad] sendChatMessage failed:', e);
+      return null;
+    }
+  }
+
+  async function getChatUnreadCount() {
+    if (!sb || !window.Refad._session) return 0;
+    try {
+      const { data: parts } = await sb.from('chat_participants')
+        .select('conversation_id, last_read_at')
+        .eq('user_id', window.Refad._session.user_id);
+
+      if (!parts || parts.length === 0) return 0;
+
+      let total = 0;
+      for (const p of parts) {
+        const { count } = await sb.from('chat_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('conversation_id', p.conversation_id)
+          .eq('is_deleted', false)
+          .gt('created_at', p.last_read_at || '1970-01-01');
+        total += count || 0;
+      }
+      _chatUnread = total;
+      return total;
+    } catch (e) {
+      console.warn('[Refad] getChatUnreadCount failed:', e);
+      return 0;
+    }
+  }
+
+  async function markConversationRead(conversationId) {
+    if (!sb || !window.Refad._session) return false;
+    try {
+      await sb.from('chat_participants')
+        .update({ last_read_at: new Date().toISOString() })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', window.Refad._session.user_id);
+      emit(cfg.EVENTS?.CHAT_UNREAD_CHANGED || 'refad:chat-unread-changed', { conversation_id: conversationId });
+      return true;
+    } catch (e) {
+      console.warn('[Refad] markConversationRead failed:', e);
+      return false;
+    }
+  }
+
+  async function createDirectConversation(otherUserId) {
+    if (!sb) return null;
+    try {
+      const { data, error } = await sb.rpc('create_direct_conversation', {
+        p_other_user_id: otherUserId
+      });
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.warn('[Refad] createDirectConversation failed:', e);
+      return null;
+    }
+  }
+
+  async function createGroupConversation(name, userIds) {
+    if (!sb) return null;
+    try {
+      const { data, error } = await sb.rpc('create_group_conversation', {
+        p_name: name,
+        p_user_ids: userIds
+      });
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.warn('[Refad] createGroupConversation failed:', e);
+      return null;
+    }
+  }
+
+  async function subscribeToChat(callback) {
+    if (!sb || !window.Refad._session) return null;
+    try {
+      if (_chatChannel) {
+        await sb.removeChannel(_chatChannel);
+        _chatChannel = null;
+      }
+      _chatChannel = sb.channel('refad-chat-' + window.Refad._session.user_id)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages'
+        }, function (payload) {
+          if (typeof callback === 'function') callback(payload.new);
+          emit(cfg.EVENTS?.CHAT_MESSAGE_RECEIVED || 'refad:chat-message-received', payload.new);
+        })
+        .subscribe();
+      return _chatChannel;
+    } catch (e) {
+      console.warn('[Refad] subscribeToChat failed:', e);
+      return null;
+    }
+  }
+
+  function startChatPolling(intervalMs) {
+    if (_chatPollTimer) clearInterval(_chatPollTimer);
+    const tick = async function () {
+      const count = await getChatUnreadCount();
+      emit(cfg.EVENTS?.CHAT_UNREAD_CHANGED || 'refad:chat-unread-changed', { count: count });
+    };
+    tick();
+    _chatPollTimer = setInterval(tick, intervalMs || cfg.CHAT?.POLL_INTERVAL_MS || 5000);
+    return _chatPollTimer;
+  }
+
+  function stopChatPolling() {
+    if (_chatPollTimer) {
+      clearInterval(_chatPollTimer);
+      _chatPollTimer = null;
+    }
+  }
+
+  function getChatUnread() {
+    return _chatUnread;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STORE HELPERS
+  // ═══════════════════════════════════════════════════════════
+  async function getStoreSettings() {
+    if (!sb || !window.Refad._session) return null;
+    try {
+      const { data } = await sb.from('store_settings')
+        .select('*')
+        .eq('company_id', window.Refad._session.company_id)
+        .maybeSingle();
+      return data;
+    } catch (e) {
+      console.warn('[Refad] getStoreSettings failed:', e);
+      return null;
+    }
+  }
+
+  async function saveStoreSettings(settings) {
+    if (!sb || !window.Refad._session) return false;
+    try {
+      const payload = Object.assign({}, settings, {
+        company_id: window.Refad._session.company_id,
+        updated_at: new Date().toISOString()
+      });
+      const { data: existing } = await sb.from('store_settings')
+        .select('id')
+        .eq('company_id', window.Refad._session.company_id)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await sb.from('store_settings').update(payload).eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await sb.from('store_settings').insert(payload);
+        if (error) throw error;
+      }
+
+      emit(cfg.EVENTS?.STORE_SETTINGS_CHANGED || 'refad:store-settings-changed', payload);
+      return true;
+    } catch (e) {
+      console.warn('[Refad] saveStoreSettings failed:', e);
+      return false;
+    }
+  }
+
+  async function getStoreOrders(filter) {
+    if (!sb || !window.Refad._session) return [];
+    filter = filter || {};
+    try {
+      let q = sb.from('store_orders')
+        .select('*')
+        .eq('company_id', window.Refad._session.company_id)
+        .order('created_at', { ascending: false });
+
+      if (filter.status) q = q.eq('status', filter.status);
+      if (filter.payment_status) q = q.eq('payment_status', filter.payment_status);
+      if (filter.fulfillment_type) q = q.eq('fulfillment_type', filter.fulfillment_type);
+      if (filter.customer_id) q = q.eq('customer_id', filter.customer_id);
+      if (filter.from) q = q.gte('created_at', filter.from);
+      if (filter.to) q = q.lte('created_at', filter.to);
+      if (filter.limit) q = q.limit(filter.limit);
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn('[Refad] getStoreOrders failed:', e);
+      return [];
+    }
+  }
+
+  async function getStoreOrderItems(orderId) {
+    if (!sb) return [];
+    try {
+      const { data } = await sb.from('store_order_items')
+        .select('*')
+        .eq('order_id', orderId);
+      return data || [];
+    } catch (e) {
+      console.warn('[Refad] getStoreOrderItems failed:', e);
+      return [];
+    }
+  }
+
+  async function updateStoreOrderStatus(orderId, status, reason) {
+    if (!sb) return false;
+    // The RPC settles the invoice/stock/cash on dispatch and reverses them on cancel.
+    const { error } = await sb.rpc('set_store_order_status', {
+      p_order: orderId, p_status: status, p_reason: reason || null
+    });
+    if (error) {
+      console.warn('[Refad] updateStoreOrderStatus failed:', error);
+      throw error;
+    }
+    emit(cfg.EVENTS?.STORE_ORDER_STATUS_CHANGED || 'refad:store-order-status-changed', { order_id: orderId, status: status });
+    return true;
+  }
+
+  async function getStoreProducts(filter) {
+    if (!sb || !window.Refad._session) return [];
+    filter = filter || {};
+    try {
+      let q = sb.from('products')
+        .select('id, name, barcode, image_url, sale_price, store_price, is_in_store, store_description, store_sort_order, is_active, base_unit, sale_unit, min_stock')
+        .eq('company_id', window.Refad._session.company_id)
+        .is('deleted_at', null)
+        .eq('is_active', true);
+
+      if (filter.in_store_only) q = q.eq('is_in_store', true);
+      if (filter.search) q = q.or('name.ilike.%' + filter.search + '%,barcode.ilike.%' + filter.search + '%');
+      q = q.order('store_sort_order').order('name');
+      if (filter.limit) q = q.limit(filter.limit);
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn('[Refad] getStoreProducts failed:', e);
+      return [];
+    }
+  }
+
+  async function toggleProductInStore(productId, isInStore) {
+    if (!sb) return false;
+    try {
+      const { error } = await sb.from('products').update({
+        is_in_store: !!isInStore
+      }).eq('id', productId);
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.warn('[Refad] toggleProductInStore failed:', e);
+      return false;
+    }
+  }
+
+  async function updateProductStorePrice(productId, storePrice) {
+    if (!sb) return false;
+    try {
+      const { error } = await sb.from('products').update({
+        store_price: storePrice
+      }).eq('id', productId);
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.warn('[Refad] updateProductStorePrice failed:', e);
+      return false;
+    }
+  }
+
+  async function uploadProductImage(productId, file) {
+    if (!sb) return null;
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = window.Refad._session.company_id + '/' + productId + '/' + Date.now() + '.' + ext;
+
+      const { error: upErr } = await sb.storage
+        .from('product-images')
+        .upload(path, file, { cacheControl: '3600', upsert: false });
+      if (upErr) throw upErr;
+
+      const { data: urlData } = sb.storage.from('product-images').getPublicUrl(path);
+      const publicUrl = urlData?.publicUrl || null;
+
+      if (publicUrl) {
+        await sb.from('products').update({ image_url: publicUrl }).eq('id', productId);
+      }
+
+      return publicUrl;
+    } catch (e) {
+      console.warn('[Refad] uploadProductImage failed:', e);
+      return null;
+    }
+  }
+
+  async function uploadStoreAsset(file, folder) {
+    if (!sb || !window.Refad._session) return null;
+    try {
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+      const path = window.Refad._session.company_id + '/' + (folder || 'assets') + '/' + Date.now() + '.' + ext;
+
+      const { error: upErr } = await sb.storage
+        .from('product-images')
+        .upload(path, file, { cacheControl: '3600', upsert: false });
+      if (upErr) throw upErr;
+
+      const { data: urlData } = sb.storage.from('product-images').getPublicUrl(path);
+      return urlData?.publicUrl || null;
+    } catch (e) {
+      console.warn('[Refad] uploadStoreAsset failed:', e);
+      return null;
+    }
+  }
+
+  async function subscribeToStoreOrders(callback) {
+    if (!sb || !window.Refad._session) return null;
+    try {
+      const channel = sb.channel('refad-store-orders-' + window.Refad._session.company_id)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'store_orders',
+          filter: 'company_id=eq.' + window.Refad._session.company_id
+        }, function (payload) {
+          if (typeof callback === 'function') callback(payload);
+          emit(cfg.EVENTS?.STORE_ORDER_CREATED || 'refad:store-order-created', payload.new);
+        })
+        .subscribe();
+      return channel;
+    } catch (e) {
+      console.warn('[Refad] subscribeToStoreOrders failed:', e);
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // INJECT STYLES
   // ═══════════════════════════════════════════════════════════
   (function injectBaseStyles() {
@@ -894,7 +1552,7 @@
   // ═══════════════════════════════════════════════════════════
   function init() {
     registerPWA();
-    console.log('[Refad] app.js v3.8 ready — Supabase: ' + (sb ? '✅' : '❌'));
+    console.log('[Refad] app.js v4.1 ready — Supabase: ' + (sb ? '✅' : '❌'));
     console.log('[Refad] Permissions catalog: ' + Object.keys(cfg.PERMISSIONS || {}).length);
     console.log('[Refad] Routes: ' + Object.keys(cfg.ROUTES || {}).length);
 
@@ -903,6 +1561,8 @@
         console.log('[Refad] Auth state changed:', event);
         if (event === 'SIGNED_OUT') {
           window.Refad._session = null;
+          stopNotificationPolling();
+          stopChatPolling();
         } else if (event === 'TOKEN_REFRESHED' && session) {
           try {
             localStorage.setItem(cfg.SESSION_KEY, session.access_token);
@@ -986,8 +1646,47 @@
   window.Refad.getActiveWarehouse = getActiveWarehouse;
   window.Refad.setActiveWarehouse = setActiveWarehouse;
 
-  // ⭐ NEW: Transfers & Counts helpers (v3.8)
   window.Refad.getTransfers = getTransfers;
   window.Refad.getCounts = getCounts;
+
+  window.Refad.notifications = {
+    list: getNotifications,
+    unreadCount: getUnreadNotificationCount,
+    getUnread: getNotifUnreadCount,
+    markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead,
+    remove: deleteNotification,
+    subscribe: subscribeToNotifications,
+    startPolling: startNotificationPolling,
+    stopPolling: stopNotificationPolling
+  };
+
+  window.Refad.chat = {
+    conversations: getConversations,
+    messages: getChatMessages,
+    send: sendChatMessage,
+    unreadCount: getChatUnreadCount,
+    getUnread: getChatUnread,
+    markRead: markConversationRead,
+    createDirect: createDirectConversation,
+    createGroup: createGroupConversation,
+    subscribe: subscribeToChat,
+    startPolling: startChatPolling,
+    stopPolling: stopChatPolling
+  };
+
+  window.Refad.store = {
+    getSettings: getStoreSettings,
+    saveSettings: saveStoreSettings,
+    getOrders: getStoreOrders,
+    getOrderItems: getStoreOrderItems,
+    updateOrderStatus: updateStoreOrderStatus,
+    getProducts: getStoreProducts,
+    toggleInStore: toggleProductInStore,
+    updateStorePrice: updateProductStorePrice,
+    uploadImage: uploadProductImage,
+    uploadAsset: uploadStoreAsset,
+    subscribeOrders: subscribeToStoreOrders
+  };
 
 })();

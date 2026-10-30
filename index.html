@@ -542,7 +542,23 @@ body::after {
 (function () {
   'use strict';
   const cfg = window.REFAD_CONFIG;
-  const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  let sb = null;
+  let connectionIssue = null;
+  const isPlaceholderKey = !cfg.SUPABASE_ANON_KEY ||
+    cfg.SUPABASE_ANON_KEY === '******' ||
+    cfg.SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY';
+  if (!window.supabase || !window.supabase.createClient) {
+    connectionIssue = 'تعذر تحميل مكتبة Supabase. تحقق من اتصال الإنترنت ثم أعد المحاولة.';
+  } else if (!cfg.SUPABASE_URL || isPlaceholderKey) {
+    connectionIssue = 'إعدادات الاتصال بالنظام غير مكتملة. تحقق من إعدادات Supabase.';
+  } else {
+    try {
+      sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    } catch (e) {
+      connectionIssue = 'تعذر تهيئة الاتصال بالنظام.';
+      console.error('[Refad] Supabase client initialization failed:', e);
+    }
+  }
 
   const $form = document.getElementById('loginForm');
   const $email = document.getElementById('email');
@@ -631,6 +647,11 @@ body::after {
   }
   function hideError() {
     $errorBox.classList.remove('show');
+  }
+
+  if (connectionIssue) {
+    showError(connectionIssue);
+    $submitBtn.disabled = true;
   }
 
   function setLoading(loading) {
@@ -777,6 +798,10 @@ body::after {
   $form.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
+    if (!sb) {
+      showError(connectionIssue || 'الاتصال بالنظام غير متاح حاليًا.');
+      return;
+    }
     setLoading(true);
     try {
       const email = $email.value.trim().toLowerCase();

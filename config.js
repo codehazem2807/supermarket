@@ -1,9 +1,9 @@
 /* ============================================================
-   config.js — Refad ERP v4.2
-   الإعدادات الموحّدة (Supabase + App + Permissions + Warehouses + Session)
-   ⭐ v4.2: إضافة transfers.html + counts.html للـ Routes والـ Nav
-   ⭐ v4.1: إضافة expenses + presets للـ Routes والـ Nav
-   ⭐ v4.0: Presets + Offline + Forecast + Seasons + Mixed Payment + Logo Fallback
+   config.js — Refad ERP v5.0
+   ⭐ v5.0: Notifications + Chat + Storefront + Store Admin
+   ⭐ v4.2: transfers + counts
+   ⭐ v4.1: expenses + presets
+   ⭐ v4.0: Presets + Offline + Forecast + Seasons + Mixed Payment
    ⚠️ لا تضع أي API Keys هنا — استخدم Supabase Edge Functions
    ============================================================ */
 (function () {
@@ -20,11 +20,11 @@
     // 📱 APP INFO
     // ═══════════════════════════════════════════════════════════
     APP_NAME: 'رفاد سوبرماركت',
-    APP_VERSION: '4.2.0',
+    APP_VERSION: '5.0.0',
     LOGO_URL: 'logo.png',
 
     // ═══════════════════════════════════════════════════════════
-    // 🖼️ LOGO — مع fallback احترافي
+    // 🖼️ LOGO
     // ═══════════════════════════════════════════════════════════
     LOGO: {
       URL: 'logo.png',
@@ -111,7 +111,6 @@
       OFFLINE_QUEUE_VIEW: 'offline_queue.view',
       OFFLINE_QUEUE_MANAGE: 'offline_queue.manage',
 
-      // ⭐ Expenses
       EXPENSES_VIEW: 'expenses.view',
       EXPENSES_MANAGE: 'expenses.manage',
 
@@ -169,11 +168,27 @@
       BARCODE_GENERATE: 'barcode.generate',
 
       SUBSCRIPTIONS_VIEW: 'subscriptions.view',
-      SUBSCRIPTIONS_MANAGE: 'subscriptions.manage'
+      SUBSCRIPTIONS_MANAGE: 'subscriptions.manage',
+
+      // ⭐ v5.0: Notifications
+      NOTIFICATIONS_VIEW: 'notifications.view',
+      NOTIFICATIONS_MANAGE: 'notifications.manage',
+
+      // ⭐ v5.0: Chat
+      CHAT_USE: 'chat.use',
+      CHAT_MANAGE: 'chat.manage',
+
+      // ⭐ v5.0: Store
+      STORE_VIEW: 'store.view',
+      STORE_MANAGE: 'store.manage',
+      STORE_ORDERS_VIEW: 'store.orders_view',
+      STORE_ORDERS_MANAGE: 'store.orders_manage',
+      STORE_SETTINGS_VIEW: 'store.settings_view',
+      STORE_SETTINGS_MANAGE: 'store.settings_manage'
     },
 
     // ═══════════════════════════════════════════════════════════
-    // 🗺️ ROUTES — كل صفحة والصلاحية المطلوبة
+    // 🗺️ ROUTES
     // ═══════════════════════════════════════════════════════════
     ROUTES: {
       'dashboard.html':       null,
@@ -182,7 +197,6 @@
       'products.html':        'products.view',
       'inventory.html':       'inventory.view',
       'warehouses.html':      'warehouses.view',
-      // ⭐ NEW: Transfers & Counts
       'transfers.html':       'warehouses.transfer',
       'counts.html':          'warehouses.count',
       'purchases.html':       'purchases.view',
@@ -204,11 +218,152 @@
       'offline_queue.html':   'offline_queue.view',
       'seasons.html':         'seasons.view',
       'expenses.html':        'expenses.view',
-      'presets.html':         'company.preset_apply'
+      'presets.html':         'company.preset_apply',
+      // ⭐ v5.0: New pages
+      'notifications.html':   'notifications.view',
+      'chat.html':            'chat.use',
+      'store-admin.html':     'store.manage',
+      'store-orders.html':    'store.orders_view',
+      'store-settings.html':  'store.settings_manage'
     },
 
     // ═══════════════════════════════════════════════════════════
-    // 🏪 WAREHOUSES — Constants & Types
+    // 🔔 NOTIFICATIONS (v5.0)
+    // ═══════════════════════════════════════════════════════════
+    NOTIFICATIONS: {
+      TYPES: [
+        { value: 'low_stock',             label: 'مخزون منخفض',        icon: 'alert-triangle', severity: 'warning', color: 'var(--gold)' },
+        { value: 'out_of_stock',          label: 'نفاد مخزون',         icon: 'package-x',      severity: 'danger',  color: 'var(--danger)' },
+        { value: 'expiring_lot',          label: 'صلاحية قريبة',       icon: 'clock',          severity: 'warning', color: 'var(--gold)' },
+        { value: 'expired_lot',           label: 'صلاحية منتهية',      icon: 'alert-octagon',  severity: 'danger',  color: 'var(--danger)' },
+        { value: 'store_order',           label: 'طلب متجر جديد',      icon: 'shopping-bag',   severity: 'info',    color: 'var(--info)' },
+        { value: 'store_order_paid',      label: 'طلب مدفوع',          icon: 'check-circle',   severity: 'success', color: 'var(--success)' },
+        { value: 'store_order_cancelled', label: 'طلب ملغي',           icon: 'x-circle',       severity: 'danger',  color: 'var(--danger)' },
+        { value: 'transfer_pending',      label: 'تحويل بانتظار',      icon: 'truck',          severity: 'info',    color: 'var(--info)' },
+        { value: 'transfer_received',     label: 'تحويل مستلم',        icon: 'package-check',  severity: 'success', color: 'var(--success)' },
+        { value: 'subscription_expiring', label: 'اشتراك ينتهي',       icon: 'credit-card',    severity: 'warning', color: 'var(--gold)' },
+        { value: 'subscription_expired',  label: 'اشتراك منتهي',       icon: 'alert-circle',   severity: 'danger',  color: 'var(--danger)' },
+        { value: 'payment_due',           label: 'دفعة مستحقة',        icon: 'banknote',       severity: 'warning', color: 'var(--gold)' },
+        { value: 'chat_message',          label: 'رسالة جديدة',        icon: 'message-circle', severity: 'info',    color: 'var(--info)' },
+        { value: 'system',                label: 'نظام',               icon: 'info',           severity: 'info',    color: 'var(--info)' }
+      ],
+      SEVERITIES: [
+        { value: 'info',    label: 'معلومة',  color: 'var(--info)',    bg: 'var(--info-soft)' },
+        { value: 'success', label: 'نجاح',    color: 'var(--success)', bg: 'var(--success-soft)' },
+        { value: 'warning', label: 'تحذير',   color: 'var(--gold)',    bg: 'var(--gold-soft)' },
+        { value: 'danger',  label: 'خطر',     color: 'var(--danger)',  bg: 'var(--danger-soft)' }
+      ],
+      POLL_INTERVAL_MS: 30000,
+      MAX_DROPDOWN_ITEMS: 10,
+      MAX_PAGE_SIZE: 50,
+      AUTO_MARK_READ_DELAY_MS: 2000,
+      SOUND_ENABLED: true,
+      SOUND_URL: 'sounds/notification.mp3',
+      BROWSER_NOTIFICATION_ENABLED: false
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // 💬 CHAT (v5.0)
+    // ═══════════════════════════════════════════════════════════
+    CHAT: {
+      TYPES: [
+        { value: 'direct', label: 'محادثة فردية', icon: 'user', color: 'var(--info)' },
+        { value: 'group',  label: 'مجموعة',       icon: 'users', color: 'var(--accent)' }
+      ],
+      PARTICIPANT_ROLES: [
+        { value: 'member', label: 'عضو' },
+        { value: 'admin',  label: 'مشرف' }
+      ],
+      POLL_INTERVAL_MS: 3000,
+      MAX_MESSAGE_LENGTH: 5000,
+      MAX_ATTACHMENT_SIZE_MB: 10,
+      MAX_ATTACHMENTS_PER_MESSAGE: 5,
+      ALLOWED_ATTACHMENT_TYPES: [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf',
+        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain', 'text/csv',
+        'application/zip'
+      ],
+      ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+      TYPING_TIMEOUT_MS: 3000,
+      ONLINE_TIMEOUT_MS: 60000,
+      MESSAGES_PAGE_SIZE: 50,
+      CONVERSATIONS_PAGE_SIZE: 30,
+      STORAGE_BUCKET: 'chat-attachments',
+      EMOJIS: ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕']
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // 🛒 STORE (v5.0)
+    // ═══════════════════════════════════════════════════════════
+    STORE: {
+      ORDER_STATUSES: [
+        { value: 'pending',          label: 'بانتظار التأكيد', icon: 'clock',           color: 'var(--gold)' },
+        { value: 'confirmed',        label: 'مؤكد',            icon: 'check-circle',    color: 'var(--info)' },
+        { value: 'preparing',        label: 'قيد التحضير',     icon: 'chef-hat',        color: 'var(--info)' },
+        { value: 'ready',            label: 'جاهز',            icon: 'package-check',   color: 'var(--accent)' },
+        { value: 'out_for_delivery', label: 'في الطريق',       icon: 'truck',           color: 'var(--purple)' },
+        { value: 'delivered',        label: 'تم التوصيل',      icon: 'check-circle-2',  color: 'var(--success)' },
+        { value: 'cancelled',        label: 'ملغي',            icon: 'x-circle',        color: 'var(--danger)' }
+      ],
+      PAYMENT_STATUSES: [
+        { value: 'pending',   label: 'بانتظار الدفع', icon: 'clock',        color: 'var(--gold)' },
+        { value: 'paid',      label: 'مدفوع',         icon: 'check-circle', color: 'var(--success)' },
+        { value: 'refunded',  label: 'مسترجع',        icon: 'rotate-ccw',   color: 'var(--info)' }
+      ],
+      FULFILLMENT_TYPES: [
+        { value: 'delivery', label: 'توصيل', icon: 'truck' },
+        { value: 'pickup',   label: 'استلام', icon: 'store' }
+      ],
+      PAYMENT_METHODS: [
+        { value: 'cash',   label: 'نقدي عند الاستلام', icon: 'banknote' },
+        { value: 'card',   label: 'بطاقة',             icon: 'credit-card' },
+        { value: 'wallet', label: 'محفظة إلكترونية',   icon: 'smartphone' },
+        { value: 'online', label: 'دفع أونلاين',       icon: 'globe' }
+      ],
+      DEFAULT_SETTINGS: {
+        enabled: true,
+        store_name: '',
+        store_description: '',
+        logo_url: '',
+        banner_url: '',
+        primary_color: '#0B2C4D',
+        accent_color: '#14B8A6',
+        phone: '',
+        whatsapp: '',
+        address: '',
+        working_hours: {
+          sat: { open: '09:00', close: '23:00', closed: false },
+          sun: { open: '09:00', close: '23:00', closed: false },
+          mon: { open: '09:00', close: '23:00', closed: false },
+          tue: { open: '09:00', close: '23:00', closed: false },
+          wed: { open: '09:00', close: '23:00', closed: false },
+          thu: { open: '09:00', close: '23:00', closed: false },
+          fri: { open: '09:00', close: '23:00', closed: false }
+        },
+        delivery_enabled: true,
+        delivery_fee: 0,
+        min_order_amount: 0,
+        pickup_enabled: true,
+        payment_methods: ['cash', 'card', 'wallet'],
+        currency: 'EGP',
+        locale: 'ar-EG',
+        social_links: {}
+      },
+      CART_STORAGE_KEY: 'refad_store_cart',
+      CUSTOMER_SESSION_KEY: 'refad_store_customer',
+      MAX_CART_ITEMS: 100,
+      ORDERS_PAGE_SIZE: 20,
+      PRODUCTS_PAGE_SIZE: 24,
+      CATEGORY_VIEW: 'grid',
+      SHOW_OUT_OF_STOCK: false,
+      SHOW_STOCK_COUNT: true
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // 🏪 WAREHOUSES
     // ═══════════════════════════════════════════════════════════
     WAREHOUSES: {
       TYPES: [
@@ -258,7 +413,7 @@
     },
 
     // ═══════════════════════════════════════════════════════════
-    // 💰 SESSION / DRAWER — Constants
+    // 💰 SESSION / DRAWER
     // ═══════════════════════════════════════════════════════════
     SESSION: {
       STATUSES: [
@@ -362,7 +517,10 @@
         whatsapp: false,
         sms: false,
         daily_report: false,
-        report_email: ''
+        report_email: '',
+        in_app: true,
+        sound: true,
+        browser_push: false
       },
       barcode: {
         default_type: 'EAN13',
@@ -428,7 +586,23 @@
       ACCOUNTING_DOUBLE_ENTRY: 'accounting.double_entry',
       ACCOUNTING_MULTI_CURRENCY: 'accounting.multi_currency',
       WEBHOOKS: 'integrations.webhooks',
-      CUSTOM_FIELDS: 'custom_fields'
+      CUSTOM_FIELDS: 'custom_fields',
+      // ⭐ v5.0
+      NOTIFICATIONS_ENABLED: 'notifications.enabled',
+      NOTIFICATIONS_REALTIME: 'notifications.realtime',
+      NOTIFICATIONS_BROWSER_PUSH: 'notifications.browser_push',
+      CHAT_ENABLED: 'chat.enabled',
+      CHAT_ATTACHMENTS: 'chat.attachments',
+      CHAT_GROUPS: 'chat.groups',
+      CHAT_READ_RECEIPTS: 'chat.read_receipts',
+      STORE_ENABLED: 'store.enabled',
+      STORE_DELIVERY: 'store.delivery',
+      STORE_PICKUP: 'store.pickup',
+      STORE_GUEST_CHECKOUT: 'store.guest_checkout',
+      STORE_CUSTOMER_ACCOUNTS: 'store.customer_accounts',
+      STORE_ONLINE_PAYMENT: 'store.online_payment',
+      STORE_REVIEWS: 'store.reviews',
+      STORE_COUPONS: 'store.coupons'
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -560,7 +734,9 @@
         max_invoices_per_month: 1000,
         max_storage_mb: 100,
         forecast_enabled: false,
-        offline_enabled: true
+        offline_enabled: true,
+        store_enabled: false,
+        chat_enabled: false
       },
       basic: {
         max_users: 10,
@@ -570,7 +746,9 @@
         max_invoices_per_month: 5000,
         max_storage_mb: 500,
         forecast_enabled: true,
-        offline_enabled: true
+        offline_enabled: true,
+        store_enabled: true,
+        chat_enabled: true
       },
       pro: {
         max_users: 50,
@@ -580,7 +758,9 @@
         max_invoices_per_month: 50000,
         max_storage_mb: 5000,
         forecast_enabled: true,
-        offline_enabled: true
+        offline_enabled: true,
+        store_enabled: true,
+        chat_enabled: true
       },
       enterprise: {
         max_users: -1,
@@ -590,7 +770,9 @@
         max_invoices_per_month: -1,
         max_storage_mb: -1,
         forecast_enabled: true,
-        offline_enabled: true
+        offline_enabled: true,
+        store_enabled: true,
+        chat_enabled: true
       }
     },
 
@@ -611,7 +793,16 @@
       SESSION_STATUS: 'refad_cached_session_status',
       FORECAST: 'refad_cached_forecast',
       OFFLINE_QUEUE: 'refad_offline_queue',
-      PRESETS: 'refad_cached_presets'
+      PRESETS: 'refad_cached_presets',
+      // ⭐ v5.0
+      NOTIFICATIONS_UNREAD: 'refad_cached_notif_unread',
+      NOTIFICATIONS_LIST: 'refad_cached_notif_list',
+      CHAT_UNREAD: 'refad_cached_chat_unread',
+      CHAT_CONVERSATIONS: 'refad_cached_chat_convs',
+      STORE_SETTINGS: 'refad_cached_store_settings',
+      STORE_CART: 'refad_store_cart',
+      STORE_CUSTOMER: 'refad_store_customer',
+      STORE_RECENT_ORDERS: 'refad_cached_store_orders'
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -635,7 +826,6 @@
       PRESET_APPLIED: 'refad:preset-applied',
       EXPENSE_CREATED: 'refad:expense-created',
       CASH_MOVEMENT_CREATED: 'refad:cash-movement-created',
-      // ⭐ NEW: Transfers & Counts
       TRANSFER_CREATED: 'refad:transfer-created',
       TRANSFER_SENT: 'refad:transfer-sent',
       TRANSFER_RECEIVED: 'refad:transfer-received',
@@ -643,7 +833,21 @@
       COUNT_CREATED: 'refad:count-created',
       COUNT_STARTED: 'refad:count-started',
       COUNT_COMPLETED: 'refad:count-completed',
-      COUNT_CANCELLED: 'refad:count-cancelled'
+      COUNT_CANCELLED: 'refad:count-cancelled',
+      // ⭐ v5.0
+      NOTIFICATION_RECEIVED: 'refad:notification-received',
+      NOTIFICATION_READ: 'refad:notification-read',
+      NOTIFICATION_UNREAD_CHANGED: 'refad:notification-unread-changed',
+      CHAT_MESSAGE_RECEIVED: 'refad:chat-message-received',
+      CHAT_MESSAGE_SENT: 'refad:chat-message-sent',
+      CHAT_CONVERSATION_OPENED: 'refad:chat-conversation-opened',
+      CHAT_UNREAD_CHANGED: 'refad:chat-unread-changed',
+      STORE_SETTINGS_CHANGED: 'refad:store-settings-changed',
+      STORE_ORDER_CREATED: 'refad:store-order-created',
+      STORE_ORDER_STATUS_CHANGED: 'refad:store-order-status-changed',
+      STORE_CART_CHANGED: 'refad:store-cart-changed',
+      STORE_CUSTOMER_LOGGED_IN: 'refad:store-customer-logged-in',
+      STORE_CUSTOMER_LOGGED_OUT: 'refad:store-customer-logged-out'
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -679,7 +883,12 @@
       TRANSFER_NOTE: 'transfer-note',
       COUNT_REPORT: 'count-report',
       FORECAST_REPORT: 'forecast-report',
-      BRANCH_COMPARE: 'branch-compare'
+      BRANCH_COMPARE: 'branch-compare',
+      // ⭐ v5.0
+      STORE_ORDER: 'store-order',
+      STORE_ORDER_RECEIPT: 'store-order-receipt',
+      CHAT_PRINT: 'chat-print',
+      NOTIFICATIONS_REPORT: 'notifications-report'
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -702,12 +911,26 @@
         ]
       },
       {
+        title: 'التواصل',
+        items: [
+          { href: 'notifications.html', icon: 'bell', label: 'الإشعارات', permission: 'notifications.view' },
+          { href: 'chat.html', icon: 'message-circle', label: 'المحادثات', permission: 'chat.use' }
+        ]
+      },
+      {
+        title: 'المتجر الإلكتروني',
+        items: [
+          { href: 'store-admin.html', icon: 'store', label: 'إدارة المتجر', permission: 'store.manage' },
+          { href: 'store-orders.html', icon: 'shopping-bag', label: 'طلبات المتجر', permission: 'store.orders_view' },
+          { href: 'store-settings.html', icon: 'settings-2', label: 'إعدادات المتجر', permission: 'store.settings_manage' }
+        ]
+      },
+      {
         title: 'المخزون',
         items: [
           { href: 'products.html', icon: 'package', label: 'المنتجات', permission: 'products.view' },
           { href: 'inventory.html', icon: 'boxes', label: 'المخزون', permission: 'inventory.view' },
           { href: 'warehouses.html', icon: 'warehouse', label: 'المخازن', permission: 'warehouses.view' },
-          // ⭐ NEW: Transfers & Counts
           { href: 'transfers.html', icon: 'arrow-left-right', label: 'تحويلات المخازن', permission: 'warehouses.transfer' },
           { href: 'counts.html', icon: 'clipboard-check', label: 'الجرد', permission: 'warehouses.count' },
           { href: 'purchases.html', icon: 'truck', label: 'المشتريات', permission: 'purchases.view' },
@@ -782,13 +1005,62 @@
     return wrap;
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // 🔔 HELPER: getNotificationType
+  // ═══════════════════════════════════════════════════════════
+  window.REFAD_CONFIG.getNotificationType = function (value) {
+    return (window.REFAD_CONFIG.NOTIFICATIONS.TYPES || []).find(t => t.value === value) || null;
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // 💬 HELPER: getChatType
+  // ═══════════════════════════════════════════════════════════
+  window.REFAD_CONFIG.getChatType = function (value) {
+    return (window.REFAD_CONFIG.CHAT.TYPES || []).find(t => t.value === value) || null;
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // 🛒 HELPER: getStoreOrderStatus
+  // ═══════════════════════════════════════════════════════════
+  window.REFAD_CONFIG.getStoreOrderStatus = function (value) {
+    return (window.REFAD_CONFIG.STORE.ORDER_STATUSES || []).find(s => s.value === value) || null;
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // 🛒 HELPER: getStorePaymentStatus
+  // ═══════════════════════════════════════════════════════════
+  window.REFAD_CONFIG.getStorePaymentStatus = function (value) {
+    return (window.REFAD_CONFIG.STORE.PAYMENT_STATUSES || []).find(s => s.value === value) || null;
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // 🏪 HELPER: getWarehouseType
+  // ═══════════════════════════════════════════════════════════
+  window.REFAD_CONFIG.getWarehouseType = function (value) {
+    return (window.REFAD_CONFIG.WAREHOUSES.TYPES || []).find(t => t.value === value) || null;
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // 🏪 HELPER: getTransferStatus
+  // ═══════════════════════════════════════════════════════════
+  window.REFAD_CONFIG.getTransferStatus = function (value) {
+    return (window.REFAD_CONFIG.WAREHOUSES.TRANSFER_STATUSES || []).find(s => s.value === value) || null;
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // 💳 HELPER: getPaymentMethod
+  // ═══════════════════════════════════════════════════════════
+  window.REFAD_CONFIG.getPaymentMethod = function (value) {
+    return (window.REFAD_CONFIG.MIXED_PAYMENT.METHODS || []).find(m => m.value === value) || null;
+  };
+
   console.log('[Refad] config.js loaded — v' + window.REFAD_CONFIG.APP_VERSION);
   console.log('[Refad] Permissions:', Object.keys(window.REFAD_CONFIG.PERMISSIONS).length);
   console.log('[Refad] Routes:', Object.keys(window.REFAD_CONFIG.ROUTES).length);
-  console.log('[Refad] Warehouse types:', window.REFAD_CONFIG.WAREHOUSES.TYPES.length);
-  console.log('[Refad] Session statuses:', window.REFAD_CONFIG.SESSION.STATUSES.length);
-  console.log('[Refad] Presets:', Object.keys(window.REFAD_CONFIG.PRESETS.META).length);
-  console.log('[Refad] Forecast horizons:', window.REFAD_CONFIG.FORECAST.HORIZONS.length);
-  console.log('[Refad] Seasons built-in:', window.REFAD_CONFIG.SEASONS.BUILTIN.length);
+  console.log('[Refad] Nav sections:', window.REFAD_CONFIG.NAV_SECTIONS.length);
+  console.log('[Refad] Notification types:', window.REFAD_CONFIG.NOTIFICATIONS.TYPES.length);
+  console.log('[Refad] Chat types:', window.REFAD_CONFIG.CHAT.TYPES.length);
+  console.log('[Refad] Store order statuses:', window.REFAD_CONFIG.STORE.ORDER_STATUSES.length);
+  console.log('[Refad] Feature flags:', Object.keys(window.REFAD_CONFIG.FEATURE_FLAGS).length);
 
 })();

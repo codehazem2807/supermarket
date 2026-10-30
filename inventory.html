@@ -1298,6 +1298,9 @@ tbody tr.clickable{cursor:pointer}
       return;
     }
 
+    if (window.Refad && window.Refad.requireRoute &&
+        !await window.Refad.requireRoute('inventory.html', 'dashboard.html', session)) return;
+
     if (!session.company_id) {
       console.warn('[Inventory] No company_id');
       location.href = 'index.html';

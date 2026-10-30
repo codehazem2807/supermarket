@@ -1,23 +1,27 @@
 /* ============================================================
-   sidebar.js — Refad ERP v3.6 Professional
-   - ✅ يقرأ من RefadSettings + session
-   - ✅ RefadTheme integration كامل
-   - ✅ زر الثيمات (light/dark/auto)
-   - ✅ Cache يتحدث لما الإعدادات تتغير
-   - ✅ Swipe + Focus trap + Back button + Session cache
-   - ⭐ NEW: عرض اسم المخزن الحالي في الـ user card
-   - ⭐ NEW: badge "●" على الوردية المفتوحة
-   - ⭐ NEW: تحديث تلقائي كل 30 ثانية (للوردية)
-   - ⭐ v3.5: staff-based session filtering (cashier_id)
-   - ⭐ v3.5: logo fallback احترافي (SVG inline)
-   - ⭐ v3.6: يقرأ من config.js (NAV_SECTIONS) — فيه transfers + counts
+   sidebar.js — Refad ERP v4.0 Professional
+   ⭐ v4.0: كل الصفحات + ميزات احترافية
+   - ✅ يقرأ من cfg.NAV_SECTIONS (ديناميكي)
+   - ✅ 26 صفحة + platform admin
+   - ✅ Theme picker integration
+   - ✅ Session badge (وردية مفتوحة)
+   - ✅ Warehouse name في الـ user card
+   - ✅ Swipe + Focus trap + Back button
+   - ✅ Session cache (5 دقايق)
+   - ✅ Responsive (mobile/tablet/desktop)
+   - ⭐ NEW: collapse mode + auto-save
+   - ⭐ NEW: بحث سريع في القائمة (Ctrl+K)
+   - ⭐ NEW: badge "جديد" للصفحات الجديدة
+   - ⭐ NEW: loading skeleton محسّن
+   - ⭐ NEW: offline indicator
+   - ⭐ NEW: PWA install button (لو متاح)
    ============================================================ */
 (function () {
   'use strict';
 
   const cfg = window.REFAD_CONFIG;
   if (!cfg) {
-    console.error('[Refad] config.js لازم يتحمّل الأول!');
+    console.error('[Refad] config.js لازم يتحمل الأول!');
     return;
   }
 
@@ -27,6 +31,19 @@
   const SWIPE_THRESHOLD = 60;
   const SWIPE_EDGE = 30;
   const SESSION_CHECK_INTERVAL = 30 * 1000;
+  const ONLINE_CHECK_INTERVAL = 15 * 1000;
+
+  // ⭐ الصفحات "الجديدة" (badge)
+  const NEW_PAGES = [
+    'transfers.html',
+    'counts.html',
+    'branch_compare.html',
+    'expenses.html',
+    'forecast.html',
+    'seasons.html',
+    'offline_queue.html',
+    'presets.html'
+  ];
 
   // ═══════════════════════════════════════════════════════════
   // STATE
@@ -40,8 +57,14 @@
     isSwiping: false,
     session: null,
     sessionCheckTimer: null,
+    onlineCheckTimer: null,
     hasOpenSession: false,
-    currentWarehouse: null
+    currentWarehouse: null,
+    isOnline: true,
+    installPromptEvent: null,
+    searchOpen: false,
+    searchResults: [],
+    searchIndex: 0
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -66,6 +89,10 @@
 
   function isMobileView() {
     return window.innerWidth <= 1024;
+  }
+
+  function isNewPage(href) {
+    return NEW_PAGES.indexOf(href) !== -1;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -98,7 +125,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ⭐ GET SIDEBAR DATA
+  // SIDEBAR DATA
   // ═══════════════════════════════════════════════════════════
   function getSidebarData(session) {
     session = session || {};
@@ -138,7 +165,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ⭐ UPDATE BRAND
+  // UPDATE BRAND
   // ═══════════════════════════════════════════════════════════
   function updateSidebarBrand() {
     if (!state.session) return;
@@ -199,7 +226,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ⭐ UPDATE SESSION BADGE
+  // UPDATE SESSION BADGE
   // ═══════════════════════════════════════════════════════════
   function updateSessionBadge(hasOpenSession) {
     state.hasOpenSession = hasOpenSession;
@@ -227,7 +254,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ⭐ LOAD SESSION STATUS
+  // LOAD SESSION STATUS
   // ═══════════════════════════════════════════════════════════
   async function loadSessionStatus() {
     if (!window.Refad || !window.Refad.sb) return;
@@ -286,6 +313,198 @@
   }
 
   // ═══════════════════════════════════════════════════════════
+  // ONLINE STATUS
+  // ═══════════════════════════════════════════════════════════
+  function updateOnlineStatus() {
+    const isOnline = navigator.onLine;
+    if (isOnline === state.isOnline) return;
+    state.isOnline = isOnline;
+
+    const indicator = document.getElementById('refad-offline-indicator');
+    if (indicator) {
+      indicator.style.display = isOnline ? 'none' : 'flex';
+    }
+
+    const sidebar = document.getElementById('refad-sidebar-main');
+    if (sidebar) {
+      sidebar.classList.toggle('refad-offline', !isOnline);
+    }
+  }
+
+  function startOnlineCheck() {
+    if (state.onlineCheckTimer) clearInterval(state.onlineCheckTimer);
+    updateOnlineStatus();
+    state.onlineCheckTimer = setInterval(updateOnlineStatus, ONLINE_CHECK_INTERVAL);
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PWA INSTALL PROMPT
+  // ═══════════════════════════════════════════════════════════
+  function setupPWAInstall() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      state.installPromptEvent = e;
+
+      // Show install button
+      const btn = document.getElementById('refad-pwa-install-btn');
+      if (btn) btn.style.display = 'flex';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      state.installPromptEvent = null;
+      const btn = document.getElementById('refad-pwa-install-btn');
+      if (btn) btn.style.display = 'none';
+    });
+  }
+
+  async function installPWA() {
+    if (!state.installPromptEvent) return;
+    try {
+      state.installPromptEvent.prompt();
+      const { outcome } = await state.installPromptEvent.userChoice;
+      state.installPromptEvent = null;
+      const btn = document.getElementById('refad-pwa-install-btn');
+      if (btn) btn.style.display = 'none';
+    } catch (e) {
+      console.warn('[Sidebar] PWA install failed:', e);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // QUICK SEARCH (Ctrl+K)
+  // ═══════════════════════════════════════════════════════════
+  function openQuickSearch() {
+    const modal = document.getElementById('refad-quick-search');
+    if (!modal) return;
+
+    modal.classList.add('show');
+    state.searchOpen = true;
+
+    const input = document.getElementById('refad-search-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+      renderSearchResults('');
+    }
+  }
+
+  function closeQuickSearch() {
+    const modal = document.getElementById('refad-quick-search');
+    if (!modal) return;
+    modal.classList.remove('show');
+    state.searchOpen = false;
+  }
+
+  function getAllNavItems() {
+    const items = [];
+    (cfg.NAV_SECTIONS || []).forEach(section => {
+      (section.items || []).forEach(item => {
+        items.push({
+          href: item.href,
+          label: item.label,
+          icon: item.icon,
+          section: section.title,
+          permission: item.permission
+        });
+      });
+    });
+    return items;
+  }
+
+  function hasPermission(perm, session) {
+    if (!perm) return true;
+    const activeSession = session || state.session || (window.Refad && window.Refad._session);
+    if (!activeSession) return false;
+    if (activeSession.is_owner) return true;
+    const permissions = Array.isArray(activeSession.permissions) ? activeSession.permissions : [];
+    if (permissions.indexOf('*') !== -1 || permissions.indexOf('admin.full') !== -1) return true;
+    return permissions.indexOf(perm) !== -1;
+  }
+
+  function renderSearchResults(query) {
+    const container = document.getElementById('refad-search-results');
+    if (!container) return;
+
+    const allItems = getAllNavItems().filter(item => hasPermission(item.permission));
+
+    let filtered = allItems;
+    if (query && query.trim()) {
+      const q = query.toLowerCase().trim();
+      filtered = allItems.filter(item =>
+        item.label.toLowerCase().includes(q) ||
+        item.href.toLowerCase().includes(q) ||
+        item.section.toLowerCase().includes(q)
+      );
+    }
+
+    state.searchResults = filtered;
+    state.searchIndex = 0;
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="refad-search-empty">لا توجد نتائج</div>';
+      return;
+    }
+
+    container.innerHTML = filtered.map((item, idx) => `
+      <a href="${escHtml(item.href)}" class="refad-search-item ${idx === 0 ? 'active' : ''}" data-idx="${idx}" data-href="${escHtml(item.href)}">
+        <i data-lucide="${escHtml(item.icon)}"></i>
+        <div class="refad-search-item-text">
+          <div class="refad-search-item-label">${escHtml(item.label)}</div>
+          <div class="refad-search-item-section">${escHtml(item.section)}</div>
+        </div>
+        <i data-lucide="arrow-left" class="refad-search-item-arrow"></i>
+      </a>
+    `).join('');
+
+    if (window.lucide) window.lucide.createIcons();
+
+    // Bind clicks
+    container.querySelectorAll('.refad-search-item').forEach(item => {
+      item.onclick = (e) => {
+        e.preventDefault();
+        window.location.href = item.dataset.href;
+      };
+    });
+  }
+
+  function handleSearchKeydown(e) {
+    if (!state.searchOpen) return;
+
+    const items = document.querySelectorAll('.refad-search-item');
+    if (items.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      state.searchIndex = Math.min(state.searchIndex + 1, items.length - 1);
+      updateSearchActive(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      state.searchIndex = Math.max(state.searchIndex - 1, 0);
+      updateSearchActive(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const active = items[state.searchIndex];
+      if (active) {
+        window.location.href = active.dataset.href;
+      }
+    } else if (e.key === 'Escape') {
+      closeQuickSearch();
+    }
+  }
+
+  function updateSearchActive(items) {
+    items.forEach((item, idx) => {
+      item.classList.toggle('active', idx === state.searchIndex);
+      if (idx === state.searchIndex) {
+        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // STYLES (injected once)
   // ═══════════════════════════════════════════════════════════
   function injectStyles() {
@@ -332,11 +551,13 @@
       .refad-sidebar.collapsed .refad-nav-item span,
       .refad-sidebar.collapsed .refad-nav-section,
       .refad-sidebar.collapsed .refad-user-info,
-      .refad-sidebar.collapsed .refad-nav-badge { display: none; }
+      .refad-sidebar.collapsed .refad-nav-badge,
+      .refad-sidebar.collapsed .refad-nav-new-badge,
+      .refad-sidebar.collapsed .refad-user-actions,
+      .refad-sidebar.collapsed .refad-search-btn { display: none; }
       .refad-sidebar.collapsed .refad-nav-item { justify-content: center; padding: 12px 8px; }
       .refad-sidebar.collapsed .refad-sidebar-brand { justify-content: center; padding: 18px 8px; }
       .refad-sidebar.collapsed .refad-user-card { justify-content: center; padding: 8px; }
-      .refad-sidebar.collapsed .refad-user-actions { display: none; }
 
       .refad-sidebar-brand {
         padding: 20px 18px;
@@ -346,6 +567,7 @@
         border-bottom: 1px solid var(--refad-sidebar-border);
         flex-shrink: 0;
         min-height: 76px;
+        position: relative;
       }
       .refad-sidebar-logo {
         width: 44px;
@@ -381,6 +603,27 @@
         text-overflow: ellipsis;
         line-height: 1.3;
       }
+
+      /* Search button */
+      .refad-search-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: none;
+        background: rgba(255,255,255,0.08);
+        color: var(--refad-sidebar-muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .refad-search-btn:hover {
+        background: rgba(255,255,255,0.2);
+        color: #fff;
+      }
+      .refad-search-btn svg { width: 16px; height: 16px; }
 
       .refad-sidebar-nav {
         flex: 1;
@@ -465,6 +708,19 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+
+      /* New badge */
+      .refad-nav-new-badge {
+        font-size: 9px;
+        font-weight: 800;
+        padding: 1px 6px;
+        border-radius: 8px;
+        background: var(--gold, #F59E0B);
+        color: #fff;
+        margin-right: 6px;
+        flex-shrink: 0;
+      }
+
       .refad-nav-badge {
         background: var(--danger, #ef4444);
         color: #fff;
@@ -481,6 +737,28 @@
       @keyframes refad-pulse {
         0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
         50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+      }
+
+      /* Offline indicator */
+      .refad-offline-indicator {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 12px;
+        background: rgba(239,68,68,0.2);
+        color: #fca5a5;
+        font-size: 11px;
+        font-weight: 700;
+        border-bottom: 1px solid rgba(239,68,68,0.3);
+        flex-shrink: 0;
+      }
+      .refad-sidebar.refad-offline .refad-offline-indicator {
+        display: flex;
+      }
+      .refad-offline-indicator svg {
+        width: 14px;
+        height: 14px;
       }
 
       .refad-sidebar-footer {
@@ -534,6 +812,7 @@
       .refad-user-actions {
         display: flex;
         gap: 4px;
+        flex-wrap: wrap;
       }
       .refad-user-btn {
         width: 30px;
@@ -548,6 +827,7 @@
         justify-content: center;
         transition: background 0.15s, color 0.15s;
         -webkit-tap-highlight-color: transparent;
+        position: relative;
       }
       .refad-user-btn:hover {
         background: rgba(255,255,255,0.2);
@@ -672,6 +952,121 @@
         overflow: hidden;
       }
 
+      /* ⭐ Quick Search Modal */
+      .refad-quick-search-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 99999;
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 15vh;
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+        direction: rtl;
+      }
+      .refad-quick-search-overlay.show { display: flex; }
+      .refad-quick-search-box {
+        width: 100%;
+        max-width: 560px;
+        background: var(--card, #fff);
+        border-radius: 16px;
+        box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+        overflow: hidden;
+        animation: refad-search-in 0.2s cubic-bezier(0.34,1.56,0.64,1);
+      }
+      @keyframes refad-search-in {
+        from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .refad-search-input-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border, #e2e8f0);
+      }
+      .refad-search-input-wrap svg {
+        width: 20px;
+        height: 20px;
+        color: var(--text-muted, #64748b);
+        flex-shrink: 0;
+      }
+      .refad-search-input {
+        flex: 1;
+        border: none;
+        background: none;
+        font-size: 16px;
+        font-family: inherit;
+        color: var(--text, #0f172a);
+        outline: none;
+      }
+      .refad-search-input::placeholder {
+        color: var(--text-muted, #64748b);
+      }
+      .refad-search-kbd {
+        font-size: 11px;
+        font-family: monospace;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: var(--bg-soft, #f8fafc);
+        border: 1px solid var(--border, #e2e8f0);
+        color: var(--text-muted, #64748b);
+      }
+      .refad-search-results {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 8px;
+      }
+      .refad-search-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        text-decoration: none;
+        color: var(--text, #0f172a);
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .refad-search-item:hover,
+      .refad-search-item.active {
+        background: var(--accent-soft, rgba(20,184,166,0.1));
+      }
+      .refad-search-item svg {
+        width: 18px;
+        height: 18px;
+        color: var(--accent, #14B8A6);
+        flex-shrink: 0;
+      }
+      .refad-search-item-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .refad-search-item-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text, #0f172a);
+      }
+      .refad-search-item-section {
+        font-size: 11px;
+        color: var(--text-muted, #64748b);
+        margin-top: 2px;
+      }
+      .refad-search-item-arrow {
+        width: 16px !important;
+        height: 16px !important;
+        color: var(--text-muted, #64748b) !important;
+        opacity: 0.4;
+      }
+      .refad-search-empty {
+        padding: 40px 20px;
+        text-align: center;
+        color: var(--text-muted, #64748b);
+        font-size: 14px;
+      }
+
       @media (max-width: 1024px) {
         .refad-sidebar {
           transform: translateX(100%);
@@ -718,6 +1113,9 @@
         .refad-sidebar-brand-text h2 {
           font-size: 14px;
         }
+        .refad-quick-search-box {
+          max-width: calc(100% - 20px);
+        }
       }
 
       @media (max-height: 500px) and (orientation: landscape) {
@@ -747,7 +1145,8 @@
         .refad-sidebar,
         .refad-sidebar-overlay,
         .refad-main-content,
-        .refad-nav-item {
+        .refad-nav-item,
+        .refad-quick-search-box {
           transition: none !important;
         }
         .refad-sk-line::after,
@@ -760,7 +1159,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ⭐ BUILD LOGO
+  // BUILD LOGO
   // ═══════════════════════════════════════════════════════════
   function buildLogoHTML(logoUrl) {
     const config = window.REFAD_CONFIG || {};
@@ -791,32 +1190,40 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // BUILD SIDEBAR HTML ⭐ (يقرأ من cfg.NAV_SECTIONS)
+  // BUILD SIDEBAR HTML
   // ═══════════════════════════════════════════════════════════
-  function buildSidebarHTML(session) {
-    session = session || {};
+  function buildNavSectionsHTML(session) {
     const currentPage = getCurrentPage();
     const navSections = cfg.NAV_SECTIONS || [];
-    const badges = session.badges || {};
-    const data = getSidebarData(session);
-
+    const badges = (session && session.badges) || {};
     let navHTML = '';
     for (let i = 0; i < navSections.length; i++) {
       const section = navSections[i];
+      const items = (section.items || []).filter(item => hasPermission(item.permission, session));
+      if (items.length === 0) continue;
       navHTML += '<div class="refad-nav-section">' + escHtml(section.title) + '</div>';
-
-      const items = section.items || [];
       for (let j = 0; j < items.length; j++) {
         const item = items[j];
         const isActive = currentPage === item.href;
         const badge = badges[item.href];
+        const isNew = isNewPage(item.href);
+        const newBadge = isNew ? '<span class="refad-nav-new-badge">جديد</span>' : '';
+
         navHTML += '<a href="' + escHtml(item.href) + '" class="refad-nav-item' + (isActive ? ' active' : '') + '" data-page="' + escHtml(item.href) + '">' +
           '<i data-lucide="' + escHtml(item.icon) + '"></i>' +
           '<span>' + escHtml(item.label) + '</span>' +
+          newBadge +
           (badge ? '<span class="refad-nav-badge">' + escHtml(badge) + '</span>' : '') +
         '</a>';
       }
     }
+    return navHTML;
+  }
+
+  function buildSidebarHTML(session) {
+    session = session || {};
+    const data = getSidebarData(session);
+    const navHTML = buildNavSectionsHTML(session);
 
     let html = '';
     html += '<div class="refad-sidebar' + (state.isCollapsed ? ' collapsed' : '') + '" id="refad-sidebar-main" role="navigation" aria-label="القائمة الرئيسية">';
@@ -831,6 +1238,15 @@
     html += '<h2 title="' + escHtml(data.companyName) + '">' + escHtml(data.companyName) + '</h2>';
     html += '<p title="' + escHtml(data.roleName) + '">' + escHtml(data.roleName) + '</p>';
     html += '</div>';
+    html += '<button class="refad-search-btn" id="refad-search-btn" title="بحث سريع (Ctrl+K)" aria-label="بحث">';
+    html += '<i data-lucide="search"></i>';
+    html += '</button>';
+    html += '</div>';
+
+    // ⭐ Offline indicator
+    html += '<div class="refad-offline-indicator" id="refad-offline-indicator">';
+    html += '<i data-lucide="wifi-off"></i>';
+    html += '<span>أنت غير متصل بالإنترنت</span>';
     html += '</div>';
 
     html += '<nav class="refad-sidebar-nav" aria-label="روابط">' + navHTML + '</nav>';
@@ -852,7 +1268,8 @@
     }
     html += '</div>';
     html += '<div class="refad-user-actions">';
-    html += '<button class="refad-user-btn" id="refad-theme-btn" title="وضع العرض" aria-label="وضع العرض"><i data-lucide="palette"></i></button>';
+    html += '<button class="refad-user-btn" id="refad-pwa-install-btn" style="display:none" title="تثبيت التطبيق" aria-label="تثبيت"><i data-lucide="download"></i></button>';
+    html += '<button class="refad-user-btn" id="refad-theme-btn" title="الثيم" aria-label="الثيم"><i data-lucide="palette"></i></button>';
     html += '<button class="refad-user-btn danger" id="refad-logout-btn" title="تسجيل الخروج" aria-label="تسجيل الخروج"><i data-lucide="log-out"></i></button>';
     html += '</div>';
     html += '</div>';
@@ -862,6 +1279,24 @@
     html += '<div class="refad-sidebar-overlay" id="refad-sidebar-overlay" aria-hidden="true"></div>';
 
     return html;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BUILD QUICK SEARCH MODAL
+  // ═══════════════════════════════════════════════════════════
+  function buildQuickSearchHTML() {
+    return `
+      <div class="refad-quick-search-overlay" id="refad-quick-search">
+        <div class="refad-quick-search-box">
+          <div class="refad-search-input-wrap">
+            <i data-lucide="search"></i>
+            <input type="text" class="refad-search-input" id="refad-search-input" placeholder="ابحث في الصفحات..." autocomplete="off">
+            <span class="refad-search-kbd">Esc</span>
+          </div>
+          <div class="refad-search-results" id="refad-search-results"></div>
+        </div>
+      </div>
+    `;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -878,7 +1313,10 @@
 
     if (document.getElementById('refad-sidebar-main')) {
       state.session = session;
+      const nav = document.querySelector('.refad-sidebar-nav');
+      if (nav) nav.innerHTML = buildNavSectionsHTML(session);
       updateSidebarBrand();
+      if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
       loadSessionStatus();
       return;
     }
@@ -891,11 +1329,18 @@
 
     container.innerHTML = buildSidebarHTML(session);
 
+    // ⭐ Add quick search modal to body
+    if (!document.getElementById('refad-quick-search')) {
+      const searchWrap = document.createElement('div');
+      searchWrap.innerHTML = buildQuickSearchHTML();
+      document.body.appendChild(searchWrap.firstElementChild);
+    }
+
     if (state.isCollapsed && !isMobileView()) {
       document.body.classList.add('sidebar-collapsed');
     }
 
-    const mains = document.querySelectorAll('main, .main');
+    const mains = document.querySelectorAll('main, .main, .pos-layout');
     for (let i = 0; i < mains.length; i++) {
       if (!mains[i].classList.contains('refad-main-content')) {
         mains[i].classList.add('refad-main-content');
@@ -908,12 +1353,14 @@
 
     let targetTopbar = null;
     const priorities = [
+      '.pos-topbar',
       '.topbar .topbar-left',
       '.topbar-left',
       '.topbar',
       '.topbar-actions',
       'main .content',
-      'main'
+      'main',
+      '.pos-layout'
     ];
     for (let k = 0; k < priorities.length; k++) {
       const found = document.querySelector(priorities[k]);
@@ -935,6 +1382,8 @@
     bindEvents();
     initSwipeGestures();
     updateMobileState();
+    startOnlineCheck();
+    setupPWAInstall();
 
     if (window.lucide && window.lucide.createIcons) {
       window.lucide.createIcons();
@@ -1050,14 +1499,27 @@
   // THEME BUTTON
   // ═══════════════════════════════════════════════════════════
   function onThemeBtnClick() {
-    if (window.Refad && window.Refad.Theme && typeof window.Refad.Theme.openSwitcher === 'function') {
-      window.Refad.Theme.openSwitcher();
+    // Priority 1: theme-manager
+    if (window.RefadTheme && typeof window.RefadTheme.openPicker === 'function') {
+      window.RefadTheme.openPicker();
       return;
     }
-    if (window.Refad && window.Refad.Theme && typeof window.Refad.Theme.toggle === 'function') {
-      window.Refad.Theme.toggle();
-      return;
+    // Priority 2: theme.js
+    if (window.Refad && window.Refad.Theme) {
+      if (typeof window.Refad.Theme.openThemePicker === 'function') {
+        window.Refad.Theme.openThemePicker();
+        return;
+      }
+      if (typeof window.Refad.Theme.openSwitcher === 'function') {
+        window.Refad.Theme.openSwitcher();
+        return;
+      }
+      if (typeof window.Refad.Theme.toggle === 'function') {
+        window.Refad.Theme.toggle();
+        return;
+      }
     }
+    // Fallback
     const html = document.documentElement;
     const current = html.getAttribute('data-theme') || 'light';
     html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
@@ -1088,6 +1550,16 @@
       themeBtn.onclick = onThemeBtnClick;
     }
 
+    const searchBtn = document.getElementById('refad-search-btn');
+    if (searchBtn) {
+      searchBtn.onclick = openQuickSearch;
+    }
+
+    const pwaBtn = document.getElementById('refad-pwa-install-btn');
+    if (pwaBtn) {
+      pwaBtn.onclick = installPWA;
+    }
+
     const mobileBtn = document.getElementById('refad-mobile-menu-btn');
     if (mobileBtn) {
       mobileBtn.onclick = function () {
@@ -1110,9 +1582,38 @@
       };
     }
 
+    // ⭐ Search modal events
+    const searchModal = document.getElementById('refad-quick-search');
+    if (searchModal) {
+      searchModal.onclick = function (e) {
+        if (e.target === searchModal) closeQuickSearch();
+      };
+
+      const searchInput = document.getElementById('refad-search-input');
+      if (searchInput) {
+        searchInput.oninput = function () {
+          renderSearchResults(this.value);
+        };
+        searchInput.onkeydown = handleSearchKeydown;
+      }
+    }
+
+    // ⭐ Global keyboard shortcuts
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && state.isOpen) {
-        closeSidebar();
+      // Ctrl+K / Cmd+K for search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        if (state.searchOpen) closeQuickSearch();
+        else openQuickSearch();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (state.searchOpen) {
+          closeQuickSearch();
+        } else if (state.isOpen) {
+          closeSidebar();
+        }
       }
     });
 
@@ -1226,9 +1727,7 @@
       const fresh = await window.Refad.getSession();
       if (fresh) {
         setCachedSession(fresh);
-        state.session = fresh;
-        updateSidebarBrand();
-        loadSessionStatus();
+        renderSidebar(fresh);
       }
     } catch (e) {
       console.warn('[Refad] Background session refresh failed:', e);
@@ -1255,10 +1754,12 @@
     isOpen: function () { return state.isOpen; },
     updateBrand: updateSidebarBrand,
     reloadStatus: loadSessionStatus,
-    hasOpenSession: function () { return state.hasOpenSession; }
+    hasOpenSession: function () { return state.hasOpenSession; },
+    openSearch: openQuickSearch,
+    closeSearch: closeQuickSearch
   };
 
-  console.log('[Refad] sidebar.js v3.6 ready — reads from cfg.NAV_SECTIONS');
+  console.log('[Refad] sidebar.js v4.0 ready — full featured');
   console.log('[Refad] Nav sections:', (cfg.NAV_SECTIONS || []).length);
   console.log('[Refad] Total nav items:', (cfg.NAV_SECTIONS || []).reduce((s, sec) => s + (sec.items || []).length, 0));
 
