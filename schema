@@ -3407,7 +3407,7 @@ COMMIT;
 
 ---
 
-## 🎯 RPC Functions (28)
+## 🎯 RPC Functions (32 after platform_company_management_migration.sql)
 
 | # | Function | الغرض |
 |---|---|---|
@@ -3439,6 +3439,10 @@ COMMIT;
 | 26 | `generate_company_slug` | توليد slug |
 | 27 | `check_slug_available` | التحقق من slug |
 | 28 | `ai_execute_query` | تنفيذ SELECT آمن |
+| 29 | `platform_company_backup` | نسخة JSON لبيانات الشركة |
+| 30 | `clear_platform_company_data` | حذف بيانات الشركة مع إبقاء سجلها |
+| 31 | `restore_platform_company_backup` | استعادة النسخة واستبدال البيانات الحالية |
+| 32 | `delete_platform_company` | حذف الشركة وبياناتها نهائياً |
 
 ---
 

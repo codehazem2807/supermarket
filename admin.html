@@ -1205,28 +1205,50 @@ tbody tr:last-child td { border-bottom: none; }
   </div>
 </div>
 
-<!-- DELETE CONFIRM MODAL -->
-<div class="modal-overlay" id="deleteConfirmModal">
+<!-- COMPANY DATA MANAGEMENT -->
+<div class="modal-overlay" id="companyDataModal">
   <div class="modal">
     <div class="modal-header">
-      <h3 style="color:var(--danger)"><i data-lucide="alert-triangle"></i><span>تأكيد الحذف</span></h3>
-      <button class="modal-close" data-close="deleteConfirmModal"><i data-lucide="x"></i></button>
+      <h3><i data-lucide="database"></i><span>إدارة بيانات السوبرماركت</span></h3>
+      <button class="modal-close" data-close="companyDataModal"><i data-lucide="x"></i></button>
     </div>
     <div class="modal-body">
-      <div class="form-error" id="deleteFormError"></div>
-      <p style="margin-bottom:14px;font-size:14px">سيتم حذف السوبرماركت نهائياً (soft delete).</p>
-      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px">
-        ⚠️ كل المستخدمين والبيانات المرتبطة ستُعطّل. هذا الإجراء لا يمكن التراجع عنه.
+      <h4 id="companyDataName" style="margin-bottom:14px"></h4>
+      <p style="font-size:12.5px;color:var(--text-muted);line-height:1.8;margin-bottom:16px">
+        النسخة تحفظ بيانات قاعدة الشركة فقط، ولا تتضمن سجل التدقيق (audit_log) لأنه للإضافة فقط ويبقى محفوظًا دائمًا حتى بعد الحذف، ولا كلمات المرور أو مفاتيح AI أو أسرار webhooks أو أي مفاتيح وأسرار داخل الإعدادات أو الملفات المرفوعة. الاستعادة تستبدل بيانات الشركة الحالية، وتتطلب بقاء سجل الشركة وحسابات الدخول الأصلية.
       </p>
-      <input type="hidden" id="deleteCompanyId">
+      <div style="display:grid;gap:10px">
+        <button class="btn btn-ghost" id="downloadCompanyBackupBtn"><i data-lucide="download"></i><span>تنزيل نسخة احتياطية JSON</span></button>
+        <button class="btn btn-ghost" id="restoreCompanyBackupBtn"><i data-lucide="upload"></i><span>استعادة نسخة JSON واستبدال البيانات الحالية</span></button>
+        <button class="btn btn-danger" id="clearCompanyDataBtn"><i data-lucide="eraser"></i><span>حذف كل بيانات الشركة مع الإبقاء على سجلها</span></button>
+        <button class="btn btn-danger" id="deleteCompanyPermanentlyBtn"><i data-lucide="building-2"></i><span>حذف السوبرماركت نهائيًا</span></button>
+      </div>
+      <input type="file" id="companyBackupFile" accept=".json,application/json" style="display:none">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="companyDataModal">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="companyDataConfirmModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 style="color:var(--danger)"><i data-lucide="alert-triangle"></i><span id="companyDataConfirmTitle">تأكيد العملية</span></h3>
+      <button class="modal-close" data-close="companyDataConfirmModal"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-error" id="companyDataConfirmError"></div>
+      <p id="companyDataConfirmMessage" style="margin-bottom:16px;line-height:1.8"></p>
+      <input type="hidden" id="companyDataConfirmId">
       <div class="form-group">
         <label class="form-label">اكتب اسم السوبرماركت للتأكيد</label>
-        <input type="text" class="form-input" id="deleteConfirmInput" placeholder="اكتب الاسم بالضبط">
+        <input type="text" class="form-input" id="companyDataConfirmInput" placeholder="اكتب الاسم بالضبط" autocomplete="off">
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" data-close="deleteConfirmModal">إلغاء</button>
-      <button class="btn btn-danger" id="confirmDeleteBtn" disabled><i data-lucide="trash-2"></i><span>حذف</span></button>
+      <button class="btn btn-ghost" data-close="companyDataConfirmModal">إلغاء</button>
+      <button class="btn btn-danger" id="confirmCompanyDataActionBtn" disabled><i data-lucide="trash-2"></i><span>تأكيد</span></button>
     </div>
   </div>
 </div>
@@ -1250,6 +1272,9 @@ tbody tr:last-child td { border-bottom: none; }
   let auditLogs = [];
   let currentView = 'dashboard';
   let settings = {};
+  let selectedDataCompanyId = null;
+  let pendingCompanyDataAction = null;
+  let pendingCompanyBackup = null;
   let companiesPage = 1;
   let usersPage = 1;
   let auditPage = 1;
@@ -1461,6 +1486,7 @@ tbody tr:last-child td { border-bottom: none; }
           <div class="actions-cell">
             <button class="icon-btn" onclick="AdminUI.showDetails('${c.id}')" title="تفاصيل"><i data-lucide="eye"></i></button>
             <button class="icon-btn" onclick="AdminUI.editCompany('${c.id}')" title="تعديل"><i data-lucide="edit"></i></button>
+            <button class="icon-btn warn" onclick="AdminUI.manageCompanyData('${c.id}')" title="إدارة البيانات والنسخ الاحتياطي"><i data-lucide="database"></i></button>
             <button class="icon-btn warn" onclick="AdminUI.resetPassword('${c.id}')" title="إعادة تعيين باسورد"><i data-lucide="key"></i></button>
             <button class="icon-btn ${c.is_active ? 'danger' : 'success'}" onclick="AdminUI.toggleCompany('${c.id}', ${!c.is_active})" title="${c.is_active ? 'تعطيل' : 'تفعيل'}"><i data-lucide="${c.is_active ? 'power-off' : 'power'}"></i></button>
           </div>
@@ -1710,6 +1736,29 @@ tbody tr:last-child td { border-bottom: none; }
   // ACTIONS
   // ═══════════════════════════════════════════════════════════
   window.AdminUI = {
+    manageCompanyData(id) {
+      const company = companies.find(item => item.id === id);
+      if (!company) return;
+      selectedDataCompanyId = id;
+      document.getElementById('companyDataName').textContent = company.name;
+      document.getElementById('companyBackupFile').value = '';
+      document.getElementById('companyDataModal').classList.add('show');
+    },
+
+    async downloadCompanyBackup(id) {
+      try {
+        await downloadCompanyBackup(id);
+      } catch (e) {
+        console.error('[Admin] downloadCompanyBackup:', e);
+        toast('error', companyDataErrorMessage(e));
+      }
+    },
+
+    openCompanyDataConfirmation(action) {
+      if (!selectedDataCompanyId) return;
+      openCompanyDataConfirmation(action, selectedDataCompanyId);
+    },
+
     async reviewRequest(id, approve) {
       const note = prompt(approve ? 'ملاحظة للعميل (اختياري)' : 'سبب الرفض');
       if (note === null) return;
@@ -1987,6 +2036,64 @@ tbody tr:last-child td { border-bottom: none; }
     }
   }
 
+  async function downloadCompanyBackup(companyId) {
+    const company = companies.find(item => item.id === companyId);
+    if (!company) throw new Error('السوبرماركت غير موجود في القائمة');
+
+    const { data, error } = await sb.rpc('platform_company_backup', {
+      p_company_id: companyId
+    });
+    if (error) throw error;
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `refad-backup-${companyId}-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('success', 'تم تنزيل النسخة الاحتياطية');
+  }
+
+  function companyDataErrorMessage(error) {
+    if (error && (error.code === 'PGRST202' || error.code === '42883')) {
+      return 'دوال إدارة بيانات الشركات غير مثبتة. نفّذ platform_company_management_migration.sql في Supabase SQL Editor ثم أعد تحميل لوحة الأدمن.';
+    }
+    return error && error.message ? error.message : 'تعذر تنفيذ العملية';
+  }
+
+  function openCompanyDataConfirmation(action, companyId, backup) {
+    const company = companies.find(item => item.id === companyId);
+    if (!company) return;
+
+    selectedDataCompanyId = companyId;
+    pendingCompanyDataAction = action;
+    pendingCompanyBackup = backup || null;
+    const title = document.getElementById('companyDataConfirmTitle');
+    const message = document.getElementById('companyDataConfirmMessage');
+    const input = document.getElementById('companyDataConfirmInput');
+    const button = document.getElementById('confirmCompanyDataActionBtn');
+    const descriptions = {
+      clear: ['حذف كل بيانات الشركة', 'سيتم حذف الفروع والمستخدمين والمنتجات والمخزون والفواتير والإعدادات. سيبقى سجل الشركة فقط. لا يمكن التراجع إلا باستعادة نسخة احتياطية.'],
+      delete: ['حذف السوبرماركت نهائيًا', 'سيتم حذف سجل الشركة وكل بياناتها نهائيًا. لا يمكن استعادة هذه الشركة من لوحة الأدمن بعد ذلك.'],
+      restore: ['استبدال بيانات الشركة', 'ستُحذف البيانات الحالية ثم تُستعاد بيانات الملف المختار. لن تُستعاد كلمات المرور أو أسرار webhooks أو مفاتيح AI أو الملفات المرفوعة.']
+    };
+    title.textContent = descriptions[action][0];
+    message.textContent = descriptions[action][1];
+    document.getElementById('companyDataConfirmId').value = companyId;
+    document.getElementById('companyDataConfirmError').classList.remove('show');
+    input.value = '';
+    button.innerHTML = action === 'restore'
+      ? '<i data-lucide="upload"></i><span>استعادة واستبدال</span>'
+      : action === 'delete'
+        ? '<i data-lucide="trash-2"></i><span>حذف نهائي</span>'
+        : '<i data-lucide="eraser"></i><span>حذف البيانات</span>';
+    button.disabled = true;
+    document.getElementById('companyDataModal').classList.remove('show');
+    document.getElementById('companyDataConfirmModal').classList.add('show');
+    if (window.lucide) lucide.createIcons();
+  }
+
   async function saveSettings() {
     const values = {
       platform_name: document.getElementById('platName').value,
@@ -2133,29 +2240,89 @@ tbody tr:last-child td { border-bottom: none; }
     document.getElementById('filterUserCompany').onchange = () => { usersPage = 1; renderUsersTable(); };
     document.getElementById('searchAudit').oninput = () => { auditPage = 1; renderAudit(); };
 
-    // Delete confirmation
-    document.getElementById('deleteConfirmInput').oninput = (e) => {
-      const id = document.getElementById('deleteCompanyId').value;
-      const c = companies.find(x => x.id === id);
-      document.getElementById('confirmDeleteBtn').disabled = !c || e.target.value.trim() !== c.name;
+    document.getElementById('downloadCompanyBackupBtn').onclick = () => {
+      if (selectedDataCompanyId) AdminUI.downloadCompanyBackup(selectedDataCompanyId);
+    };
+    document.getElementById('restoreCompanyBackupBtn').onclick = () => {
+      document.getElementById('companyBackupFile').click();
+    };
+    document.getElementById('clearCompanyDataBtn').onclick = () => {
+      AdminUI.openCompanyDataConfirmation('clear');
+    };
+    document.getElementById('deleteCompanyPermanentlyBtn').onclick = () => {
+      AdminUI.openCompanyDataConfirmation('delete');
     };
 
-    document.getElementById('confirmDeleteBtn').onclick = async () => {
-      const id = document.getElementById('deleteCompanyId').value;
-      const errEl = document.getElementById('deleteFormError');
-      errEl.classList.remove('show');
-      const btn = document.getElementById('confirmDeleteBtn');
-      btn.disabled = true;
+    document.getElementById('companyBackupFile').onchange = async (e) => {
+      const file = e.target.files && e.target.files[0];
+      const companyId = selectedDataCompanyId;
+      e.target.value = '';
+      if (!file || !companyId) return;
       try {
-        const { error } = await sb.rpc('delete_platform_company', { p_company_id: id });
-        if (error) throw error;
-        toast('success', 'تم حذف السوبرماركت');
-        document.getElementById('deleteConfirmModal').classList.remove('show');
+        const backup = JSON.parse(await file.text());
+        if (backup.format !== 'refad-company-backup-v1' || backup.company_id !== companyId) {
+          throw new Error('الملف غير صالح أو لا يخص هذا السوبرماركت');
+        }
+        openCompanyDataConfirmation('restore', companyId, backup);
+      } catch (error) {
+        toast('error', 'تعذر قراءة النسخة الاحتياطية: ' + error.message);
+      }
+    };
+
+    document.getElementById('companyDataConfirmInput').oninput = (e) => {
+      const id = document.getElementById('companyDataConfirmId').value;
+      const company = companies.find(item => item.id === id);
+      document.getElementById('confirmCompanyDataActionBtn').disabled =
+        !company || e.target.value.trim() !== company.name;
+    };
+
+    document.getElementById('confirmCompanyDataActionBtn').onclick = async () => {
+      const id = document.getElementById('companyDataConfirmId').value;
+      const company = companies.find(item => item.id === id);
+      const action = pendingCompanyDataAction;
+      const input = document.getElementById('companyDataConfirmInput');
+      const errorEl = document.getElementById('companyDataConfirmError');
+      const button = document.getElementById('confirmCompanyDataActionBtn');
+      if (!company || input.value.trim() !== company.name || !action) return;
+
+      errorEl.classList.remove('show');
+      button.disabled = true;
+      const original = button.innerHTML;
+      button.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري التنفيذ...</span>';
+      try {
+        let result;
+        if (action === 'clear') {
+          result = await sb.rpc('clear_platform_company_data', { p_company_id: id });
+        } else if (action === 'delete') {
+          result = await sb.rpc('delete_platform_company', { p_company_id: id });
+        } else if (action === 'restore' && pendingCompanyBackup) {
+          result = await sb.rpc('restore_platform_company_backup', {
+            p_company_id: id,
+            p_backup: pendingCompanyBackup
+          });
+        } else {
+          throw new Error('العملية أو ملف النسخة الاحتياطية غير صالح');
+        }
+        if (result.error) throw result.error;
+
+        document.getElementById('companyDataConfirmModal').classList.remove('show');
+        pendingCompanyDataAction = null;
+        pendingCompanyBackup = null;
+        selectedDataCompanyId = action === 'delete' ? null : id;
+        toast('success', action === 'clear'
+          ? 'تم حذف بيانات الشركة والإبقاء على سجلها'
+          : action === 'delete'
+            ? 'تم حذف السوبرماركت نهائيًا'
+            : `تمت الاستعادة (${Number(result.data?.restored_rows || 0)} سجل)`);
         await refreshAll();
-      } catch (e) {
-        errEl.textContent = e.message;
-        errEl.classList.add('show');
-        btn.disabled = false;
+      } catch (error) {
+        console.error('[Admin] company data operation failed:', error);
+        errorEl.textContent = companyDataErrorMessage(error);
+        errorEl.classList.add('show');
+        button.disabled = input.value.trim() !== company.name;
+      } finally {
+        button.innerHTML = original;
+        if (window.lucide) lucide.createIcons();
       }
     };
 
