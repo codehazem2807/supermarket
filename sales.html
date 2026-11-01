@@ -468,27 +468,10 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
     return new Date(d).toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
-  const STORE_TZ = (() => {
-    try { return (window.RefadSettings && RefadSettings.get('general.timezone')) || 'Africa/Cairo'; }
-    catch (e) { return 'Africa/Cairo'; }
-  })();
-
-  function storeDateKey(value) {
-    try {
-      const parts = {};
-      new Intl.DateTimeFormat('en-CA', {
-        timeZone: STORE_TZ, year: 'numeric', month: '2-digit', day: '2-digit'
-      }).formatToParts(new Date(value || Date.now())).forEach(part => { parts[part.type] = part.value; });
-      return parts.year + '-' + parts.month + '-' + parts.day;
-    } catch (e) {
-      const date = new Date(value || Date.now());
-      return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
-    }
-  }
-
-  function todayStr() { return storeDateKey(); }
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
   function monthStartStr() {
-    return todayStr().slice(0, 7) + '-01';
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -554,7 +537,7 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
 
     invoices.forEach(inv => {
       if (inv.status === 'voided') return;
-      const d = inv.invoice_date ? storeDateKey(inv.invoice_date) : '';
+      const d = inv.invoice_date ? inv.invoice_date.slice(0, 10) : '';
       if (d === tStr) { todayTotal += Number(inv.total || 0); todayCount++; }
       if (d >= mStr) { monthTotal += Number(inv.total || 0); monthCount++; }
       if (inv.status === 'returned') returnsTotal += Number(inv.total || 0);
@@ -608,11 +591,11 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
       if (sf && inv.status !== sf) return false;
       if (mf && inv.payment_method !== mf) return false;
       if (df) {
-        const invDate = inv.invoice_date ? storeDateKey(inv.invoice_date) : '';
+        const invDate = inv.invoice_date ? inv.invoice_date.slice(0, 10) : '';
         if (invDate < df) return false;
       }
       if (dt) {
-        const invDate = inv.invoice_date ? storeDateKey(inv.invoice_date) : '';
+        const invDate = inv.invoice_date ? inv.invoice_date.slice(0, 10) : '';
         if (invDate > dt) return false;
       }
       return true;
