@@ -2077,6 +2077,14 @@ input, select, textarea { font-family: inherit; }
         if (op.type === 'sale') {
           const r = await sb.rpc('record_invoice_v3', op.payload);
           if (r.error) throw r.error;
+          // 🔧 تسجيل حركة الدرج للفواتير المرفوعة من الطابور الأوفلاين
+          try {
+            const invoiceId = r.data;
+            if (invoiceId) {
+              const cm = await sb.rpc('record_sale_cash_movement', { p_invoice: invoiceId });
+              if (cm && cm.error) console.warn('[OfflineSync] cash movement:', cm.error.message);
+            }
+          } catch (cmErr) { console.warn('[OfflineSync] cash movement failed:', cmErr); }
         }
         op.status = 'synced';
         op.synced_at = new Date().toISOString();

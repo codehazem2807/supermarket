@@ -1085,10 +1085,71 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   // بناء حدود زمنية ISO للفلترة على أعمدة timestamptz بتوقيت المتجر
+  // 🔧 الحل الجذري لـ"مبيعات اليوم = صفر": الفلترة تتم الآن على نص التاريخ المحلي
+  //    (invoice_date::date) عبر RPC آمنة — لا تعتمد على تحويل UTC إطلاقاً،
+  //    فتطابق الصفوف المحفوظة بـ timestamptz بغض النظر عن المنطقة الزمنية للمتصفح/الخادم.
   function dayRangeTz(dateStr) {
     const from = new Date(dateStr + 'T00:00:00');
     const to = new Date(dateStr + 'T23:59:59.999');
     return { from: from.toISOString(), to: to.toISOString() };
+  }
+
+  // ═══ Fallbacks إذا لم تكن دوال الـ RPC مثبّتة في قاعدة البيانات ═══
+  async function fallbackSalesByDate(dateStr) {
+    const r = dayRangeTz(dateStr);
+    let q = sb.from('sales_invoices')
+      .select('total')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id)
+      .neq('status', 'voided')
+      .gte('invoice_date', r.from)
+      .lt('invoice_date', r.to);
+    const { data } = await q;
+    return { total: (data||[]).reduce((s,i)=>s+Number(i.total||0),0), count: (data||[]).length };
+  }
+
+  async function fallbackSalesRange(fromDate, toDate) { // من تاريخ معيّن حتى الأمس محلياً
+    const from = dayRangeTz(fromDate).from;
+    const to = dayRangeTz(toDate).to;
+    let q = sb.from('sales_invoices')
+      .select('total')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id)
+      .neq('status', 'voided')
+      .gte('invoice_date', from)
+      .lt('invoice_date', to);
+    const { data } = await q;
+    return { total: (data||[]).reduce((s,i)=>s+Number(i.total||0),0), count: (data||[]).length };
+  }
+
+  async function fallbackMonthSales() {
+    const from = dayRangeTz(monthStart()).from;
+    let q = sb.from('sales_invoices')
+      .select('total')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id)
+      .neq('status', 'voided')
+      .gte('invoice_date', from);
+    const { data } = await q;
+    return (data||[]).reduce((s,i)=>s+Number(i.total||0),0);
+  }
+
+  async function fallbackChartData(days) {
+    const from = dayRangeTz(daysAgo(days - 1)).from;
+    let q = sb.from('sales_invoices')
+      .select('invoice_date, total')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id)
+      .neq('status', 'voided')
+      .gte('invoice_date', from);
+    const { data } = await q;
+    const map = {};
+    for (let i = days - 1; i >= 0; i--) { map[daysAgo(i)] = 0; }
+    (data||[]).forEach(inv => {
+      const d = inv.invoice_date ? toDateKeyLocal(inv.invoice_date) : '';
+      if (map[d] !== undefined) map[d] += Number(inv.total||0);
+    });
+    return Object.entries(map).map(([date, total]) => ({ date, total }));
   }
   const toast = (function(){
     const base = window.Refad && Refad.toast;
@@ -1123,27 +1184,69 @@ tbody tr:last-child td{border-bottom:none}
   // ═══════════════════════════════════════════════════════════
   // DATA LOADERS
   // ═══════════════════════════════════════════════════════════
+  // 🔧 محركات الإحصاء تعتمد الآن على RPC بالتاريخ المحلي (invoice_date::date)
+  //    مع fallback تلقائي إذا لم يكنMigration مثبّتاً بعد.
+  let rpcDashboardAvailable = null; // null = غير مختبر، true/false بعد الاختبار
+
+  async function hasRpc(name) {
+    try {
+      const { error } = await sb.rpc(name, { p_company: session.company_id });
+      // PGRST202 = الدالة غير موجودة في الـ schema cache
+      return !(error && (String(error.code) === 'PGRST202' || /not found/i.test(error.message || '')));
+    } catch (e) { return false; }
+  }
+
   async function loadSalesForDate(dateStr) {
-    let q = sb.from('sales_invoices')
-      .select('total')
-      .eq('company_id', session.company_id)
-      .eq('branch_id', session.active_branch_id)
-      .neq('status', 'voided');
-    q = invoiceDateFilter(q, dateStr);
-    const { data } = await q;
-    return { total: (data||[]).reduce((s,i)=>s+Number(i.total||0),0), count: (data||[]).length };
+    if (rpcDashboardAvailable === null) {
+      rpcDashboardAvailable = await hasRpc('dash_sales_by_date');
+    }
+    if (rpcDashboardAvailable) {
+      try {
+        const { data, error } = await sb.rpc('dash_sales_by_date', {
+          p_company: session.company_id,
+          p_branch: session.active_branch_id,
+          p_date: dateStr
+        });
+        if (!error && data) {
+          return { total: Number(data.total || 0), count: Number(data.count || 0) };
+        }
+      } catch (e) { /* يسقط للـ fallback */ }
+    }
+    return fallbackSalesByDate(dateStr);
   }
 
   async function loadMonthSales() {
-    // من أول الشهر بتوقيت المتجر حتى الآن — حدود ISO صحيحة لعمود timestamptz
-    const from = dayRangeTz(monthStart()).from;
-    const { data } = await sb.from('sales_invoices')
-      .select('total')
-      .eq('company_id', session.company_id)
-      .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', from)
-      .neq('status', 'voided');
-    return (data||[]).reduce((s,i)=>s+Number(i.total||0),0);
+    if (rpcDashboardAvailable === null) {
+      rpcDashboardAvailable = await hasRpc('dash_sales_by_date');
+    }
+    if (rpcDashboardAvailable) {
+      try {
+        const { data, error } = await sb.rpc('dash_month_sales', {
+          p_company: session.company_id,
+          p_branch: session.active_branch_id
+        });
+        if (!error && data != null) return Number(data || 0);
+      } catch (e) { /* fallback */ }
+    }
+    return fallbackMonthSales();
+  }
+
+  // 📊 نفس الفترة من الشهر الماضي (من أول الشهر حتى أمس محلياً)
+  async function loadPrevMonthToDate() {
+    if (!rpcDashboardAvailable) return null;
+    try {
+      const p = tzParts();
+      const prevFirst = new Date(Number(p.y), Number(p.mo) - 2, 1);
+      const prevKey = prevFirst.getFullYear() + '-' + String(prevFirst.getMonth()+1).padStart(2,'0') + '-01';
+      const { data, error } = await sb.rpc('dash_sales_range', {
+        p_company: session.company_id,
+        p_branch: session.active_branch_id,
+        p_from: prevKey,
+        p_to: yesterday()
+      });
+      if (!error && data) return Number(data.total || 0);
+    } catch (e) {}
+    return null;
   }
 
   async function loadPrevMonthSales() {
@@ -1315,24 +1418,23 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   async function loadChartData(days) {
-    const from = dayRangeTz(daysAgo(days - 1)).from;
-    const { data } = await sb.from('sales_invoices')
-      .select('invoice_date, total')
-      .eq('company_id', session.company_id)
-      .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', from)
-      .neq('status', 'voided');
-    const map = {};
-    for (let i = days - 1; i >= 0; i--) {
-      const d = daysAgo(i);
-      map[d] = 0;
+    // 📈 الرسم البياني عبر RPC بالتاريخ المحلي (تجميع ::date) مع fallback
+    if (rpcDashboardAvailable === null) {
+      rpcDashboardAvailable = await hasRpc('dash_sales_by_date');
     }
-    (data||[]).forEach(inv => {
-      // 🔧 التجميع بتوقيت المتجر بدلاً من slice(0,10) الذي يستخدم UTC
-      const d = inv.invoice_date ? toDateKeyLocal(inv.invoice_date) : '';
-      if (map[d] !== undefined) map[d] += Number(inv.total||0);
-    });
-    return Object.entries(map).map(([date, total]) => ({ date, total }));
+    if (rpcDashboardAvailable) {
+      try {
+        const { data, error } = await sb.rpc('dash_chart_series', {
+          p_company: session.company_id,
+          p_branch: session.active_branch_id,
+          p_days: days
+        });
+        if (!error && Array.isArray(data) && data.length) {
+          return data.map(r => ({ date: r.date, total: Number(r.total || 0) }));
+        }
+      } catch (e) { /* fallback */ }
+    }
+    return fallbackChartData(days);
   }
 
   // 💰 تكلفة مبيعات فترة محددة (FOIF: unit_cost من عناصر الفواتير)
@@ -1955,13 +2057,14 @@ tbody tr:last-child td{border-bottom:none}
       const monthFromIso = dayRangeTz(monthStart()).from;
       const todayRange = dayRangeTz(todayStr);
       const [
-        todaySales, yesterdaySales, monthSales, prevMonthSales, monthExpenses, productsCount,
+        todaySales, yesterdaySales, monthSales, prevMonthToDate, prevMonthSales, monthExpenses, productsCount,
         lowStock, expiring, recentSales, topProducts, chartData,
         activeSession, activeSeason, recentExpenses, todayCogs, paymentMix
       ] = await Promise.all([
         loadSalesForDate(todayStr),
         loadSalesForDate(yesterday()),
         loadMonthSales(),
+        loadPrevMonthToDate(),
         loadPrevMonthSales(),
         loadMonthExpenses(),
         loadProductsCount(),
@@ -1977,7 +2080,7 @@ tbody tr:last-child td{border-bottom:none}
         loadPaymentMix(monthFromIso)
       ]);
 
-      renderKPIs({ today: todaySales, yesterday: yesterdaySales, monthSales, prevMonthSales, productsCount, monthExpenses, todayCogs });
+      renderKPIs({ today: todaySales, yesterday: yesterdaySales, monthSales, prevMonthToDate: prevMonthToDate, prevMonthSales, productsCount, monthExpenses, todayCogs });
       renderSessionBanner(activeSession);
       renderSeasonBanner(activeSeason);
       renderOfflineIndicator(loadOfflineCount());

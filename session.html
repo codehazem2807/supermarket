@@ -540,15 +540,45 @@ tbody tr:last-child td{border-bottom:none}
   function computeCashSummary(invoices) {
     const openingCash = Number(currentSession?.opening_cash || 0);
 
-    const saleCashMovements = cashMovements
+    // 🔧 مصدر الحقيقة: الحركات النقدية. إذا لم توجد حركة 'sale' لفاتورة (بيانات قديمة)،
+    //    تُحسب نقديتها من الفاتورة/الدفعات مباشرة حتى لا تظهر المبيعات صفراً.
+    const saleMovementInvoiceIds = new Set(
+      cashMovements.filter(m => m.movement_type === 'sale').map(m => String(m.invoice_id || ''))
+    );
+
+    const cashOfInvoice = (inv) => {
+      const pm = String(inv.payment_method || '').toLowerCase();
+      if (pm === 'cash') return Number(inv.paid || inv.total || 0);
+      if (pm === 'mixed') {
+        return invoicePayments
+          .filter(p => p.invoice_id === inv.id && String(p.payment_method).toLowerCase() === 'cash')
+          .reduce((s, p) => s + Number(p.amount || 0), 0);
+      }
+      return 0;
+    };
+
+    let cashSales = cashMovements
       .filter(m => m.movement_type === 'sale' && m.direction !== 'out' && (!m.payment_method || String(m.payment_method).toLowerCase() === 'cash'))
       .reduce((s, m) => s + Number(m.amount || 0), 0);
-    const cashSales = saleCashMovements;
+
+    // فواتير بدون حركة مسجلة → Backfill حسابي (نقدي + الجزء النقدي من المختلط)
+    let unrecordedCash = 0;
+    invoices.forEach(inv => {
+      if (inv.session_id && currentSession && String(inv.session_id) !== String(currentSession.id)) return;
+      if (!saleMovementInvoiceIds.has(String(inv.id))) {
+        unrecordedCash += cashOfInvoice(inv);
+      }
+    });
+    cashSales += unrecordedCash;
+
     const creditSales = invoices.filter(i => i.payment_method === 'credit').reduce((s, i) => s + Number(i.total || 0), 0);
     const mixedInvoices = invoices.filter(i => i.payment_method === 'mixed');
-    const mixedSales = 0;
+    // 🔧 الجزء النقدي من الفواتير المختلطة (كان hardcoded = 0)
+    const mixedSales = mixedInvoices.reduce((total, invoice) => total +
+      invoicePayments.filter(payment => payment.invoice_id === invoice.id && String(payment.payment_method).toLowerCase() === 'cash')
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0), 0);
     const mixedCardSales = mixedInvoices.reduce((total, invoice) => total +
-      invoicePayments.filter(payment => payment.invoice_id === invoice.id && payment.payment_method === 'card')
+      invoicePayments.filter(payment => payment.invoice_id === invoice.id && String(payment.payment_method).toLowerCase() === 'card')
         .reduce((sum, payment) => sum + Number(payment.amount || 0), 0), 0);
     const cardSales = invoices.filter(i => i.payment_method === 'card')
       .reduce((s, i) => s + Number(i.paid || 0), 0) + mixedCardSales;
@@ -561,7 +591,7 @@ tbody tr:last-child td{border-bottom:none}
     const otherCashMovements = cashMovements
       .filter(m => m.movement_type !== 'sale' && (!m.payment_method || m.payment_method === 'cash'))
       .reduce((sum, movement) => sum + (movement.direction === 'in' ? 1 : -1) * Number(movement.amount || 0), 0);
-    const expectedCash = openingCash + cashSales + mixedSales + otherCashMovements;
+    const expectedCash = openingCash + cashSales + otherCashMovements;
 
     return {
       openingCash,
@@ -570,6 +600,7 @@ tbody tr:last-child td{border-bottom:none}
       creditSales,
       mixedSales,
       mixedCardSales,
+      unrecordedCash,
       withdrawals,
       deposits,
       expensesFromCash,
@@ -691,8 +722,8 @@ tbody tr:last-child td{border-bottom:none}
           <div class="stat-card info">
             <div class="stat-icon blue"><i data-lucide="banknote"></i></div>
             <div class="stat-label">مبيعات نقدية</div>
-            <div class="stat-value" style="color:var(--info)">${money(cash.cashSales + cash.mixedSales)}</div>
-            <div class="stat-sub">في الدرج</div>
+            <div class="stat-value" style="color:var(--info)">${money(cash.cashSales)}</div>
+            <div class="stat-sub">في الدرج${cash.mixedSales > 0 ? ' (يشمل مختلط ' + money(cash.mixedSales) + ')' : ''}</div>
           </div>
           <div class="stat-card gold">
             <div class="stat-icon gold"><i data-lucide="credit-card"></i></div>
@@ -735,7 +766,7 @@ tbody tr:last-child td{border-bottom:none}
             <div class="summary-box">
               <div class="summary-row"><span class="label">الرصيد الافتتاحي</span><span class="value">${money(cash.openingCash)}</span></div>
               <div class="summary-row"><span class="label">+ مبيعات نقدية</span><span class="value green">+ ${money(cash.cashSales)}</span></div>
-              ${cash.mixedSales > 0 ? `<div class="summary-row"><span class="label">+ مبيعات مختلطة (نقدي)</span><span class="value green">+ ${money(cash.mixedSales)}</span></div>` : ''}
+              ${cash.unrecordedCash > 0 ? `<div class="summary-row"><span class="label">+ فواتير بدون حركة درج (تسوية تلقائية)</span><span class="value green">+ ${money(cash.unrecordedCash)}</span></div>` : ''}
               ${cash.deposits > 0 ? `<div class="summary-row"><span class="label">+ إيداعات</span><span class="value green">+ ${money(cash.deposits)}</span></div>` : ''}
               ${cash.withdrawals > 0 ? `<div class="summary-row"><span class="label">- سحوبات</span><span class="value red">- ${money(cash.withdrawals)}</span></div>` : ''}
               ${cash.expensesFromCash > 0 ? `<div class="summary-row"><span class="label">- مصاريف من الدرج</span><span class="value red">- ${money(cash.expensesFromCash)}</span></div>` : ''}
