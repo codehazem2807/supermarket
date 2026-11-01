@@ -592,18 +592,76 @@ tbody tr:last-child td{border-bottom:none}
   // ═══════════════════════════════════════════════════════════
   // DATE HELPERS
   // ═══════════════════════════════════════════════════════════
+  const STORE_TZ = (() => {
+    try { return (window.RefadSettings && RefadSettings.get('general.timezone')) || 'Africa/Cairo'; }
+    catch (e) { return 'Africa/Cairo'; }
+  })();
+
+  function storeDateTimeParts(value) {
+    const date = new Date(value || Date.now());
+    try {
+      const parts = {};
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: STORE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+      }).formatToParts(date).forEach(part => { parts[part.type] = part.value; });
+      const year = Number(parts.year), month = Number(parts.month), day = Number(parts.day);
+      return {
+        year, month, day, hour: Number(parts.hour),
+        dateKey: parts.year + '-' + parts.month + '-' + parts.day,
+        weekday: new Date(Date.UTC(year, month - 1, day)).getUTCDay()
+      };
+    } catch (e) {
+      return {
+        year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate(),
+        hour: date.getHours(), dateKey: date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0'),
+        weekday: date.getDay()
+      };
+    }
+  }
+
+  function shiftDateKey(dateKey, offsetDays) {
+    const [year, month, day] = dateKey.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day + offsetDays)).toISOString().slice(0, 10);
+  }
+
+  function startOfStoreDate(dateKey) {
+    const [year, month, day] = dateKey.split('-').map(Number);
+    const targetUtc = Date.UTC(year, month - 1, day);
+    let timestamp = targetUtc;
+    try {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: STORE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+      });
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const parts = {};
+        formatter.formatToParts(new Date(timestamp)).forEach(part => { parts[part.type] = part.value; });
+        const localAsUtc = Date.UTC(
+          Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+          Number(parts.hour), Number(parts.minute), Number(parts.second)
+        );
+        const correction = targetUtc - localAsUtc;
+        timestamp += correction;
+        if (correction === 0) break;
+      }
+      return new Date(timestamp).toISOString();
+    } catch (e) {
+      return new Date(dateKey + 'T00:00:00').toISOString();
+    }
+  }
+
+  function storeToday() { return storeDateTimeParts().dateKey; }
+
   function setRangePreset(preset) {
-    const today = new Date();
-    let from, to = today.toISOString().slice(0, 10);
+    const today = storeToday();
+    let from, to = today;
 
     if (preset === 'this_month') {
-      const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      from = firstOfMonth.toISOString().slice(0, 10);
+      from = today.slice(0, 7) + '-01';
     } else {
       const days = Number(preset) || 30;
-      const d = new Date();
-      d.setDate(d.getDate() - days);
-      from = d.toISOString().slice(0, 10);
+      from = shiftDateKey(today, -days);
     }
 
     document.getElementById('dateFrom').value = from;
@@ -614,27 +672,24 @@ tbody tr:last-child td{border-bottom:none}
     let from = document.getElementById('dateFrom').value;
     let to = document.getElementById('dateTo').value;
     if (!from) {
-      const d = new Date();
-      d.setDate(d.getDate() - 30);
-      from = d.toISOString().slice(0, 10);
+      from = shiftDateKey(storeToday(), -30);
       document.getElementById('dateFrom').value = from;
     }
     if (!to) {
-      to = new Date().toISOString().slice(0, 10);
+      to = storeToday();
       document.getElementById('dateTo').value = to;
     }
     return { from, to };
   }
 
   function getPreviousRange(range) {
-    const from = new Date(range.from);
-    const to = new Date(range.to);
-    const days = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
-    const prevTo = new Date(from.getTime() - 24 * 60 * 60 * 1000);
-    const prevFrom = new Date(prevTo.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+    const [fromYear, fromMonth, fromDay] = range.from.split('-').map(Number);
+    const [toYear, toMonth, toDay] = range.to.split('-').map(Number);
+    const days = Math.round((Date.UTC(toYear, toMonth - 1, toDay) - Date.UTC(fromYear, fromMonth - 1, fromDay)) / (1000 * 60 * 60 * 24)) + 1;
+    const prevTo = shiftDateKey(range.from, -1);
     return {
-      from: prevFrom.toISOString().slice(0, 10),
-      to: prevTo.toISOString().slice(0, 10)
+      from: shiftDateKey(prevTo, -(days - 1)),
+      to: prevTo
     };
   }
 
@@ -656,12 +711,14 @@ tbody tr:last-child td{border-bottom:none}
   // LOADERS
   // ═══════════════════════════════════════════════════════════
   async function loadSales(range) {
+    const from = startOfStoreDate(range.from);
+    const to = startOfStoreDate(shiftDateKey(range.to, 1));
     const res = await sb.from('sales_invoices')
       .select('id, invoice_date, subtotal, discount, total, paid, status')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', range.from + 'T00:00:00')
-      .lte('invoice_date', range.to + 'T23:59:59')
+      .gte('invoice_date', from)
+      .lt('invoice_date', to)
       .neq('status', 'voided');
     if (res.error) { toast('error', 'فشل تحميل المبيعات'); return []; }
     return res.data || [];
@@ -672,12 +729,14 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   async function loadTopProducts(range) {
+    const from = startOfStoreDate(range.from);
+    const to = startOfStoreDate(shiftDateKey(range.to, 1));
     const invRes = await sb.from('sales_invoices')
       .select('id')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', range.from + 'T00:00:00')
-      .lte('invoice_date', range.to + 'T23:59:59')
+      .gte('invoice_date', from)
+      .lt('invoice_date', to)
       .in('status', ['paid', 'partial', 'credit']);
     if (invRes.error) return [];
 
@@ -779,7 +838,7 @@ tbody tr:last-child td{border-bottom:none}
     }
     sales.forEach(s => {
       if (!s.invoice_date) return;
-      const h = new Date(s.invoice_date).getHours();
+      const h = storeDateTimeParts(s.invoice_date).hour;
       map[h].count++;
       map[h].total += Number(s.total || 0);
       map[h].subtotal += Number(s.subtotal || 0);
@@ -800,9 +859,9 @@ tbody tr:last-child td{border-bottom:none}
     }
     sales.forEach(s => {
       if (!s.invoice_date) return;
-      const dt = new Date(s.invoice_date);
-      const d = dt.getDay(); // 0=Sun..6=Sat
-      const h = dt.getHours();
+      const parts = storeDateTimeParts(s.invoice_date);
+      const d = parts.weekday; // 0=Sun..6=Sat
+      const h = parts.hour;
       map[d][h].count++;
       map[d][h].total += Number(s.total || 0);
     });
@@ -887,7 +946,7 @@ tbody tr:last-child td{border-bottom:none}
 
     const dailyMap = {};
     sales.forEach(s => {
-      const d = s.invoice_date.slice(0, 10);
+      const d = storeDateTimeParts(s.invoice_date).dateKey;
       dailyMap[d] = (dailyMap[d] || 0) + Number(s.total || 0);
     });
 
@@ -928,7 +987,7 @@ tbody tr:last-child td{border-bottom:none}
 
     const dailyMap = {};
     sales.forEach(s => {
-      const d = s.invoice_date.slice(0, 10);
+      const d = storeDateTimeParts(s.invoice_date).dateKey;
       if (!dailyMap[d]) dailyMap[d] = { count: 0, subtotal: 0, discount: 0, total: 0, paid: 0, profit: 0 };
       dailyMap[d].count++;
       dailyMap[d].subtotal += Number(s.subtotal || 0);
@@ -1400,7 +1459,7 @@ tbody tr:last-child td{border-bottom:none}
       const sales = dataCache.sales || [];
       const dailyMap = {};
       sales.forEach(s => {
-        const d = s.invoice_date.slice(0, 10);
+        const d = storeDateTimeParts(s.invoice_date).dateKey;
         if (!dailyMap[d]) dailyMap[d] = { count: 0, subtotal: 0, discount: 0, total: 0, paid: 0 };
         dailyMap[d].count++;
         dailyMap[d].subtotal += Number(s.subtotal || 0);
