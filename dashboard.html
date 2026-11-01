@@ -1003,6 +1003,73 @@ tbody tr:last-child td{border-bottom:none}
   const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:0})};
   const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
   const fmtDateTime = (window.Refad && Refad.fmtDateTime) || function(d){if(!d)return'—';return new Date(d).toLocaleString('ar-EG',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+
+  // ═══════════════════════════════════════════════════════════
+  // 🕐 TIMEZONE HELPERS — كل التواريخ تُحسب بتوقيت المتجر (Africa/Cairo)
+  //    بدلاً من toISOString() التي تستخدم UTC وتسبب "مبيعات اليوم = صفر"
+  //    بعد منتصف الليل وحتى الثانية صباحاً، وكذلك خطأ في رسم بياني المبيعات.
+  // ═══════════════════════════════════════════════════════════
+  const TZ = (session => {
+    try {
+      if (window.RefadSettings) {
+        const tz = window.RefadSettings.get('general.timezone');
+        if (tz) return tz;
+      }
+    } catch(e) {}
+    return 'Africa/Cairo';
+  })();
+
+  function tzParts(date) {
+    const d = date || new Date();
+    try {
+      const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+      const parts = {};
+      fmt.formatToParts(d).forEach(p => { parts[p.type] = p.value; });
+      let hh = parseInt(parts.hour, 10);
+      if (hh >= 24) hh -= 24;
+      return {
+        y: parts.year, mo: parts.month, d: parts.day,
+        hh: String(hh).padStart(2,'0'), mi: parts.minute, ss: parts.second,
+        dateStr: parts.year + '-' + parts.month + '-' + parts.day
+      };
+    } catch (e) {
+      // fallback إذا لم يتوفر Intl/timezone
+      const pad = n => String(n).padStart(2, '0');
+      return {
+        y: String(d.getFullYear()), mo: pad(d.getMonth()+1), d: pad(d.getDate()),
+        hh: pad(d.getHours()), mi: pad(d.getMinutes()), ss: pad(d.getSeconds()),
+        dateStr: d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
+      };
+    }
+  }
+
+  // "YYYY-MM-DD" بتوقيت المتجر الآن
+  function localToday(offsetDays) {
+    const d = new Date(Date.now() - (offsetDays || 0) * 86400000);
+    return tzParts(d).dateStr;
+  }
+
+  // أول الشهر الميلادي بتوقيت المتجر
+  function localMonthStart() {
+    const p = tzParts();
+    return p.y + '-' + p.mo + '-01';
+  }
+
+  // تحويل أي تاريخ (ISO أو Date) إلى "YYYY-MM-DD" بتوقيت المتجر
+  function toDateKeyLocal(value) {
+    if (!value) return '';
+    return tzParts(new Date(value)).dateStr;
+  }
+
+  // بناء حدود زمنية ISO للفلترة على أعمدة timestamptz بتوقيت المتجر
+  function dayRangeTz(dateStr) {
+    const from = new Date(dateStr + 'T00:00:00');
+    const to = new Date(dateStr + 'T23:59:59.999');
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
   const toast = (function(){
     const base = window.Refad && Refad.toast;
     if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
