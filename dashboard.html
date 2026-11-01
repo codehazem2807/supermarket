@@ -688,6 +688,13 @@ tbody tr:last-child td{border-bottom:none}
         <div class="kpi-value" id="kpiInvoiceCount">—</div>
         <div class="kpi-sub" id="kpiAvgTicket">—</div>
       </div>
+      <!-- 💰 كارت صافي ربح اليوم (المبيعات - تكلفة البضاعة المباعة) -->
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:var(--success-soft);color:var(--success)"><i data-lucide="coins"></i></div>
+        <div class="kpi-label">صافي ربح اليوم</div>
+        <div class="kpi-value" id="kpiNetProfitToday">—</div>
+        <div class="kpi-sub" id="kpiNetProfitTodaySub">—</div>
+      </div>
       <div class="kpi-card">
         <div class="kpi-icon gold"><i data-lucide="trending-up"></i></div>
         <div class="kpi-label">مبيعات الشهر</div>
@@ -700,6 +707,11 @@ tbody tr:last-child td{border-bottom:none}
         <div class="kpi-value" id="kpiExpensesMonth">—</div>
         <div class="kpi-sub" id="kpiExpensesMonthSub">من بداية الشهر</div>
       </div>
+    </div>
+
+    <!-- 🎯 شريط هدف الشهر -->
+    <div class="card" id="monthGoalWrap" style="margin-bottom:20px;padding:0;overflow:hidden">
+      <div style="padding:14px 20px;font-size:12.5px;color:var(--text-muted)">جاري تحميل الهدف...</div>
     </div>
 
     <!-- Chart -->
@@ -718,6 +730,14 @@ tbody tr:last-child td{border-bottom:none}
       <div class="chart-container" id="chartContainer">
         <div class="loading-state"><div class="spinner"></div></div>
       </div>
+    </div>
+
+    <!-- 🧾 توزيع طرق الدفع (الشهر الحالي) -->
+    <div class="card" id="paymentMixCard" style="margin-bottom:20px;display:none">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="credit-card"></i><span>توزيع طرق الدفع هذا الشهر</span></div>
+      </div>
+      <div class="card-body" id="paymentMixBody"></div>
     </div>
 
     <div class="grid-2">
@@ -1003,6 +1023,73 @@ tbody tr:last-child td{border-bottom:none}
   const num = (window.Refad && Refad.num) || function(v){return Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:0})};
   const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
   const fmtDateTime = (window.Refad && Refad.fmtDateTime) || function(d){if(!d)return'—';return new Date(d).toLocaleString('ar-EG',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+
+  // ═══════════════════════════════════════════════════════════
+  // 🕐 TIMEZONE HELPERS — كل التواريخ تُحسب بتوقيت المتجر (Africa/Cairo)
+  //    بدلاً من toISOString() التي تستخدم UTC وتسبب "مبيعات اليوم = صفر"
+  //    بعد منتصف الليل وحتى الثانية صباحاً، وكذلك خطأ في رسم بياني المبيعات.
+  // ═══════════════════════════════════════════════════════════
+  const TZ = (session => {
+    try {
+      if (window.RefadSettings) {
+        const tz = window.RefadSettings.get('general.timezone');
+        if (tz) return tz;
+      }
+    } catch(e) {}
+    return 'Africa/Cairo';
+  })();
+
+  function tzParts(date) {
+    const d = date || new Date();
+    try {
+      const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+      const parts = {};
+      fmt.formatToParts(d).forEach(p => { parts[p.type] = p.value; });
+      let hh = parseInt(parts.hour, 10);
+      if (hh >= 24) hh -= 24;
+      return {
+        y: parts.year, mo: parts.month, d: parts.day,
+        hh: String(hh).padStart(2,'0'), mi: parts.minute, ss: parts.second,
+        dateStr: parts.year + '-' + parts.month + '-' + parts.day
+      };
+    } catch (e) {
+      // fallback إذا لم يتوفر Intl/timezone
+      const pad = n => String(n).padStart(2, '0');
+      return {
+        y: String(d.getFullYear()), mo: pad(d.getMonth()+1), d: pad(d.getDate()),
+        hh: pad(d.getHours()), mi: pad(d.getMinutes()), ss: pad(d.getSeconds()),
+        dateStr: d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
+      };
+    }
+  }
+
+  // "YYYY-MM-DD" بتوقيت المتجر الآن
+  function localToday(offsetDays) {
+    const d = new Date(Date.now() - (offsetDays || 0) * 86400000);
+    return tzParts(d).dateStr;
+  }
+
+  // أول الشهر الميلادي بتوقيت المتجر
+  function localMonthStart() {
+    const p = tzParts();
+    return p.y + '-' + p.mo + '-01';
+  }
+
+  // تحويل أي تاريخ (ISO أو Date) إلى "YYYY-MM-DD" بتوقيت المتجر
+  function toDateKeyLocal(value) {
+    if (!value) return '';
+    return tzParts(new Date(value)).dateStr;
+  }
+
+  // بناء حدود زمنية ISO للفلترة على أعمدة timestamptz بتوقيت المتجر
+  function dayRangeTz(dateStr) {
+    const from = new Date(dateStr + 'T00:00:00');
+    const to = new Date(dateStr + 'T23:59:59.999');
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
   const toast = (function(){
     const base = window.Refad && Refad.toast;
     if (base && typeof base === 'object') return function(t,m){(base[t]||base.info||function(){}) (m);};
@@ -1018,34 +1105,62 @@ tbody tr:last-child td{border-bottom:none}
     };
   })();
 
-  function today() { return new Date().toISOString().slice(0,10); }
-  function yesterday() { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
-  function monthStart() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01'; }
-  function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0,10); }
+  // 🔧 إصلاح جذري: كل دوال التواريخ تعتمد الآن على توقيت المتجر (Africa/Cairo)
+  //    بدلاً من UTC — كان سبب رئيسي في "مبيعات اليوم = صفر" بعد منتصف الليل
+  //    وفي فلترة timestamptz بنصوص UTC لا تطابق أي صف.
+  function today() { return localToday(0); }
+  function yesterday() { return localToday(1); }
+  function monthStart() { return localMonthStart(); }
+  function daysAgo(n) { return localToday(n); }
   function daysLeft(expiry) { return Math.ceil((new Date(expiry) - new Date()) / (1000*60*60*24)); }
+
+  // حدود يوم كامل بصيغة ISO UTC صحيحة للفلترة على أعمدة timestamptz
+  function invoiceDateFilter(q, dateStr) {
+    const r = dayRangeTz(dateStr);
+    return q.gte('invoice_date', r.from).lt('invoice_date', r.to);
+  }
 
   // ═══════════════════════════════════════════════════════════
   // DATA LOADERS
   // ═══════════════════════════════════════════════════════════
   async function loadSalesForDate(dateStr) {
-    const { data } = await sb.from('sales_invoices')
+    let q = sb.from('sales_invoices')
       .select('total')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', dateStr + 'T00:00:00')
-      .lt('invoice_date', dateStr + 'T23:59:59')
       .neq('status', 'voided');
+    q = invoiceDateFilter(q, dateStr);
+    const { data } = await q;
     return { total: (data||[]).reduce((s,i)=>s+Number(i.total||0),0), count: (data||[]).length };
   }
 
   async function loadMonthSales() {
+    // من أول الشهر بتوقيت المتجر حتى الآن — حدود ISO صحيحة لعمود timestamptz
+    const from = dayRangeTz(monthStart()).from;
     const { data } = await sb.from('sales_invoices')
       .select('total')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', monthStart() + 'T00:00:00')
+      .gte('invoice_date', from)
       .neq('status', 'voided');
     return (data||[]).reduce((s,i)=>s+Number(i.total||0),0);
+  }
+
+  async function loadPrevMonthSales() {
+    try {
+      const p = tzParts();
+      // أول الشهر الماضي
+      const prevFirst = new Date(Number(p.y), Number(p.mo) - 2, 1);
+      const thisFirst = new Date(Number(p.y), Number(p.mo) - 1, 1);
+      const { data } = await sb.from('sales_invoices')
+        .select('total')
+        .eq('company_id', session.company_id)
+        .eq('branch_id', session.active_branch_id)
+        .gte('invoice_date', prevFirst.toISOString())
+        .lt('invoice_date', thisFirst.toISOString())
+        .neq('status', 'voided');
+      return (data||[]).reduce((s,i)=>s+Number(i.total||0),0);
+    } catch (e) { return 0; }
   }
 
   async function loadMonthExpenses() {
@@ -1177,11 +1292,12 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   async function loadTopProducts(days) {
+    const from = dayRangeTz(daysAgo(days)).from;
     const { data: invoices } = await sb.from('sales_invoices')
       .select('id')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', daysAgo(days) + 'T00:00:00')
+      .gte('invoice_date', from)
       .neq('status', 'voided');
     const ids = (invoices||[]).map(i => i.id);
     if (ids.length === 0) return [];
@@ -1199,12 +1315,12 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   async function loadChartData(days) {
-    const start = daysAgo(days - 1);
+    const from = dayRangeTz(daysAgo(days - 1)).from;
     const { data } = await sb.from('sales_invoices')
       .select('invoice_date, total')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', start + 'T00:00:00')
+      .gte('invoice_date', from)
       .neq('status', 'voided');
     const map = {};
     for (let i = days - 1; i >= 0; i--) {
@@ -1212,15 +1328,64 @@ tbody tr:last-child td{border-bottom:none}
       map[d] = 0;
     }
     (data||[]).forEach(inv => {
-      const d = inv.invoice_date ? inv.invoice_date.slice(0,10) : '';
+      // 🔧 التجميع بتوقيت المتجر بدلاً من slice(0,10) الذي يستخدم UTC
+      const d = inv.invoice_date ? toDateKeyLocal(inv.invoice_date) : '';
       if (map[d] !== undefined) map[d] += Number(inv.total||0);
     });
     return Object.entries(map).map(([date, total]) => ({ date, total }));
   }
 
+  // 💰 تكلفة مبيعات فترة محددة (FOIF: unit_cost من عناصر الفواتير)
+  async function loadCogsForRange(fromIso, toIso) {
+    try {
+      let q = sb.from('sales_invoices')
+        .select('id')
+        .eq('company_id', session.company_id)
+        .eq('branch_id', session.active_branch_id)
+        .neq('status', 'voided');
+      if (fromIso) q = q.gte('invoice_date', fromIso);
+      if (toIso) q = q.lt('invoice_date', toIso);
+      const { data: invoices } = await q;
+      const ids = (invoices||[]).map(i => i.id);
+      if (ids.length === 0) return 0;
+      let cogs = 0;
+      // تقسيم على دفعات لتجنب تجاوز حدود الطلب
+      for (let i = 0; i < ids.length; i += 200) {
+        const chunk = ids.slice(i, i + 200);
+        const { data: items } = await sb.from('sales_invoice_items')
+          .select('quantity, unit_cost')
+          .in('invoice_id', chunk);
+        (items||[]).forEach(it => { cogs += Number(it.quantity||0) * Number(it.unit_cost||0); });
+      }
+      return cogs;
+    } catch (e) { return 0; }
+  }
+
+  // 🧾 توزيع طرق الدفع لفترة محددة
+  async function loadPaymentMix(fromIso) {
+    try {
+      const { data } = await sb.from('sales_invoices')
+        .select('payment_method, total')
+        .eq('company_id', session.company_id)
+        .eq('branch_id', session.active_branch_id)
+        .gte('invoice_date', fromIso)
+        .neq('status', 'voided');
+      const mix = {};
+      (data||[]).forEach(inv => {
+        const m = inv.payment_method || 'cash';
+        mix[m] = (mix[m] || 0) + Number(inv.total || 0);
+      });
+      return mix;
+    } catch (e) { return {}; }
+  }
+
   // ═══════════════════════════════════════════════════════════
   // RENDERERS
   // ═══════════════════════════════════════════════════════════
+
+  // 🎯 هدف المبيعات الشهري (قابل للتعديل — محفوظ محلياً)
+  let monthTarget = Number(localStorage.getItem('refad_dashboard_month_target') || 0);
+
   function renderKPIs(data) {
     const { today: t, yesterday: y, monthSales, productsCount, monthExpenses } = data;
     document.getElementById('kpiSalesToday').textContent = money(t.total);
@@ -1238,9 +1403,118 @@ tbody tr:last-child td{border-bottom:none}
     const avg = t.count > 0 ? t.total / t.count : 0;
     document.getElementById('kpiAvgTicket').textContent = avg > 0 ? 'متوسط ' + money(avg) : 'لا فواتير بعد';
     document.getElementById('kpiSalesMonth').textContent = money(monthSales);
-    document.getElementById('kpiSalesMonthSub').textContent = 'من بداية الشهر';
+    // 📊 مقارنة بنفس الفترة من الشهر الماضي (بدلاً من الشهر كاملاً)
+    const prevSameEl = document.getElementById('kpiSalesMonthSub');
+    if (data.prevMonthToDate != null && data.prevMonthToDate > 0) {
+      const pmPct = ((monthSales - data.prevMonthToDate) / data.prevMonthToDate) * 100;
+      const up = pmPct >= 0;
+      prevSameEl.innerHTML = '<span class="kpi-trend ' + (up ? 'up' : 'down') + '">' +
+        '<i data-lucide="' + (up ? 'trending-up' : 'trending-down') + '"></i>' + Math.abs(pmPct).toFixed(0) + '%</span>' +
+        '<span>مقارنة بنفس الفترة الشهر الماضي (' + money(data.prevMonthToDate) + ')</span>';
+    } else {
+      prevSameEl.textContent = 'من بداية الشهر';
+    }
     document.getElementById('kpiExpensesMonth').textContent = money(monthExpenses);
     document.getElementById('kpiExpensesMonthSub').textContent = monthExpenses > 0 ? 'من بداية الشهر' : 'لا مصاريف بعد';
+
+    // 💰 صافي الربح التقديري لليوم (المبيعات - تكلفة البضاعة المباعة)
+    const netEl = document.getElementById('kpiNetProfitToday');
+    const netSubEl = document.getElementById('kpiNetProfitTodaySub');
+    if (netEl && netSubEl) {
+      const cogs = Number(data.todayCogs || 0);
+      const profit = t.total - cogs;
+      netEl.textContent = money(profit);
+      netEl.style.color = profit < 0 ? 'var(--danger)' : '';
+      if (t.total > 0) {
+        const marginPct = (profit / t.total) * 100;
+        netSubEl.innerHTML = '<span class="kpi-trend ' + (marginPct >= 0 ? 'up' : 'down') + '">' +
+          '<i data-lucide="' + (marginPct >= 0 ? 'percent' : 'trending-down') + '"></i>' + marginPct.toFixed(1) + '% هامش</span>' +
+          '<span>تكلفة ' + money(cogs) + '</span>';
+      } else {
+        netSubEl.textContent = 'لا مبيعات بعد اليوم';
+      }
+    }
+
+    renderMonthProgress(monthSales);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderMonthProgress(monthSales) {
+    const wrap = document.getElementById('monthGoalWrap');
+    if (!wrap) return;
+    const bar = document.getElementById('goalBarFill');
+    const pctEl = document.getElementById('goalPct');
+    const labelEl = document.getElementById('goalLabel');
+    const editBtn = document.getElementById('goalEditBtn');
+    if (editBtn) {
+      editBtn.onclick = () => {
+        const v = prompt('حدد هدف مبيعات هذا الشهر (بالجنيه، اكتب 0 لإخفاء الشريط):', monthTarget || '');
+        if (v === null) return;
+        monthTarget = Math.max(0, Number(v.replace(/[^\d.]/g,'')) || 0);
+        localStorage.setItem('refad_dashboard_month_target', String(monthTarget));
+        renderMonthProgress(monthSales);
+      };
+    }
+    if (!monthTarget || monthTarget <= 0) {
+      wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 20px">' +
+        '<span style="font-size:12.5px;color:var(--text-muted);font-weight:600">🎯 لم يتم تحديد هدف شهري بعد</span>' +
+        '<button class="btn btn-ghost btn-sm" id="goalEditBtn" style="flex-shrink:0"><i data-lucide="target"></i> حدد هدفاً</button></div>';
+      const b = document.getElementById('goalEditBtn');
+      if (b && editBtn) b.onclick = editBtn.onclick;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+    const pct = Math.min((monthSales / monthTarget) * 100, 100);
+    const daysInMonth = (() => { const p = tzParts(); return new Date(Number(p.y), Number(p.mo), 0).getDate(); })();
+    const dayOfMonth = Number(tzParts().d);
+    const timePct = (dayOfMonth / daysInMonth) * 100;
+    const pace = monthSales >= 0 && timePct > 0 ? (pct / timePct) * 100 : 0;
+    const remaining = Math.max(monthTarget - monthSales, 0);
+    const dailyNeeded = remaining / Math.max(daysInMonth - dayOfMonth + 1, 1);
+    const statusColor = pct >= timePct ? 'var(--success)' : pct >= timePct * 0.8 ? 'var(--gold)' : 'var(--danger)';
+    wrap.innerHTML =
+      '<div style="padding:14px 20px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;flex-wrap:wrap">' +
+          '<div style="font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px">' +
+            '<i data-lucide="target" style="width:16px;height:16px;color:var(--accent)"></i>' +
+            '<span>هدف الشهر: ' + money(monthTarget) + '</span></div>' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<span id="goalPct" style="font-size:13px;font-weight:800;color:' + statusColor + '">' + pct.toFixed(0) + '%</span>' +
+            '<button class="btn btn-ghost btn-sm" id="goalEditBtn" title="تعديل الهدف"><i data-lucide="pencil"></i></button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="progress-bar" style="height:10px"><div id="goalBarFill" class="progress-fill" style="width:' + pct + '%;background:' + statusColor + '"></div></div>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--text-muted);flex-wrap:wrap;gap:6px">' +
+          '<span>تحقق: ' + money(monthSales) + ' · متبقي: ' + money(remaining) + '</span>' +
+          '<span>' + (pace >= 100 ? '🚀 أسرع من الوتيرة المطلوبة' : pace >= 80 ? '⚡ قريب من الوتيرة' : '🐢 أبطأ من الوتيرة') +
+            ' · محتاج ' + money(dailyNeeded) + '/يوم</span>' +
+        '</div>' +
+      '</div>';
+    const b = document.getElementById('goalEditBtn');
+    if (b && editBtn) b.onclick = editBtn.onclick;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderPaymentMix(mix) {
+    const el = document.getElementById('paymentMixCard');
+    const body = document.getElementById('paymentMixBody');
+    if (!el || !body) return;
+    const labels = { cash:'نقدي', card:'بطاقة', wallet:'محفظة', credit:'آجل', mixed:'مختلط', bank:'بنك' };
+    const colors = { cash:'var(--success)', card:'var(--info)', wallet:'var(--purple)', credit:'var(--gold)', mixed:'var(--accent)', bank:'var(--text-muted)' };
+    const entries = Object.entries(mix || {}).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]);
+    const totalAll = entries.reduce((s,[,v]) => s + v, 0);
+    if (entries.length === 0) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    body.innerHTML = entries.map(([m, v]) => {
+      const pct = totalAll > 0 ? (v / totalAll) * 100 : 0;
+      return '<div style="margin-bottom:12px">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px">' +
+          '<span style="font-weight:700">' + (labels[m] || m) + '</span>' +
+          '<span style="color:var(--text-muted)">' + money(v) + ' · ' + pct.toFixed(0) + '%</span>' +
+        '</div>' +
+        '<div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:' + pct + '%;background:' + (colors[m] || 'var(--accent)') + '"></div></div>' +
+      '</div>';
+    }).join('');
   }
 
   function renderSessionBanner(activeSession) {
@@ -1677,14 +1951,18 @@ tbody tr:last-child td{border-bottom:none}
   // ═══════════════════════════════════════════════════════════
   async function loadAll() {
     try {
+      const todayStr = today();
+      const monthFromIso = dayRangeTz(monthStart()).from;
+      const todayRange = dayRangeTz(todayStr);
       const [
-        todaySales, yesterdaySales, monthSales, monthExpenses, productsCount,
+        todaySales, yesterdaySales, monthSales, prevMonthSales, monthExpenses, productsCount,
         lowStock, expiring, recentSales, topProducts, chartData,
-        activeSession, activeSeason, recentExpenses
+        activeSession, activeSeason, recentExpenses, todayCogs, paymentMix
       ] = await Promise.all([
-        loadSalesForDate(today()),
+        loadSalesForDate(todayStr),
         loadSalesForDate(yesterday()),
         loadMonthSales(),
+        loadPrevMonthSales(),
         loadMonthExpenses(),
         loadProductsCount(),
         loadLowStock(),
@@ -1694,10 +1972,12 @@ tbody tr:last-child td{border-bottom:none}
         loadChartData(currentChartRange),
         loadActiveSession(),
         loadActiveSeason(),
-        loadRecentExpenses()
+        loadRecentExpenses(),
+        loadCogsForRange(todayRange.from, todayRange.to),
+        loadPaymentMix(monthFromIso)
       ]);
 
-      renderKPIs({ today: todaySales, yesterday: yesterdaySales, monthSales, productsCount, monthExpenses });
+      renderKPIs({ today: todaySales, yesterday: yesterdaySales, monthSales, prevMonthSales, productsCount, monthExpenses, todayCogs });
       renderSessionBanner(activeSession);
       renderSeasonBanner(activeSeason);
       renderOfflineIndicator(loadOfflineCount());
@@ -1706,8 +1986,9 @@ tbody tr:last-child td{border-bottom:none}
       renderRecentSales(recentSales);
       renderTopProducts(topProducts);
       renderRecentExpenses(recentExpenses);
-      renderAlerts({ lowStock, expiring });
+      renderAlerts({ lowStock, expiring, monthSales, prevMonthSales });
       renderChart(chartData);
+      renderPaymentMix(paymentMix);
 
       console.log('[Dashboard] Loaded all data');
     } catch(e) {
