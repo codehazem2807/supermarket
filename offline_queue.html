@@ -532,6 +532,13 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
       if (op.type === 'sale') {
         const r = await sb.rpc('record_invoice_v3', op.payload);
         if (r.error) throw r.error;
+        // 🔧 تسجيل حركة الدرج بعد رفع الفاتورة من الطابور
+        try {
+          if (r.data) {
+            const cm = await sb.rpc('record_sale_cash_movement', { p_invoice: r.data });
+            if (cm && cm.error) console.warn('[OfflineQueue] cash movement:', cm.error.message);
+          }
+        } catch (cmErr) { console.warn('[OfflineQueue] cash movement failed:', cmErr); }
       } else {
         throw new Error('نوع العملية غير مدعوم: ' + op.type);
       }
