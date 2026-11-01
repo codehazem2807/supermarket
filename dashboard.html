@@ -688,10 +688,10 @@ tbody tr:last-child td{border-bottom:none}
         <div class="kpi-value" id="kpiInvoiceCount">—</div>
         <div class="kpi-sub" id="kpiAvgTicket">—</div>
       </div>
-      <!-- 💰 كارت صافي ربح اليوم (المبيعات - تكلفة البضاعة المباعة) -->
+      <!-- 💰 مجمل ربح اليوم بعد استبعاد الضريبة وتكلفة البضاعة -->
       <div class="kpi-card">
         <div class="kpi-icon" style="background:var(--success-soft);color:var(--success)"><i data-lucide="coins"></i></div>
-        <div class="kpi-label">صافي ربح اليوم</div>
+        <div class="kpi-label">مجمل ربح اليوم</div>
         <div class="kpi-value" id="kpiNetProfitToday">—</div>
         <div class="kpi-sub" id="kpiNetProfitTodaySub">—</div>
       </div>
@@ -1068,8 +1068,41 @@ tbody tr:last-child td{border-bottom:none}
 
   // "YYYY-MM-DD" بتوقيت المتجر الآن
   function localToday(offsetDays) {
-    const d = new Date(Date.now() - (offsetDays || 0) * 86400000);
-    return tzParts(d).dateStr;
+    return shiftDateKey(tzParts().dateStr, -(offsetDays || 0));
+  }
+
+  function shiftDateKey(dateStr, offsetDays) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const shifted = new Date(Date.UTC(year, month - 1, day + offsetDays));
+    return shifted.toISOString().slice(0, 10);
+  }
+
+  function startOfLocalDate(dateStr) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const targetUtc = Date.UTC(year, month - 1, day);
+    let timestamp = targetUtc;
+    try {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+      });
+
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const parts = {};
+        formatter.formatToParts(new Date(timestamp)).forEach(part => { parts[part.type] = part.value; });
+        const localAsUtc = Date.UTC(
+          Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+          Number(parts.hour), Number(parts.minute), Number(parts.second)
+        );
+        const correction = targetUtc - localAsUtc;
+        timestamp += correction;
+        if (correction === 0) break;
+      }
+    } catch (e) {
+      return new Date(dateStr + 'T00:00:00').toISOString();
+    }
+
+    return new Date(timestamp).toISOString();
   }
 
   // أول الشهر الميلادي بتوقيت المتجر
@@ -1084,17 +1117,16 @@ tbody tr:last-child td{border-bottom:none}
     return tzParts(new Date(value)).dateStr;
   }
 
-  // بناء حدود زمنية ISO للفلترة على أعمدة timestamptz بتوقيت المتجر
-  // 🔧 الحل الجذري لـ"مبيعات اليوم = صفر": الفلترة تتم الآن على نص التاريخ المحلي
-  //    (invoice_date::date) عبر RPC آمنة — لا تعتمد على تحويل UTC إطلاقاً،
-  //    فتطابق الصفوف المحفوظة بـ timestamptz بغض النظر عن المنطقة الزمنية للمتصفح/الخادم.
+  // بناء حدود يوم المتجر بصيغة ISO UTC، مع نهاية حصرية لتجنّب فقد آخر لحظة من اليوم.
   function dayRangeTz(dateStr) {
-    const from = new Date(dateStr + 'T00:00:00');
-    const to = new Date(dateStr + 'T23:59:59.999');
-    return { from: from.toISOString(), to: to.toISOString() };
+    return {
+      from: startOfLocalDate(dateStr),
+      to: startOfLocalDate(shiftDateKey(dateStr, 1))
+    };
   }
 
-  // ═══ Fallbacks إذا لم تكن دوال الـ RPC مثبّتة في قاعدة البيانات ═══
+  // Sales queries use explicit store-time boundaries so their results do not depend
+  // on the database session timezone.
   async function fallbackSalesByDate(dateStr) {
     const r = dayRangeTz(dateStr);
     let q = sb.from('sales_invoices')
@@ -1102,13 +1134,15 @@ tbody tr:last-child td{border-bottom:none}
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .neq('status', 'voided')
+      .neq('status', 'draft')
+      .neq('status', 'returned')
       .gte('invoice_date', r.from)
       .lt('invoice_date', r.to);
     const { data } = await q;
     return { total: (data||[]).reduce((s,i)=>s+Number(i.total||0),0), count: (data||[]).length };
   }
 
-  async function fallbackSalesRange(fromDate, toDate) { // من تاريخ معيّن حتى الأمس محلياً
+  async function fallbackSalesRange(fromDate, toDate) {
     const from = dayRangeTz(fromDate).from;
     const to = dayRangeTz(toDate).to;
     let q = sb.from('sales_invoices')
@@ -1116,6 +1150,8 @@ tbody tr:last-child td{border-bottom:none}
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .neq('status', 'voided')
+      .neq('status', 'draft')
+      .neq('status', 'returned')
       .gte('invoice_date', from)
       .lt('invoice_date', to);
     const { data } = await q;
@@ -1124,24 +1160,32 @@ tbody tr:last-child td{border-bottom:none}
 
   async function fallbackMonthSales() {
     const from = dayRangeTz(monthStart()).from;
+    const to = dayRangeTz(shiftDateKey(today(), 1)).from;
     let q = sb.from('sales_invoices')
       .select('total')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .neq('status', 'voided')
-      .gte('invoice_date', from);
+      .neq('status', 'draft')
+      .neq('status', 'returned')
+      .gte('invoice_date', from)
+      .lt('invoice_date', to);
     const { data } = await q;
     return (data||[]).reduce((s,i)=>s+Number(i.total||0),0);
   }
 
   async function fallbackChartData(days) {
     const from = dayRangeTz(daysAgo(days - 1)).from;
+    const to = dayRangeTz(shiftDateKey(today(), 1)).from;
     let q = sb.from('sales_invoices')
       .select('invoice_date, total')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .neq('status', 'voided')
-      .gte('invoice_date', from);
+      .neq('status', 'draft')
+      .neq('status', 'returned')
+      .gte('invoice_date', from)
+      .lt('invoice_date', to);
     const { data } = await q;
     const map = {};
     for (let i = days - 1; i >= 0; i--) { map[daysAgo(i)] = 0; }
@@ -1166,16 +1210,14 @@ tbody tr:last-child td{border-bottom:none}
     };
   })();
 
-  // 🔧 إصلاح جذري: كل دوال التواريخ تعتمد الآن على توقيت المتجر (Africa/Cairo)
-  //    بدلاً من UTC — كان سبب رئيسي في "مبيعات اليوم = صفر" بعد منتصف الليل
-  //    وفي فلترة timestamptz بنصوص UTC لا تطابق أي صف.
+  // All dashboard date keys use the configured store timezone.
   function today() { return localToday(0); }
   function yesterday() { return localToday(1); }
   function monthStart() { return localMonthStart(); }
   function daysAgo(n) { return localToday(n); }
   function daysLeft(expiry) { return Math.ceil((new Date(expiry) - new Date()) / (1000*60*60*24)); }
 
-  // حدود يوم كامل بصيغة ISO UTC صحيحة للفلترة على أعمدة timestamptz
+  // Exclusive UTC boundaries for filtering timestamptz invoice dates.
   function invoiceDateFilter(q, dateStr) {
     const r = dayRangeTz(dateStr);
     return q.gte('invoice_date', r.from).lt('invoice_date', r.to);
@@ -1184,84 +1226,40 @@ tbody tr:last-child td{border-bottom:none}
   // ═══════════════════════════════════════════════════════════
   // DATA LOADERS
   // ═══════════════════════════════════════════════════════════
-  // 🔧 محركات الإحصاء تعتمد الآن على RPC بالتاريخ المحلي (invoice_date::date)
-  //    مع fallback تلقائي إذا لم يكنMigration مثبّتاً بعد.
-  let rpcDashboardAvailable = null; // null = غير مختبر، true/false بعد الاختبار
-
-  async function hasRpc(name) {
-    try {
-      const { error } = await sb.rpc(name, { p_company: session.company_id });
-      // PGRST202 = الدالة غير موجودة في الـ schema cache
-      return !(error && (String(error.code) === 'PGRST202' || /not found/i.test(error.message || '')));
-    } catch (e) { return false; }
-  }
-
   async function loadSalesForDate(dateStr) {
-    if (rpcDashboardAvailable === null) {
-      rpcDashboardAvailable = await hasRpc('dash_sales_by_date');
-    }
-    if (rpcDashboardAvailable) {
-      try {
-        const { data, error } = await sb.rpc('dash_sales_by_date', {
-          p_company: session.company_id,
-          p_branch: session.active_branch_id,
-          p_date: dateStr
-        });
-        if (!error && data) {
-          return { total: Number(data.total || 0), count: Number(data.count || 0) };
-        }
-      } catch (e) { /* يسقط للـ fallback */ }
-    }
     return fallbackSalesByDate(dateStr);
   }
 
   async function loadMonthSales() {
-    if (rpcDashboardAvailable === null) {
-      rpcDashboardAvailable = await hasRpc('dash_sales_by_date');
-    }
-    if (rpcDashboardAvailable) {
-      try {
-        const { data, error } = await sb.rpc('dash_month_sales', {
-          p_company: session.company_id,
-          p_branch: session.active_branch_id
-        });
-        if (!error && data != null) return Number(data || 0);
-      } catch (e) { /* fallback */ }
-    }
     return fallbackMonthSales();
   }
 
-  // 📊 نفس الفترة من الشهر الماضي (من أول الشهر حتى أمس محلياً)
+  // 📊 Compare with the same completed days in the previous month.
   async function loadPrevMonthToDate() {
-    if (!rpcDashboardAvailable) return null;
-    try {
-      const p = tzParts();
-      const prevFirst = new Date(Number(p.y), Number(p.mo) - 2, 1);
-      const prevKey = prevFirst.getFullYear() + '-' + String(prevFirst.getMonth()+1).padStart(2,'0') + '-01';
-      const { data, error } = await sb.rpc('dash_sales_range', {
-        p_company: session.company_id,
-        p_branch: session.active_branch_id,
-        p_from: prevKey,
-        p_to: yesterday()
-      });
-      if (!error && data) return Number(data.total || 0);
-    } catch (e) {}
-    return null;
+    const completedDays = Number(tzParts().d) - 1;
+    if (completedDays <= 0) return 0;
+    const previousStart = shiftDateKey(monthStart(), -1);
+    const [year, month] = previousStart.split('-').map(Number);
+    const previousMonthLength = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const endDay = Math.min(completedDays, previousMonthLength);
+    const previousEnd = previousStart.slice(0, 8) + String(endDay).padStart(2, '0');
+    const result = await fallbackSalesRange(previousStart, previousEnd);
+    return result.total;
   }
 
   async function loadPrevMonthSales() {
     try {
-      const p = tzParts();
-      // أول الشهر الماضي
-      const prevFirst = new Date(Number(p.y), Number(p.mo) - 2, 1);
-      const thisFirst = new Date(Number(p.y), Number(p.mo) - 1, 1);
+      const previousStart = dayRangeTz(shiftDateKey(monthStart(), -1)).from;
+      const thisStart = dayRangeTz(monthStart()).from;
       const { data } = await sb.from('sales_invoices')
         .select('total')
         .eq('company_id', session.company_id)
         .eq('branch_id', session.active_branch_id)
-        .gte('invoice_date', prevFirst.toISOString())
-        .lt('invoice_date', thisFirst.toISOString())
-        .neq('status', 'voided');
+        .gte('invoice_date', previousStart)
+        .lt('invoice_date', thisStart)
+        .neq('status', 'voided')
+        .neq('status', 'draft')
+        .neq('status', 'returned');
       return (data||[]).reduce((s,i)=>s+Number(i.total||0),0);
     } catch (e) { return 0; }
   }
@@ -1271,7 +1269,9 @@ tbody tr:last-child td{border-bottom:none}
       const { data } = await sb.from('expenses')
         .select('amount')
         .eq('company_id', session.company_id)
+        .eq('branch_id', session.active_branch_id)
         .gte('expense_date', monthStart())
+        .lte('expense_date', today())
         .neq('status', 'cancelled');
       return (data||[]).reduce((s,i)=>s+Number(i.amount||0),0);
     } catch (e) { return 0; }
@@ -1282,6 +1282,8 @@ tbody tr:last-child td{border-bottom:none}
       const { data } = await sb.from('expenses')
         .select('id, category, description, amount, payment_method, expense_date, vendor_name')
         .eq('company_id', session.company_id)
+        .eq('branch_id', session.active_branch_id)
+        .neq('status', 'cancelled')
         .order('expense_date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(8);
@@ -1395,13 +1397,17 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   async function loadTopProducts(days) {
-    const from = dayRangeTz(daysAgo(days)).from;
+    const from = dayRangeTz(daysAgo(days - 1)).from;
+    const to = dayRangeTz(shiftDateKey(today(), 1)).from;
     const { data: invoices } = await sb.from('sales_invoices')
       .select('id')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .gte('invoice_date', from)
-      .neq('status', 'voided');
+      .lt('invoice_date', to)
+      .neq('status', 'voided')
+      .neq('status', 'draft')
+      .neq('status', 'returned');
     const ids = (invoices||[]).map(i => i.id);
     if (ids.length === 0) return [];
     const { data } = await sb.from('sales_invoice_items')
@@ -1418,60 +1424,55 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   async function loadChartData(days) {
-    // 📈 الرسم البياني عبر RPC بالتاريخ المحلي (تجميع ::date) مع fallback
-    if (rpcDashboardAvailable === null) {
-      rpcDashboardAvailable = await hasRpc('dash_sales_by_date');
-    }
-    if (rpcDashboardAvailable) {
-      try {
-        const { data, error } = await sb.rpc('dash_chart_series', {
-          p_company: session.company_id,
-          p_branch: session.active_branch_id,
-          p_days: days
-        });
-        if (!error && Array.isArray(data) && data.length) {
-          return data.map(r => ({ date: r.date, total: Number(r.total || 0) }));
-        }
-      } catch (e) { /* fallback */ }
-    }
     return fallbackChartData(days);
   }
 
-  // 💰 تكلفة مبيعات فترة محددة (FOIF: unit_cost من عناصر الفواتير)
+  // 💰 Gross sales excluding tax and cost of goods sold for a period.
   async function loadCogsForRange(fromIso, toIso) {
     try {
       let q = sb.from('sales_invoices')
-        .select('id')
+        .select('id, total, tax')
         .eq('company_id', session.company_id)
         .eq('branch_id', session.active_branch_id)
-        .neq('status', 'voided');
+        .neq('status', 'voided')
+        .neq('status', 'draft')
+        .neq('status', 'returned');
       if (fromIso) q = q.gte('invoice_date', fromIso);
       if (toIso) q = q.lt('invoice_date', toIso);
-      const { data: invoices } = await q;
+      const { data: invoices, error: invoiceError } = await q;
+      if (invoiceError) return null;
       const ids = (invoices||[]).map(i => i.id);
-      if (ids.length === 0) return 0;
+      const salesExcludingTax = (invoices||[]).reduce(
+        (sum, invoice) => sum + Number(invoice.total || 0) - Number(invoice.tax || 0), 0
+      );
+      if (ids.length === 0) return { cogs: 0, salesExcludingTax: 0 };
       let cogs = 0;
       // تقسيم على دفعات لتجنب تجاوز حدود الطلب
       for (let i = 0; i < ids.length; i += 200) {
         const chunk = ids.slice(i, i + 200);
-        const { data: items } = await sb.from('sales_invoice_items')
+        const { data: items, error: itemsError } = await sb.from('sales_invoice_items')
           .select('quantity, unit_cost')
           .in('invoice_id', chunk);
+        if (itemsError) return null;
         (items||[]).forEach(it => { cogs += Number(it.quantity||0) * Number(it.unit_cost||0); });
       }
-      return cogs;
-    } catch (e) { return 0; }
+      return { cogs, salesExcludingTax };
+    } catch (e) { return null; }
   }
 
   // 🧾 توزيع طرق الدفع لفترة محددة
   async function loadPaymentMix(fromIso) {
     try {
+      const toIso = dayRangeTz(shiftDateKey(today(), 1)).from;
       const { data } = await sb.from('sales_invoices')
         .select('payment_method, total')
         .eq('company_id', session.company_id)
         .eq('branch_id', session.active_branch_id)
         .gte('invoice_date', fromIso)
-        .neq('status', 'voided');
+        .lt('invoice_date', toIso)
+        .neq('status', 'voided')
+        .neq('status', 'draft')
+        .neq('status', 'returned');
       const mix = {};
       (data||[]).forEach(inv => {
         const m = inv.payment_method || 'cash';
@@ -1523,12 +1524,21 @@ tbody tr:last-child td{border-bottom:none}
     const netEl = document.getElementById('kpiNetProfitToday');
     const netSubEl = document.getElementById('kpiNetProfitTodaySub');
     if (netEl && netSubEl) {
-      const cogs = Number(data.todayCogs || 0);
-      const profit = t.total - cogs;
+      if (!data.todayCogs) {
+        netEl.textContent = '—';
+        netEl.style.color = '';
+        netSubEl.textContent = 'تعذر حساب مجمل الربح';
+        renderMonthProgress(monthSales);
+        if (window.lucide) lucide.createIcons();
+        return;
+      }
+      const cogs = Number(data.todayCogs?.cogs || 0);
+      const salesExcludingTax = Number(data.todayCogs?.salesExcludingTax || 0);
+      const profit = salesExcludingTax - cogs;
       netEl.textContent = money(profit);
       netEl.style.color = profit < 0 ? 'var(--danger)' : '';
-      if (t.total > 0) {
-        const marginPct = (profit / t.total) * 100;
+      if (salesExcludingTax > 0) {
+        const marginPct = (profit / salesExcludingTax) * 100;
         netSubEl.innerHTML = '<span class="kpi-trend ' + (marginPct >= 0 ? 'up' : 'down') + '">' +
           '<i data-lucide="' + (marginPct >= 0 ? 'percent' : 'trending-down') + '"></i>' + marginPct.toFixed(1) + '% هامش</span>' +
           '<span>تكلفة ' + money(cogs) + '</span>';
@@ -1670,8 +1680,9 @@ tbody tr:last-child td{border-bottom:none}
     container.innerHTML = '<div class="bar-chart">' + data.map(d => {
       const pct = (d.total / maxVal) * 100;
       const isToday = d.date === todayStr;
-      const dateObj = new Date(d.date);
-      const label = dateObj.toLocaleDateString('ar-EG', { weekday: 'short' });
+      const [year, month, day] = d.date.split('-').map(Number);
+      const dateObj = new Date(Date.UTC(year, month - 1, day, 12));
+      const label = dateObj.toLocaleDateString('ar-EG', { weekday: 'short', timeZone: TZ });
       const valStr = d.total > 0 ? (d.total >= 1000 ? (d.total/1000).toFixed(1) + 'k' : d.total.toFixed(0)) : '';
       return '<div class="bar-col">' +
         '<div class="bar-wrap">' +
