@@ -1077,6 +1077,11 @@ tbody tr:last-child td{border-bottom:none}
     return shifted.toISOString().slice(0, 10);
   }
 
+  function previousMonthStart(dateStr) {
+    const [year, month] = dateStr.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 10);
+  }
+
   function startOfLocalDate(dateStr) {
     const [year, month, day] = dateStr.split('-').map(Number);
     const targetUtc = Date.UTC(year, month - 1, day);
@@ -1238,7 +1243,7 @@ tbody tr:last-child td{border-bottom:none}
   async function loadPrevMonthToDate() {
     const completedDays = Number(tzParts().d) - 1;
     if (completedDays <= 0) return 0;
-    const previousStart = shiftDateKey(monthStart(), -1);
+    const previousStart = previousMonthStart(monthStart());
     const [year, month] = previousStart.split('-').map(Number);
     const previousMonthLength = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const endDay = Math.min(completedDays, previousMonthLength);
@@ -1249,7 +1254,7 @@ tbody tr:last-child td{border-bottom:none}
 
   async function loadPrevMonthSales() {
     try {
-      const previousStart = dayRangeTz(shiftDateKey(monthStart(), -1)).from;
+      const previousStart = dayRangeTz(previousMonthStart(monthStart())).from;
       const thisStart = dayRangeTz(monthStart()).from;
       const { data } = await sb.from('sales_invoices')
         .select('total')
