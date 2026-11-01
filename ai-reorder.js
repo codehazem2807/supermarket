@@ -59,7 +59,7 @@
     var sum = 0;
     var weightSum = 0;
     for (var i = 0; i < values.length; i++) {
-      var weight = i + 1; // الأحدث وزن أعلى
+      var weight = values.length - i;
       sum += values[i] * weight;
       weightSum += weight;
     }
@@ -233,14 +233,17 @@
   }
 
   async function loadStockOnHand(session) {
-    var res = await window.Refad.sb.from('v_stock_on_hand')
+    var query = window.Refad.sb.from('v_stock_on_hand')
       .select('product_id, on_hand')
       .eq('company_id', session.company_id);
+    if (session.active_branch_id) query = query.eq('branch_id', session.active_branch_id);
+    var res = await query;
 
     if (res.error) throw res.error;
     var map = {};
     (res.data || []).forEach(function (r) {
-      map[String(r.product_id)] = Number(r.on_hand || 0);
+      var productId = String(r.product_id);
+      map[productId] = (map[productId] || 0) + Number(r.on_hand || 0);
     });
     return map;
   }
@@ -250,12 +253,14 @@
     fromDate.setDate(fromDate.getDate() - (lookbackDays || SETTINGS.lookbackDays));
     var fromStr = fromDate.toISOString().slice(0, 10);
 
-    var res = await window.Refad.sb.from('sales_invoice_items')
+    var query = window.Refad.sb.from('sales_invoice_items')
       .select('product_id, quantity, sales_invoices!inner(invoice_date, company_id, branch_id, status)')
       .eq('sales_invoices.company_id', session.company_id)
       .neq('sales_invoices.status', 'voided')
       .neq('sales_invoices.status', 'returned')
       .gte('sales_invoices.invoice_date', fromStr);
+    if (session.active_branch_id) query = query.eq('sales_invoices.branch_id', session.active_branch_id);
+    var res = await query;
 
     if (res.error) throw res.error;
 
@@ -269,10 +274,12 @@
   }
 
   async function loadPendingPOs(session) {
-    var res = await window.Refad.sb.from('purchase_order_items')
-      .select('product_id, quantity, received_qty, purchase_orders!inner(status, company_id)')
+    var query = window.Refad.sb.from('purchase_order_items')
+      .select('product_id, quantity, received_qty, purchase_orders!inner(status, company_id, branch_id)')
       .eq('purchase_orders.company_id', session.company_id)
       .in('purchase_orders.status', ['draft', 'pending', 'approved', 'partially_received']);
+    if (session.active_branch_id) query = query.eq('purchase_orders.branch_id', session.active_branch_id);
+    var res = await query;
 
     if (res.error) {
       console.warn('[AI Reorder] POs load failed:', res.error);

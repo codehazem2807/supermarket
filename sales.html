@@ -407,7 +407,7 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
         </div>
       </div>
       <div class="unit-preview" id="returnTotalPreview" style="display:none;padding:12px;background:var(--accent-soft);border-radius:var(--radius-xs);font-size:13px;font-weight:700;color:var(--accent-dark);text-align:center">
-        إجمالي المرتجع: <strong id="returnTotalAmount">0.00</strong>
+        المبلغ المتوقع رده: <strong id="returnTotalAmount">0.00</strong>
       </div>
     </div>
     <div class="modal-footer">
@@ -428,9 +428,11 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
 
   let session = null;
   let invoices = [];
+  let salesReturns = [];
   let invoiceItemsMap = {};
   let currentInvoiceId = null;
   let currentInvoiceItems = [];
+  let currentReturnInvoice = null;
   let currentPage = 1;
   const PAGE_SIZE = 25;
 
@@ -509,6 +511,16 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
       invoices = invoices.map(inv => ({ ...inv, customers: null }));
     }
 
+    const invoiceIds = invoices.map(inv => inv.id);
+    salesReturns = [];
+    if (invoiceIds.length > 0) {
+      const returnsRes = await sb.from('sales_returns')
+        .select('original_invoice_id, total')
+        .in('original_invoice_id', invoiceIds);
+      if (returnsRes.error) console.warn('[Sales] load returns error:', returnsRes.error);
+      else salesReturns = returnsRes.data || [];
+    }
+
     await loadAllItemsCounts();
   }
 
@@ -533,17 +545,22 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
     const total = invoices.length;
     const tStr = todayStr();
     const mStr = monthStartStr();
-    let todayTotal = 0, monthTotal = 0, returnsTotal = 0, monthCount = 0, todayCount = 0;
+    const returnsByInvoice = {};
+    salesReturns.forEach(ret => {
+      returnsByInvoice[ret.original_invoice_id] = (returnsByInvoice[ret.original_invoice_id] || 0) + Number(ret.total || 0);
+    });
+    const returnsTotal = salesReturns.reduce((sum, ret) => sum + Number(ret.total || 0), 0);
+    let todayTotal = 0, monthTotal = 0, monthReturns = 0, monthCount = 0, todayCount = 0;
 
     invoices.forEach(inv => {
       if (inv.status === 'voided') return;
       const d = inv.invoice_date ? inv.invoice_date.slice(0, 10) : '';
-      if (d === tStr) { todayTotal += Number(inv.total || 0); todayCount++; }
-      if (d >= mStr) { monthTotal += Number(inv.total || 0); monthCount++; }
-      if (inv.status === 'returned') returnsTotal += Number(inv.total || 0);
+      const invoiceReturns = returnsByInvoice[inv.id] || (inv.status === 'returned' ? Number(inv.total || 0) : 0);
+      if (d === tStr) { todayTotal += Number(inv.total || 0) - invoiceReturns; todayCount++; }
+      if (d >= mStr) { monthTotal += Number(inv.total || 0); monthReturns += invoiceReturns; monthCount++; }
     });
 
-    const netMonth = monthTotal - returnsTotal;
+    const netMonth = monthTotal - monthReturns;
 
     document.getElementById('statTotal').textContent = total;
     document.getElementById('statTotalSub').textContent = 'كل الفترات';
@@ -552,7 +569,7 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
     document.getElementById('statMonth').textContent = money(netMonth);
     document.getElementById('statMonthSub').textContent = monthCount + ' فاتورة · إجمالي ' + money(monthTotal);
     document.getElementById('statReturns').textContent = money(returnsTotal);
-    document.getElementById('statReturnsSub').textContent = invoices.filter(i => i.status === 'returned').length + ' فاتورة مرتجعة';
+    document.getElementById('statReturnsSub').textContent = salesReturns.length + ' عملية مرتجعة';
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -836,10 +853,11 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
       products: productMap[it.product_id] || null
     }));
     
-    openReturnModal(invoiceId, itemsWithProducts);
+    openReturnModal(invoiceId, itemsWithProducts, invoices.find(inv => inv.id === invoiceId) || null);
   }
 
-  function openReturnModal(invoiceId, items) {
+  function openReturnModal(invoiceId, items, invoice) {
+    currentReturnInvoice = invoice;
     document.getElementById('returnInvoiceId').value = invoiceId;
     document.getElementById('returnFormError').classList.remove('show');
     document.getElementById('returnReason').value = '';
@@ -892,6 +910,14 @@ tbody tr.voided{opacity:0.6;background:rgba(239,68,68,0.03)}
       const price = Number(inp.dataset.price) || 0;
       total += qty * price;
     });
+    if (total > 0 && currentReturnInvoice && Number(currentReturnInvoice.subtotal) > 0) {
+      const ratio = Math.min(total / Number(currentReturnInvoice.subtotal), 1);
+      const discount = Number(currentReturnInvoice.discount || 0) * ratio;
+      const tax = Number(currentReturnInvoice.tax || 0) * ratio;
+      total = currentReturnInvoice.tax_inclusive
+        ? total - discount
+        : total - discount + tax;
+    }
     const preview = document.getElementById('returnTotalPreview');
     const amount = document.getElementById('returnTotalAmount');
     if (total > 0) {

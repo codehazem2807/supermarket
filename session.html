@@ -544,9 +544,13 @@ tbody tr:last-child td{border-bottom:none}
       .filter(m => m.movement_type === 'sale' && m.direction !== 'out' && (!m.payment_method || String(m.payment_method).toLowerCase() === 'cash'))
       .reduce((s, m) => s + Number(m.amount || 0), 0);
     const cashSales = saleCashMovements;
-    const creditSales = invoices.filter(i => i.payment_method === 'credit').reduce((s, i) => s + Number(i.total || 0), 0);
     const mixedInvoices = invoices.filter(i => i.payment_method === 'mixed');
     const mixedSales = 0;
+    const mixedCreditSales = mixedInvoices.reduce((total, invoice) => total +
+      invoicePayments.filter(payment => payment.invoice_id === invoice.id && payment.payment_method === 'credit')
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0), 0);
+    const creditSales = invoices.filter(i => i.payment_method === 'credit')
+      .reduce((s, i) => s + Number(i.total || 0), 0) + mixedCreditSales;
     const mixedCardSales = mixedInvoices.reduce((total, invoice) => total +
       invoicePayments.filter(payment => payment.invoice_id === invoice.id && payment.payment_method === 'card')
         .reduce((sum, payment) => sum + Number(payment.amount || 0), 0), 0);
@@ -659,6 +663,8 @@ tbody tr:last-child td{border-bottom:none}
 
       const cash = computeCashSummary(invoices);
       const invoiceCount = invoices.length;
+      const grossSales = invoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+      const netSales = Number(summary?.net_sales ?? (grossSales - Number(summary?.total_returns || 0)));
 
       const otherSessionsHtml = otherSessions.length > 0 ? `
         <div class="other-sessions">
@@ -685,7 +691,7 @@ tbody tr:last-child td{border-bottom:none}
           <div class="stat-card success">
             <div class="stat-icon green"><i data-lucide="trending-up"></i></div>
             <div class="stat-label">إجمالي المبيعات</div>
-            <div class="stat-value" style="color:var(--success)">${money(invoices.reduce((s, i) => s + Number(i.total || 0), 0))}</div>
+            <div class="stat-value" style="color:var(--success)">${money(netSales)}</div>
             <div class="stat-sub">${invoiceCount} فاتورة</div>
           </div>
           <div class="stat-card info">
@@ -863,6 +869,58 @@ tbody tr:last-child td{border-bottom:none}
     withdrawal: 'سحب', deposit: 'إيداع', purchase_payment: 'دفعات مشتريات'
   };
 
+  async function loadAllSessionRows(table, columns, sessionId, orderColumn) {
+    const pageSize = 500;
+    const rows = [];
+    let offset = 0;
+    while (true) {
+      const { data, error } = await sb.from(table)
+        .select(columns)
+        .eq('company_id', session.company_id)
+        .eq('session_id', sessionId)
+        .order(orderColumn, { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      const page = data || [];
+      rows.push(...page);
+      if (page.length < pageSize) return rows;
+      offset += pageSize;
+    }
+  }
+
+  async function loadOptionalSessionRows(table, columns, sessionId, orderColumn) {
+    try {
+      return { data: await loadAllSessionRows(table, columns, sessionId, orderColumn), error: null };
+    } catch (error) {
+      console.warn('[Session] detail load failed for ' + table + ':', error);
+      return { data: [], error };
+    }
+  }
+
+  async function loadOptionalRecord(query, source) {
+    try {
+      const result = await query;
+      if (result.error) throw result.error;
+      return { data: result.data, error: null };
+    } catch (error) {
+      console.warn('[Session] detail lookup failed for ' + source + ':', error);
+      return { data: null, error };
+    }
+  }
+
+  function renderSessionDetailTable(title, headers, rows, emptyMessage) {
+    return `
+      <section style="margin-top:16px">
+        <h4 style="font-size:13px;margin:0 0 8px">${esc(title)} <span style="color:var(--text-muted);font-weight:500">(${rows.length})</span></h4>
+        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--card)">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px">
+            <thead><tr style="text-align:right;color:var(--text-muted);background:var(--bg-soft)">${headers.map(header => `<th style="padding:9px">${esc(header)}</th>`).join('')}</tr></thead>
+            <tbody>${rows.length ? rows.map(row => `<tr style="border-top:1px solid var(--border)">${row.map(value => `<td style="padding:9px;white-space:nowrap">${esc(value)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}" style="padding:14px;text-align:center;color:var(--text-muted)">${esc(emptyMessage || 'لا توجد سجلات')}</td></tr>`}</tbody>
+          </table>
+        </div>
+      </section>`;
+  }
+
   async function renderSessionHistory(container) {
     let rows = [];
     try {
@@ -945,31 +1003,101 @@ tbody tr:last-child td{border-bottom:none}
     if (cell.dataset.loaded) return;
     cell.textContent = 'جاري التحميل...';
     try {
-      const [inv, mov] = await Promise.all([
-        sb.from('sales_invoices').select('invoice_number, total, status, payment_method').eq('session_id', id),
-        sb.from('cash_movements').select('movement_type, direction, amount, description, created_at').eq('session_id', id)
+      const [sessionResult, invoiceResult, movementResult, expenseResult, returnResult] = await Promise.all([
+        loadOptionalRecord(sb.from('pos_sessions')
+          .select('id, cashier_id, register_id, opened_at, closed_at, status, opening_cash, closing_cash, expected_cash, counted_cash, actual_cash, difference, total_sales, total_returns')
+          .eq('company_id', session.company_id)
+          .eq('id', id)
+          .maybeSingle(), 'بيانات الوردية'),
+        loadOptionalSessionRows('sales_invoices', 'id, invoice_number, invoice_date, total, paid, remaining, payment_method, status, customer_id', id, 'invoice_date'),
+        loadOptionalSessionRows('cash_movements', 'movement_type, direction, amount, payment_method, description, created_at, reference_type, reference_id', id, 'created_at'),
+        loadOptionalSessionRows('expenses', 'category, description, amount, payment_method, status, expense_date, created_at, vendor_name', id, 'created_at'),
+        loadOptionalSessionRows('sales_returns', 'return_number, return_date, subtotal, discount, tax, total, refund_method, reason', id, 'return_date')
       ]);
-      if (inv.error) throw inv.error;
-      if (mov.error) throw mov.error;
-      const invoices = (inv.data || []).filter(i => i.status !== 'voided');
-      const byMethod = {};
-      invoices.forEach(i => { byMethod[i.payment_method] = (byMethod[i.payment_method] || 0) + Number(i.total || 0); });
-      const methodLabels = { cash: 'نقدي', card: 'بطاقة', credit: 'آجل', mixed: 'مختلط' };
-      const byType = {};
-      (mov.data || []).forEach(m => { byType[m.movement_type] = (byType[m.movement_type] || 0) + Number(m.amount || 0); });
+      if (sessionResult.error) throw sessionResult.error;
+      if (!sessionResult.data) throw new Error('الوردية غير موجودة');
+
+      const current = sessionResult.data;
+      const invoices = invoiceResult.data;
+      const movements = movementResult.data;
+      const expenses = expenseResult.data;
+      const returns = returnResult.data;
+      const cashierId = current.cashier_id;
+      const customerIds = [...new Set(invoices.map(invoice => invoice.customer_id).filter(Boolean))];
+      const [cashierResult, registerResult, customerResult] = await Promise.all([
+        cashierId ? loadOptionalRecord(sb.from('users').select('full_name').eq('id', cashierId).maybeSingle(), 'الكاشير') : { data: null, error: null },
+        current.register_id ? loadOptionalRecord(sb.from('registers').select('name').eq('id', current.register_id).maybeSingle(), 'الصندوق') : { data: null, error: null },
+        customerIds.length ? loadOptionalRecord(sb.from('customers').select('id, name').in('id', customerIds), 'العملاء') : { data: [], error: null }
+      ]);
+
+      const detailErrors = [
+        ['الفواتير', invoiceResult.error], ['الحركات', movementResult.error], ['المصروفات', expenseResult.error],
+        ['المرتجعات', returnResult.error], ['الكاشير', cashierResult.error], ['الصندوق', registerResult.error], ['العملاء', customerResult.error]
+      ].filter(([, error]) => error);
+      const customerNames = Object.fromEntries((customerResult.data || []).map(customer => [customer.id, customer.name]));
+      const validInvoices = invoices.filter(invoice => invoice.status !== 'voided');
+      const grossSales = validInvoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+      const returnTotal = returns.reduce((sum, item) => sum + Number(item.total || 0), 0);
+      const netSales = grossSales - returnTotal;
+      const expenseTotal = expenses
+        .filter(expense => expense.status !== 'cancelled')
+        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+      const countedCash = current.counted_cash ?? current.actual_cash;
+      const expectedCash = current.expected_cash ?? current.closing_cash;
+      const methodLabels = { cash: 'نقدي', card: 'بطاقة', wallet: 'محفظة', bank: 'بنكي', credit: 'آجل', mixed: 'مختلط' };
+      const statusLabels = { paid: 'مدفوعة', partial: 'جزئية', credit: 'آجلة', returned: 'مرتجعة', voided: 'ملغاة' };
+      const categoryLabels = { rent: 'إيجار', utilities: 'مرافق', salaries: 'مرتبات', supplies: 'مستلزمات', maintenance: 'صيانة', transport: 'نقل', other: 'أخرى' };
+
+      const invoiceRows = invoices.map(invoice => [
+        invoice.invoice_number || '—', fmtDateTime(invoice.invoice_date), customerNames[invoice.customer_id] || 'عميل نقدي',
+        methodLabels[invoice.payment_method] || invoice.payment_method || '—', money(invoice.total),
+        money(invoice.paid), money(invoice.remaining), statusLabels[invoice.status] || invoice.status || '—'
+      ]);
+      const returnRows = returns.map(item => [
+        item.return_number || '—', fmtDateTime(item.return_date), item.reason || '—',
+        methodLabels[item.refund_method] || item.refund_method || '—', money(item.discount), money(item.tax), money(item.total)
+      ]);
+      const expenseRows = expenses.map(expense => [
+        fmtDateTime(expense.expense_date || expense.created_at), categoryLabels[expense.category] || expense.category || 'أخرى',
+        expense.description || expense.vendor_name || '—', methodLabels[expense.payment_method] || expense.payment_method || '—',
+        money(expense.amount), expense.status || '—'
+      ]);
+      const movementRows = movements.map(movement => [
+        fmtDateTime(movement.created_at), SESSION_MOVEMENT_LABELS[movement.movement_type] || movement.movement_type || '—',
+        movement.direction === 'out' ? 'صادر' : 'وارد', movement.description || '—',
+        methodLabels[movement.payment_method] || movement.payment_method || '—', money(movement.amount)
+      ]);
+
+      const difference = Number(current.difference ?? (Number(countedCash || 0) - Number(expectedCash || 0)));
       cell.innerHTML = `
-        <div style="display:flex;gap:32px;flex-wrap:wrap">
-          <div><strong>الفواتير (${invoices.length})</strong>
-            ${Object.entries(byMethod).map(([k, v]) => `<div>${esc(methodLabels[k] || k)}: ${money(v)}</div>`).join('') || '<div>—</div>'}
+        <div style="padding:12px">
+          <div style="display:flex;gap:8px 20px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--border);font-size:12px">
+            <span><strong>الكاشير:</strong> ${esc(cashierResult.data?.full_name || '—')}</span>
+            <span><strong>الصندوق:</strong> ${esc(registerResult.data?.name || '—')}</span>
+            <span><strong>الحالة:</strong> ${current.status === 'open' ? 'مفتوحة' : 'مغلقة'}</span>
+            <span><strong>وقت الفتح:</strong> ${esc(fmtDateTime(current.opened_at))}</span>
+            <span><strong>وقت الإغلاق:</strong> ${esc(fmtDateTime(current.closed_at))}</span>
           </div>
-          <div><strong>حركات الدرج (${(mov.data || []).length})</strong>
-            ${Object.entries(byType).map(([k, v]) => `<div>${esc(SESSION_MOVEMENT_LABELS[k] || k)}: ${money(v)}</div>`).join('') || '<div>—</div>'}
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:12px">
+            <div><strong>إجمالي الفواتير</strong><div>${money(grossSales)}</div></div>
+            <div><strong>المرتجعات</strong><div>${money(returnTotal)}</div></div>
+            <div><strong>صافي المبيعات</strong><div>${money(netSales)}</div></div>
+            <div><strong>المصروفات</strong><div>${money(expenseTotal)}</div></div>
+            <div><strong>رصيد افتتاحي</strong><div>${money(current.opening_cash)}</div></div>
+            <div><strong>النقد المتوقع</strong><div>${expectedCash == null ? '—' : money(expectedCash)}</div></div>
+            <div><strong>النقد المعدود</strong><div>${countedCash == null ? '—' : money(countedCash)}</div></div>
+            <div><strong>فرق الصندوق</strong><div style="color:${Math.abs(difference) < 0.005 ? 'var(--success)' : 'var(--danger)'}">${countedCash == null ? '—' : money(difference)}</div></div>
           </div>
+          ${detailErrors.length ? `<div role="alert" style="margin-top:12px;padding:10px;background:var(--warning-soft);color:var(--warning);border-radius:6px;font-size:12px">تعذر تحميل بعض الأقسام: ${detailErrors.map(([name, error]) => `${esc(name)}: ${esc(error.message || 'خطأ في قاعدة البيانات')}`).join(' · ')}. أغلق التفاصيل وافتحها لإعادة المحاولة.</div>` : ''}
+          ${renderSessionDetailTable('فواتير البيع', ['رقم الفاتورة', 'التوقيت', 'العميل', 'الدفع', 'الإجمالي', 'المدفوع', 'المتبقي', 'الحالة'], invoiceRows, invoiceResult.error ? invoiceResult.error.message : null)}
+          ${renderSessionDetailTable('المرتجعات', ['رقم المرتجع', 'التوقيت', 'السبب', 'الاسترداد', 'الخصم', 'الضريبة', 'الإجمالي'], returnRows, returnResult.error ? returnResult.error.message : null)}
+          ${renderSessionDetailTable('مصروفات الوردية', ['التوقيت', 'البند', 'البيان', 'الدفع', 'المبلغ', 'الحالة'], expenseRows, expenseResult.error ? expenseResult.error.message : null)}
+          ${renderSessionDetailTable('كل حركات الصندوق', ['التوقيت', 'النوع', 'الاتجاه', 'البيان', 'طريقة الدفع', 'المبلغ'], movementRows, movementResult.error ? movementResult.error.message : null)}
         </div>`;
-      cell.dataset.loaded = '1';
+      if (detailErrors.length === 0) cell.dataset.loaded = '1';
     } catch (e) {
       console.error('[Session] detail:', e);
-      cell.textContent = 'تعذر تحميل التفاصيل';
+      cell.innerHTML = `<div role="alert" style="padding:12px;color:var(--danger)"><strong>تعذر تحميل التفاصيل</strong><div style="margin-top:4px;font-size:12px">${esc(e.message || 'خطأ غير معروف')}</div></div>`;
     }
   }
 

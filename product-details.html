@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B2C4D">
+<title>تفاصيل الصنف — رفاد</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="config.js"></script>
+<script src="theme-manager.js"></script>
+<script src="settings-manager.js"></script>
+<script src="app.js"></script>
+<script src="theme.js"></script>
+<style>
+:root{--accent:#14B8A6;--bg:#F1F5F9;--card:#fff;--text:#0f172a;--muted:#64748b;--border:#e2e8f0;--soft:#f8fafc;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--blue:#3b82f6;--purple:#8b5cf6;font-family:'Segoe UI',Tahoma,sans-serif}
+[data-theme="dark"]{--bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--muted:#94a3b8;--border:#334155;--soft:#111e31}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-size:14px}.main{min-height:100vh}.topbar{height:64px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:5}.title-wrap{display:flex;align-items:center;gap:12px;min-width:0}.title-wrap h1{font-size:19px;margin:0}.subtitle{font-size:12px;color:var(--muted);margin-top:3px}.actions{display:flex;gap:8px;align-items:center}.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--text);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}.btn-primary{background:var(--accent);border-color:var(--accent);color:white}.btn svg{width:16px;height:16px}.content{max-width:1450px;padding:24px;margin:auto}.hero{background:linear-gradient(115deg,#0b2c4d,#145b72);border-radius:16px;padding:23px;color:white;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:18px}.hero h2{margin:0 0 8px;font-size:23px}.hero-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;color:#d6e8ed}.hero-meta span{display:inline-flex;align-items:center;gap:6px}.hero-meta svg{width:14px;height:14px}.status{border-radius:20px;padding:6px 11px;background:#ffffff25;font-weight:700;white-space:nowrap}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:18px}.stat,.card{background:var(--card);border:1px solid var(--border);border-radius:13px}.stat{padding:16px;position:relative;overflow:hidden}.stat:before{content:'';position:absolute;inset:0 0 0 auto;width:4px;background:var(--accent)}.stat.warn:before{background:var(--warning)}.stat.blue:before{background:var(--blue)}.stat.purple:before{background:var(--purple)}.stat-label{font-size:12px;color:var(--muted);margin-bottom:7px}.stat-value{font-size:21px;font-weight:800}.stat-sub{font-size:11px;color:var(--muted);margin-top:4px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{margin-bottom:16px;overflow:hidden}.card-head{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}.card-head h3{margin:0;font-size:14px;display:flex;align-items:center;gap:8px}.card-head svg{width:17px;height:17px;color:var(--accent)}.card-body{padding:16px 18px}.details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.detail{padding:10px 12px;background:var(--soft);border-radius:9px;min-width:0}.detail span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.detail strong{font-size:13px;overflow-wrap:anywhere}.chart{height:210px;display:flex;align-items:flex-end;gap:7px;overflow-x:auto;padding:12px 4px 0}.bar-wrap{height:100%;min-width:35px;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px}.bar{width:min(30px,75%);min-height:2px;background:linear-gradient(180deg,#2dd4bf,#0f766e);border-radius:6px 6px 2px 2px;position:relative}.bar-label{font-size:10px;color:var(--muted);white-space:nowrap}.bar-val{font-size:9px;color:var(--muted);white-space:nowrap}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:600px}th,td{text-align:right;padding:11px 13px;border-bottom:1px solid var(--border);font-size:12px}th{color:var(--muted);background:var(--soft);font-size:11px}tbody tr:last-child td{border-bottom:0}.badge{display:inline-flex;padding:4px 8px;border-radius:20px;background:#e6f8f5;color:#0f766e;font-size:10px;font-weight:700}.empty,.loading{padding:34px;text-align:center;color:var(--muted)}.error{color:var(--danger)}.note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6}.toast{position:fixed;bottom:20px;left:20px;padding:12px 16px;background:#172b3b;color:white;border-radius:9px;z-index:10;max-width:90vw}
+@media(max-width:850px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}.content{padding:14px}.hero{align-items:flex-start;flex-direction:column}.topbar{padding:0 14px}.hide-mobile{display:none}}
+@media(max-width:460px){.stats{grid-template-columns:1fr 1fr}.stat{padding:12px}.stat-value{font-size:18px}.details{grid-template-columns:1fr}.topbar h1{font-size:15px}}
+</style>
+</head>
+<body>
+<main class="main">
+  <header class="topbar">
+    <div class="title-wrap"><div><h1>ملف الصنف</h1><div class="subtitle" id="branchName">جاري تحميل بيانات الفرع...</div></div></div>
+    <div class="actions">
+      <a class="btn" href="products.html"><i data-lucide="arrow-right"></i><span class="hide-mobile">قائمة الأصناف</span></a>
+      <a class="btn btn-primary" id="editProduct" style="display:none" href="#"><i data-lucide="pencil"></i><span>تعديل الصنف</span></a>
+    </div>
+  </header>
+  <div class="content" id="content"><div class="card loading">جاري تحميل بيانات الصنف...</div></div>
+</main>
+<div id="toast"></div>
+<script>
+(function () {
+  'use strict';
+  const cfg = window.REFAD_CONFIG;
+  const sb = (window.Refad && window.Refad.sb) || window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  const esc = (window.Refad && window.Refad.esc) || (s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
+  const money = (window.Refad && window.Refad.money) || (v => Number(v || 0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ج.م');
+  let session;
+  const productId = new URLSearchParams(location.search).get('id');
+  function can(permission) {
+    const permissions = session && Array.isArray(session.permissions) ? session.permissions : [];
+    return !!(session && session.is_owner) || permissions.includes('*') || permissions.includes('admin.full') || permissions.includes(permission);
+  }
+  function fail(message) {
+    document.getElementById('content').innerHTML = '<div class="card empty error">' + esc(message) + '</div>';
+  }
+  function field(label, value) {
+    return '<div class="detail"><span>' + esc(label) + '</span><strong>' + esc(value == null || value === '' ? '—' : value) + '</strong></div>';
+  }
+  function renderChart(daily) {
+    const entries = Object.keys(daily).sort().slice(-14);
+    if (!entries.length) return '<div class="empty">لا توجد مبيعات للصنف خلال آخر 90 يوماً</div>';
+    const max = Math.max(...entries.map(day => daily[day].qty), 1);
+    return '<div class="chart">' + entries.map(day => {
+      const value = daily[day].qty;
+      const height = Math.max(value ? value / max * 82 : 1, 1);
+      const dateLabel = new Date(day + 'T12:00:00').toLocaleDateString('ar-EG',{day:'numeric',month:'short'});
+      return '<div class="bar-wrap"><div class="bar-val">' + esc(Number(value).toFixed(0)) + '</div><div class="bar" title="' + esc(dateLabel + ': ' + value) + '" style="height:' + height + '%"></div><div class="bar-label">' + esc(dateLabel) + '</div></div>';
+    }).join('') + '</div>';
+  }
+  async function load() {
+    if (!productId) { fail('معرّف الصنف غير موجود.'); return; }
+    if (!window.Refad || !Refad.requireSession) { location.href = 'index.html'; return; }
+    session = await Refad.requireSession();
+    if (!session) return;
+    if (!can('products.view')) { fail('لا تملك صلاحية عرض تفاصيل الأصناف.'); return; }
+    const costVisible = can('products.cost_view');
+    const branchName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+    document.getElementById('branchName').textContent = branchName + ' — ' + (session.branch_name || '—');
+    const productFields = [
+      'id','name','barcode','plu_code','sku','category_id','is_active','is_bundle','is_weighted',
+      'base_unit','purchase_unit','sale_unit','units_per_purchase','sale_price','tax_rate',
+      'min_stock','reorder_qty','shelf_life_days','created_at','updated_at'
+    ];
+    if (costVisible) productFields.push('purchase_price','cost_price');
+    const productResult = await sb.from('products').select(productFields.join(', ')).eq('id', productId).eq('company_id', session.company_id).is('deleted_at', null).maybeSingle();
+    if (productResult.error) throw productResult.error;
+    const product = productResult.data;
+    if (!product) { fail('الصنف غير موجود أو غير متاح لهذا الحساب.'); return; }
+
+    const from = new Date();
+    from.setDate(from.getDate() - 90);
+    const fromDate = from.toISOString();
+    const lotFields = ['id','lot_number','quantity_in','quantity_left','sale_price','expiry_date','received_at','warehouse_id','is_quarantined'];
+    const movementFields = ['movement_type','quantity','reason','reference_type','created_at','warehouse_id'];
+    if (costVisible) {
+      lotFields.push('effective_unit_cost');
+      movementFields.push('unit_cost');
+    }
+    const [stockResult, lotsResult, movementResult, barcodeResult, bundleResult, categoryResult] = await Promise.all([
+      sb.from('v_stock_on_hand').select('warehouse_id, on_hand').eq('company_id', session.company_id).eq('branch_id', session.active_branch_id).eq('product_id', productId),
+      sb.from('stock_lots').select(lotFields.join(', ')).eq('company_id', session.company_id).eq('branch_id', session.active_branch_id).eq('product_id', productId).order('expiry_date', {ascending:true}).limit(100),
+      sb.from('inventory_movements').select(movementFields.join(', ')).eq('company_id', session.company_id).eq('branch_id', session.active_branch_id).eq('product_id', productId).order('created_at', {ascending:false}).limit(100),
+      sb.from('product_barcodes').select('barcode, is_primary').eq('product_id', productId).eq('company_id', session.company_id),
+      sb.from('bundle_items').select('component_product_id, quantity').eq('bundle_product_id', productId).eq('company_id', session.company_id),
+      product.category_id ? sb.from('categories').select('name').eq('company_id', session.company_id).eq('id', product.category_id).maybeSingle() : Promise.resolve({data:null,error:null})
+    ]);
+    for (const result of [stockResult, lotsResult, movementResult, barcodeResult, bundleResult, categoryResult]) {
+      if (result.error) throw result.error;
+    }
+    const componentIds = [...new Set((bundleResult.data || []).map(item => item.component_product_id).filter(Boolean))];
+    let componentMap = {};
+    if (componentIds.length) {
+      const componentResult = await sb.from('products').select('id, name, base_unit')
+        .eq('company_id', session.company_id).in('id', componentIds);
+      if (componentResult.error) throw componentResult.error;
+      componentMap = Object.fromEntries((componentResult.data || []).map(component => [component.id, component]));
+    }
+
+    const warehousesResult = await sb.from('warehouses').select('id, name').eq('company_id', session.company_id);
+    if (warehousesResult.error) throw warehousesResult.error;
+    const warehouseMap = Object.fromEntries((warehousesResult.data || []).map(w => [w.id, w.name]));
+    const invoiceIds = [];
+    const invoiceDates = {};
+    for (let offset = 0; ; offset += 500) {
+      const invoiceResult = await sb.from('sales_invoices').select('id, invoice_date')
+        .eq('company_id', session.company_id).eq('branch_id', session.active_branch_id)
+        .gte('invoice_date', fromDate).lte('invoice_date', new Date().toISOString())
+        .in('status', ['paid','partial','credit']).order('invoice_date', {ascending:false})
+        .order('id', {ascending:true})
+        .range(offset, offset + 499);
+      if (invoiceResult.error) throw invoiceResult.error;
+      const page = invoiceResult.data || [];
+      page.forEach(invoice => {
+        invoiceIds.push(invoice.id);
+        invoiceDates[invoice.id] = invoice.invoice_date;
+      });
+      if (page.length < 500) break;
+    }
+    let items = [];
+    for (let offset = 0; offset < invoiceIds.length; offset += 200) {
+      const itemsResult = await sb.from('sales_invoice_items').select('quantity, total, invoice_id')
+        .eq('product_id', productId).in('invoice_id', invoiceIds.slice(offset, offset + 200));
+      if (itemsResult.error) throw itemsResult.error;
+      items.push(...(itemsResult.data || []));
+    }
+    const daily = {};
+    let soldQty = 0, revenue = 0;
+    items.forEach(item => {
+      const date = (invoiceDates[item.invoice_id] || '').slice(0,10);
+      if (!date) return;
+      const quantity = Number(item.quantity || 0);
+      const total = Number(item.total || 0);
+      soldQty += quantity;
+      revenue += total;
+      if (!daily[date]) daily[date] = {qty:0,revenue:0};
+      daily[date].qty += quantity;
+      daily[date].revenue += total;
+    });
+    const totalStock = (stockResult.data || []).reduce((sum, row) => sum + Number(row.on_hand || 0), 0);
+    const margin = Number(product.sale_price || 0) > 0 ? ((Number(product.sale_price) - Number(product.cost_price || 0)) / Number(product.sale_price) * 100) : 0;
+    const barcodes = (barcodeResult.data || []).map(b => b.barcode).filter(Boolean);
+    if (product.barcode && !barcodes.includes(product.barcode)) barcodes.unshift(product.barcode);
+    const bundles = bundleResult.data || [];
+    const category = categoryResult.data && categoryResult.data.name;
+    const stockState = totalStock <= 0 ? 'نافد' : totalStock <= Number(product.min_stock || 0) ? 'منخفض' : 'متوفر';
+    const statStockValue = costVisible ? money(totalStock * Number(product.cost_price || 0)) : 'مقيد بالصلاحية';
+    document.title = product.name + ' — تفاصيل الصنف';
+    document.getElementById('editProduct').style.display = (can('products.manage') || can('products.edit')) ? 'inline-flex' : 'none';
+    document.getElementById('editProduct').href = 'products.html?edit=' + encodeURIComponent(productId);
+    document.getElementById('content').innerHTML =
+      '<section class="hero"><div><h2>' + esc(product.name) + '</h2><div class="hero-meta">' +
+        '<span><i data-lucide="barcode"></i>' + esc(product.barcode || product.plu_code || 'بدون باركود') + '</span>' +
+        '<span><i data-lucide="folder"></i>' + esc(category || 'بدون فئة') + '</span>' +
+        '<span><i data-lucide="package"></i>' + esc(product.sku || 'بدون SKU') + '</span>' +
+      '</div></div><span class="status">' + (product.is_active ? 'نشط' : 'معطل') + ' · ' + esc(stockState) + '</span></section>' +
+      '<section class="stats">' +
+        '<div class="stat"><div class="stat-label">المخزون الحالي</div><div class="stat-value">' + esc(Number(totalStock).toLocaleString('ar-EG')) + '</div><div class="stat-sub">' + esc(product.base_unit || product.sale_unit || 'وحدة') + ' · حد الطلب ' + esc(product.min_stock || 0) + '</div></div>' +
+        '<div class="stat blue"><div class="stat-label">سعر البيع</div><div class="stat-value">' + money(product.sale_price) + '</div><div class="stat-sub">' + esc(product.sale_unit || 'للوحدة') + '</div></div>' +
+        '<div class="stat purple"><div class="stat-label">مبيعات آخر 90 يوماً</div><div class="stat-value">' + esc(Number(soldQty).toLocaleString('ar-EG')) + '</div><div class="stat-sub">إيراد ' + money(revenue) + '</div></div>' +
+        '<div class="stat warn"><div class="stat-label">' + (costVisible ? 'قيمة المخزون بالتكلفة' : 'قيمة المخزون') + '</div><div class="stat-value" style="font-size:' + (costVisible ? '20px' : '16px') + '">' + esc(statStockValue) + '</div><div class="stat-sub">' + (costVisible ? 'هامش السعر الحالي ' + margin.toFixed(1) + '%' : 'التكلفة مخفية حسب صلاحياتك') + '</div></div>' +
+      '</section>' +
+      '<div class="grid">' +
+        '<section class="card"><div class="card-head"><h3><i data-lucide="list"></i>بيانات الصنف</h3></div><div class="card-body"><div class="details">' +
+          field('الباركود الأساسي', product.barcode) + field('PLU', product.plu_code) + field('SKU', product.sku) +
+          field('الفئة', category) + field('الوحدة الأساسية', product.base_unit) + field('وحدة البيع', product.sale_unit) +
+          field('وحدة الشراء', product.purchase_unit) + field('عدد الوحدات في العبوة', product.units_per_purchase) +
+          field('سعر البيع', money(product.sale_price)) + field('الضريبة', Number(product.tax_rate || 0) + '%') +
+          field('الحد الأدنى للمخزون', product.min_stock) + field('كمية إعادة الطلب', product.reorder_qty) +
+          field('مدة الصلاحية بالأيام', product.shelf_life_days) + field('نوع الصنف', product.is_bundle ? 'كومبو' : product.is_weighted ? 'موزون' : 'عادي') +
+          (costVisible ? field('سعر الشراء', money(product.purchase_price)) + field('تكلفة الوحدة', money(product.cost_price)) : '') +
+          field('تاريخ الإضافة', product.created_at ? new Date(product.created_at).toLocaleDateString('ar-EG') : '—') +
+          field('آخر تحديث', product.updated_at ? new Date(product.updated_at).toLocaleDateString('ar-EG') : '—') +
+          field('حالة الصنف', product.is_active ? 'نشط' : 'معطل') +
+        '</div><div class="note">الربح غير معروض كتاريخي؛ تكلفة الصنف الحالية قد تختلف عن التكلفة وقت البيع.</div></div></section>' +
+        '<section class="card"><div class="card-head"><h3><i data-lucide="activity"></i>وتيرة المبيعات — آخر 90 يوماً</h3><span class="badge">' + esc(soldQty.toFixed(2)) + ' وحدة</span></div><div class="card-body">' + renderChart(daily) + '</div></section>' +
+      '</div>' +
+      '<section class="card"><div class="card-head"><h3><i data-lucide="barcode"></i>الباركودات الإضافية</h3></div><div class="card-body">' +
+        (barcodes.length ? '<div class="details">' + barcodes.map((code,i) => field(i === 0 && code === product.barcode ? 'الباركود الأساسي' : 'باركود إضافي', code)).join('') + '</div>' : '<div class="empty">لا توجد باركودات مسجلة</div>') +
+      '</div></section>' +
+      (product.is_bundle ? '<section class="card"><div class="card-head"><h3><i data-lucide="layers"></i>مكونات الكومبو</h3></div><div class="table-wrap"><table><thead><tr><th>المكون</th><th>الكمية</th></tr></thead><tbody>' + (bundles.length ? bundles.map(b => '<tr><td>' + esc(componentMap[b.component_product_id] && componentMap[b.component_product_id].name || 'مكون غير متاح') + '</td><td>' + esc(b.quantity) + ' ' + esc(componentMap[b.component_product_id] && componentMap[b.component_product_id].base_unit || '') + '</td></tr>').join('') : '<tr><td colspan="2" class="empty">لا توجد مكونات مسجلة</td></tr>') + '</tbody></table></div></section>' : '') +
+      '<div class="grid">' +
+        '<section class="card"><div class="card-head"><h3><i data-lucide="boxes"></i>المخزون حسب المخزن</h3></div><div class="table-wrap"><table><thead><tr><th>المخزن</th><th>الرصيد</th></tr></thead><tbody>' +
+          ((stockResult.data || []).length ? stockResult.data.map(r => '<tr><td>' + esc(warehouseMap[r.warehouse_id] || 'مخزن غير محدد') + '</td><td><strong>' + esc(Number(r.on_hand || 0).toLocaleString('ar-EG')) + '</strong></td></tr>').join('') : '<tr><td colspan="2" class="empty">لا يوجد رصيد متاح لهذا الفرع</td></tr>') +
+        '</tbody></table></div></section>' +
+        '<section class="card"><div class="card-head"><h3><i data-lucide="calendar-clock"></i>الدفعات والصلاحية</h3><span class="badge">' + (lotsResult.data || []).length + ' دفعة</span></div><div class="table-wrap"><table><thead><tr><th>رقم الدفعة</th><th>المتبقي</th><th>الانتهاء</th><th>المخزن</th><th>الحالة</th></tr></thead><tbody>' +
+          ((lotsResult.data || []).length ? lotsResult.data.map(l => '<tr><td>' + esc(l.lot_number || '—') + '</td><td>' + esc(l.quantity_left || 0) + '</td><td>' + esc(l.expiry_date || '—') + '</td><td>' + esc(warehouseMap[l.warehouse_id] || '—') + '</td><td>' + (l.is_quarantined ? '<span class="badge" style="background:#fee2e2;color:#b91c1c">محجور</span>' : '<span class="badge">متاح</span>') + '</td></tr>').join('') : '<tr><td colspan="5" class="empty">لا توجد دفعات مسجلة</td></tr>') +
+        '</tbody></table></div></section>' +
+      '</div>' +
+      '<section class="card"><div class="card-head"><h3><i data-lucide="repeat"></i>آخر حركات المخزون</h3><span class="badge">' + (movementResult.data || []).length + ' حركة</span></div><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>الكمية</th><th>التكلفة</th><th>المخزن</th><th>السبب</th></tr></thead><tbody>' +
+        ((movementResult.data || []).length ? movementResult.data.map(m => '<tr><td>' + esc(new Date(m.created_at).toLocaleString('ar-EG')) + '</td><td>' + esc(m.movement_type || '—') + '</td><td>' + esc(m.quantity || 0) + '</td><td>' + (costVisible ? money(m.unit_cost) : '—') + '</td><td>' + esc(warehouseMap[m.warehouse_id] || '—') + '</td><td>' + esc(m.reason || m.reference_type || '—') + '</td></tr>').join('') : '<tr><td colspan="6" class="empty">لا توجد حركات مسجلة</td></tr>') +
+      '</tbody></table></div></section>';
+    if (window.lucide) lucide.createIcons();
+  }
+  load().catch(error => {
+    console.error('[ProductDetails] load failed:', error);
+    fail('تعذر تحميل بيانات الصنف: ' + (error.message || 'خطأ غير معروف'));
+  });
+})();
+</script>
+<script src="sidebar.js"></script>
+</body>
+</html>

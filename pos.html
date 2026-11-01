@@ -2031,7 +2031,12 @@ input, select, textarea { font-family: inherit; }
 
   function enqueueOffline(opType, payload) {
     const op = {
-      id: 'op_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      id: (window.crypto && typeof window.crypto.randomUUID === 'function')
+        ? window.crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (char) {
+            const random = Math.random() * 16 | 0;
+            return (char === 'x' ? random : (random & 0x3 | 0x8)).toString(16);
+          }),
       type: opType,
       payload: payload,
       status: 'pending',
@@ -2067,7 +2072,10 @@ input, select, textarea { font-family: inherit; }
 
   async function syncOfflineQueue() {
     if (!isOnline || offlineQueue.length === 0) return;
-    const pending = offlineQueue.filter(op => op.status === 'pending' || (op.status === 'failed' && op.retry < posSettings.offlineMaxRetry));
+    const pending = offlineQueue.filter(op =>
+      (op.status === 'pending' || (op.status === 'failed' && op.retry < posSettings.offlineMaxRetry)) &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(op.id || ''))
+    );
     if (pending.length === 0) return;
     toast('info', 'جاري مزامنة ' + pending.length + ' عملية...');
     for (const op of pending) {
@@ -2075,8 +2083,9 @@ input, select, textarea { font-family: inherit; }
         op.status = 'syncing';
         saveOfflineQueue();
         if (op.type === 'sale') {
-          const r = await sb.rpc('record_invoice_v3', op.payload);
-          if (r.error) throw r.error;
+          op.invoice_id = await Refad.syncOfflineSale(op);
+        } else {
+          throw new Error('نوع العملية غير مدعوم: ' + op.type);
         }
         op.status = 'synced';
         op.synced_at = new Date().toISOString();
@@ -2167,6 +2176,13 @@ input, select, textarea { font-family: inherit; }
           toast('error', 'الدفع المختلط يتطلب طريقتين على الأقل');
           return;
         }
+        if (mixedMethods.some(m => m.method === 'credit' && Number(m.amount) > 0) && !getVal('customerSelect')) {
+          toast('error', 'الجزء الآجل من الدفع المختلط يتطلب اختيار عميل');
+          return;
+        }
+        paid = mixedMethods
+          .filter(m => m.method !== 'credit')
+          .reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
       }
 
       const btn = confirmPaymentBtn;
@@ -2194,6 +2210,7 @@ input, select, textarea { font-family: inherit; }
           p_customer: getVal('customerSelect') || null,
           p_items: items,
           p_method: currentPaymentMethod,
+          p_tax_inclusive: !!taxSettings.inclusive,
           p_paid: paid,
           p_notes: null,
           p_tax: calculateTax(),
@@ -2228,10 +2245,12 @@ input, select, textarea { font-family: inherit; }
 
         // ⭐ إنشاء قيد محاسبي للفاتورة (non-blocking)
         try {
-          await sb.rpc('generate_invoice_journal_entry_v2', { p_invoice_id: invoiceId });
+          const { error: journalError } = await sb.rpc('generate_invoice_journal_entry_v2', { p_invoice_id: invoiceId });
+          if (journalError) throw journalError;
           debug('✅ Journal entry created');
         } catch (jeErr) {
           console.warn('[POS] Journal entry failed:', jeErr);
+          toast('warning', 'تم حفظ البيع لكن تعذر إنشاء القيد المحاسبي؛ راجع مزامنة الحسابات');
         }
 
         const cashAmount = currentPaymentMethod === 'cash'
@@ -2296,7 +2315,9 @@ input, select, textarea { font-family: inherit; }
   }
 
   function showReceipt(invoice, paid, total) {
-    const change = paid - total;
+    const amountPaid = Number(invoice && invoice.paid != null ? invoice.paid : Math.min(paid, total));
+    const remaining = Number(invoice && invoice.remaining != null ? invoice.remaining : Math.max(total - amountPaid, 0));
+    const change = Math.max(paid - total, 0);
     const body = el('receiptBody');
     if (!body) return;
     const itemsHtml = (invoice && invoice.sales_invoice_items || []).map(function (it) {
@@ -2318,9 +2339,10 @@ input, select, textarea { font-family: inherit; }
         itemsHtml +
         '<div style="border-top:1px dashed var(--border);margin:12px 0;padding-top:12px">' +
           '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">' +
-            '<span style="color:var(--text-muted)">المدفوع</span><span style="font-weight:700">' + money(paid) + '</span>' +
+            '<span style="color:var(--text-muted)">المدفوع</span><span style="font-weight:700">' + money(amountPaid) + '</span>' +
           '</div>' +
           (change > 0 ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span style="color:var(--text-muted)">الباقي</span><span style="font-weight:700;color:var(--success)">' + money(change) + '</span></div>' : '') +
+          (remaining > 0 ? '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span style="color:var(--text-muted)">متبقي على العميل</span><span style="font-weight:700;color:var(--danger)">' + money(remaining) + '</span></div>' : '') +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;border-top:2px dashed var(--border);padding-top:12px;margin-top:12px">' +
           '<span>الإجمالي</span><span style="color:var(--accent)">' + money(total) + '</span>' +

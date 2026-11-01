@@ -18,6 +18,21 @@
     return;
   }
 
+  function loadDesignSystemStylesheet() {
+    if (document.querySelector('link[data-refad-design-system]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'design-system.css';
+    link.dataset.refadDesignSystem = 'true';
+    document.head.appendChild(link);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDesignSystemStylesheet, { once: true });
+  } else {
+    loadDesignSystemStylesheet();
+  }
+
   // ═══════════════════════════════════════════════════════════
   // CONSTANTS
   // ═══════════════════════════════════════════════════════════

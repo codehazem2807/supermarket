@@ -208,6 +208,29 @@ tbody tr:last-child td{border-bottom:none}
 .toast.warning svg{color:var(--gold)}
 @keyframes slideInToast{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
 
+.segment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.segment-card{width:100%;text-align:right;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s;color:var(--text);font-family:inherit}
+.segment-sales{cursor:default}
+.segment-sales:hover{transform:none;border-color:var(--border);box-shadow:none}
+.segment-card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:var(--shadow)}
+.segment-card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.segment-card-head{display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:12px;font-weight:700}
+.segment-card-head svg{width:17px;height:17px}
+.segment-card-value{display:block;font-size:23px;font-weight:900;margin-top:8px}
+.segment-card-sub{display:block;font-size:11px;color:var(--text-muted);margin-top:3px}
+.segment-vip .segment-card-head,.segment-vip .segment-card-value{color:var(--purple)}
+.segment-risk .segment-card-head,.segment-risk .segment-card-value{color:var(--danger)}
+.segment-loyal .segment-card-head,.segment-loyal .segment-card-value{color:var(--success)}
+.segment-sales .segment-card-head,.segment-sales .segment-card-value{color:var(--accent)}
+.segment-badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:800;white-space:nowrap}
+.segment-badge-vip{background:var(--purple-soft);color:var(--purple)}
+.segment-badge-loyal{background:var(--success-soft);color:var(--success)}
+.segment-badge-risk{background:var(--danger-soft);color:var(--danger)}
+.segment-badge-inactive{background:var(--bg-soft);color:var(--text-muted)}
+.segment-badge-new{background:var(--info-soft);color:var(--info)}
+.segment-badge-active{background:var(--accent-soft);color:var(--accent)}
+.segment-badge-none{background:var(--bg-soft);color:var(--text-muted)}
+
 @media (max-width:1024px){.refad-main-content{margin-right:0!important}}
 @media (max-width:768px){
   .content{padding:16px}
@@ -217,6 +240,7 @@ tbody tr:last-child td{border-bottom:none}
   .filter-bar{flex-direction:column;align-items:stretch}
   .filter-bar .form-select,.filter-bar .form-input{width:100%}
   .details-grid{grid-template-columns:1fr}
+  .segment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:480px){
   .stats-grid{grid-template-columns:1fr 1fr}
@@ -265,6 +289,29 @@ tbody tr:last-child td{border-bottom:none}
       </div>
     </div>
 
+    <div class="segment-grid" aria-label="تحليل العملاء خلال آخر 90 يومًا">
+      <button class="segment-card segment-vip" type="button" data-segment-card="vip" title="عرض أفضل العملاء حسب المشتريات">
+        <span class="segment-card-head"><i data-lucide="crown"></i>عملاء VIP</span>
+        <span class="segment-card-value" id="segmentVip">—</span>
+        <span class="segment-card-sub">أعلى إنفاق متكرر</span>
+      </button>
+      <button class="segment-card segment-risk" type="button" data-segment-card="at-risk" title="عرض العملاء الذين لم يشتروا منذ 31 إلى 90 يومًا">
+        <span class="segment-card-head"><i data-lucide="user-round-x"></i>معرضون للانقطاع</span>
+        <span class="segment-card-value" id="segmentAtRisk">—</span>
+        <span class="segment-card-sub">آخر شراء منذ 31–90 يومًا</span>
+      </button>
+      <button class="segment-card segment-loyal" type="button" data-segment-card="loyal" title="عرض العملاء أصحاب المشتريات المتكررة">
+        <span class="segment-card-head"><i data-lucide="heart-handshake"></i>عملاء مخلصون</span>
+        <span class="segment-card-value" id="segmentLoyal">—</span>
+        <span class="segment-card-sub">3 مشتريات أو أكثر خلال 90 يومًا</span>
+      </button>
+      <div class="segment-card segment-sales" aria-live="polite">
+        <span class="segment-card-head"><i data-lucide="chart-no-axes-combined"></i>مبيعات العملاء</span>
+        <span class="segment-card-value" id="segmentSales">—</span>
+        <span class="segment-card-sub">آخر 90 يومًا — باستثناء الملغي والمرتجع</span>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header">
         <div class="card-title">
@@ -285,8 +332,18 @@ tbody tr:last-child td{border-bottom:none}
           <option value="debt">عليه مديونية</option>
           <option value="over-limit">تجاوز حد الائتمان</option>
         </select>
+        <select class="form-select" id="segmentFilter" aria-label="تصفية حسب شريحة العملاء">
+          <option value="">كل الشرائح</option>
+          <option value="vip">عملاء VIP</option>
+          <option value="loyal">عملاء مخلصون</option>
+          <option value="at-risk">معرضون للانقطاع</option>
+          <option value="inactive">لا مشتريات آخر 90 يومًا</option>
+          <option value="new">عملاء جدد</option>
+          <option value="active">نشطون</option>
+        </select>
         <select class="form-select" id="sortFilter">
           <option value="name">الاسم (أ-ي)</option>
+          <option value="spend90d_high">مشتريات آخر 90 يومًا (الأعلى)</option>
           <option value="balance_high">الرصيد (الأعلى)</option>
           <option value="balance_low">الرصيد (الأقل)</option>
           <option value="points_high">نقاط الولاء (الأعلى)</option>
@@ -299,6 +356,7 @@ tbody tr:last-child td{border-bottom:none}
           <thead>
             <tr>
               <th>العميل</th>
+              <th>الشريحة</th>
               <th>الهاتف</th>
               <th>الرصيد</th>
               <th>نقاط الولاء</th>
@@ -309,7 +367,7 @@ tbody tr:last-child td{border-bottom:none}
             </tr>
           </thead>
           <tbody id="customersTable">
-            <tr><td colspan="8" class="loading-state"><div class="spinner"></div>جاري التحميل...</td></tr>
+            <tr><td colspan="9" class="loading-state"><div class="spinner"></div>جاري التحميل...</td></tr>
           </tbody>
         </table>
       </div>
@@ -484,6 +542,9 @@ tbody tr:last-child td{border-bottom:none}
   let customers = [];
   let balances = {};
   let lastActivity = {};
+  let customerMetrics = {};
+  let insightsReady = false;
+  let vipSpendThreshold = Infinity;
   let defaultAccountId = null;
   let currentPage = 1;
   const PAGE_SIZE = 25;
@@ -571,10 +632,131 @@ tbody tr:last-child td{border-bottom:none}
       .select('customer_id, invoice_date')
       .eq('company_id', session.company_id)
       .in('customer_id', ids)
+      .neq('status', 'voided')
+      .neq('status', 'returned')
+      .neq('status', 'draft')
       .order('invoice_date', { ascending: false });
     (res.data || []).forEach(inv => {
       if (!lastActivity[inv.customer_id]) lastActivity[inv.customer_id] = inv.invoice_date;
     });
+  }
+
+  async function loadCustomerInsights() {
+    customerMetrics = {};
+    insightsReady = false;
+    vipSpendThreshold = Infinity;
+    if (customers.length === 0) {
+      insightsReady = true;
+      return;
+    }
+
+    try {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const pageSize = 1000;
+      let offset = 0;
+      while (true) {
+        const res = await sb.from('sales_invoices')
+          .select('id, customer_id, invoice_date, total')
+          .eq('company_id', session.company_id)
+          .not('customer_id', 'is', null)
+          .gte('invoice_date', cutoff)
+          .neq('status', 'voided')
+          .neq('status', 'returned')
+          .neq('status', 'draft')
+          .order('invoice_date', { ascending: false })
+          .order('id', { ascending: true })
+          .range(offset, offset + pageSize - 1);
+        if (res.error) throw res.error;
+
+        const invoices = res.data || [];
+        invoices.forEach(inv => {
+          if (!customerMetrics[inv.customer_id]) {
+            customerMetrics[inv.customer_id] = { invoiceCount: 0, spend90d: 0, lastDate: null };
+          }
+          customerMetrics[inv.customer_id].invoiceCount++;
+          customerMetrics[inv.customer_id].spend90d += Number(inv.total || 0);
+          if (!customerMetrics[inv.customer_id].lastDate || new Date(inv.invoice_date) > new Date(customerMetrics[inv.customer_id].lastDate)) {
+            customerMetrics[inv.customer_id].lastDate = inv.invoice_date;
+          }
+          if (!lastActivity[inv.customer_id] || new Date(inv.invoice_date) > new Date(lastActivity[inv.customer_id])) {
+            lastActivity[inv.customer_id] = inv.invoice_date;
+          }
+        });
+
+        if (invoices.length < pageSize) break;
+        offset += pageSize;
+      }
+    } catch (e) {
+      customerMetrics = {};
+      toast('error', 'تعذر تحميل تحليل العملاء: ' + (e.message || 'خطأ غير معروف'));
+      return;
+    }
+
+    const repeatSpenders = customers
+      .filter(c => c.is_active && (customerMetrics[c.id]?.invoiceCount || 0) >= 3)
+      .map(c => customerMetrics[c.id].spend90d)
+      .sort((a, b) => b - a);
+    if (repeatSpenders.length) {
+      vipSpendThreshold = repeatSpenders[Math.max(0, Math.ceil(repeatSpenders.length * 0.2) - 1)];
+    }
+    insightsReady = true;
+  }
+
+  function getCustomerSegment(customer) {
+    if (!insightsReady) return 'unavailable';
+    const metrics = customerMetrics[customer.id] || { invoiceCount: 0, spend90d: 0, lastDate: null };
+    const lastDate = metrics.lastDate ? new Date(metrics.lastDate) : null;
+    const daysSincePurchase = lastDate ? Math.max(0, Math.floor((Date.now() - lastDate.getTime()) / 86400000)) : null;
+    const daysSinceCreated = customer.created_at
+      ? Math.max(0, Math.floor((Date.now() - new Date(customer.created_at).getTime()) / 86400000))
+      : Infinity;
+
+    if (daysSincePurchase === null) return daysSinceCreated <= 30 ? 'new' : 'inactive';
+    if (daysSincePurchase > 30) return 'at-risk';
+    if (metrics.invoiceCount >= 3 && metrics.spend90d >= vipSpendThreshold) return 'vip';
+    if (daysSinceCreated <= 30 && metrics.invoiceCount < 2) return 'new';
+    if (metrics.invoiceCount >= 3) return 'loyal';
+    return 'active';
+  }
+
+  function getSegmentLabel(segment) {
+    const labels = {
+      vip: 'VIP',
+      loyal: 'مخلص',
+      'at-risk': 'معرض للانقطاع',
+      inactive: 'بدون شراء آخر 90 يومًا',
+      new: 'جديد',
+      active: 'نشط',
+      unavailable: 'غير متاح'
+    };
+    return labels[segment] || labels.unavailable;
+  }
+
+  function getSegmentBadge(segment) {
+    const classes = {
+      vip: 'vip',
+      loyal: 'loyal',
+      'at-risk': 'risk',
+      inactive: 'inactive',
+      new: 'new',
+      active: 'active',
+    };
+    return '<span class="segment-badge segment-badge-' + (classes[segment] || 'none') + '">' +
+      esc(getSegmentLabel(segment)) + '</span>';
+  }
+
+  function renderSegmentStats() {
+    const counts = { vip: 0, 'at-risk': 0, loyal: 0 };
+    let sales90d = 0;
+    customers.forEach(c => {
+      const segment = getCustomerSegment(c);
+      if (Object.prototype.hasOwnProperty.call(counts, segment)) counts[segment]++;
+      sales90d += customerMetrics[c.id]?.spend90d || 0;
+    });
+    document.getElementById('segmentVip').textContent = insightsReady ? counts.vip.toLocaleString('ar-EG') : '—';
+    document.getElementById('segmentAtRisk').textContent = insightsReady ? counts['at-risk'].toLocaleString('ar-EG') : '—';
+    document.getElementById('segmentLoyal').textContent = insightsReady ? counts.loyal.toLocaleString('ar-EG') : '—';
+    document.getElementById('segmentSales').textContent = insightsReady ? money(sales90d) : '—';
   }
 
   async function loadDefaultAccount() {
@@ -604,11 +786,13 @@ tbody tr:last-child td{border-bottom:none}
     document.getElementById('statDebtsSub').textContent = overLimit + ' تجاوزوا حد الائتمان';
     document.getElementById('statPoints').textContent = points.toLocaleString('ar-EG');
     document.getElementById('statPointsSub').textContent = 'قابلة للاستبدال';
+    renderSegmentStats();
   }
 
   function getFilteredCustomers() {
     const q = document.getElementById('searchInput').value.toLowerCase().trim();
     const sf = document.getElementById('statusFilter').value;
+    const segment = document.getElementById('segmentFilter').value;
     const sortBy = document.getElementById('sortFilter').value;
 
     let filtered = customers.filter(c => {
@@ -627,6 +811,7 @@ tbody tr:last-child td{border-bottom:none}
         const limit = Number(c.credit_limit || 0);
         if (!(bal > 0 && limit > 0 && bal > limit)) return false;
       }
+      if (segment && getCustomerSegment(c) !== segment) return false;
       return true;
     });
 
@@ -634,6 +819,7 @@ tbody tr:last-child td{border-bottom:none}
     else if (sortBy === 'balance_high') filtered.sort((a,b) => (balances[b.id]||0) - (balances[a.id]||0));
     else if (sortBy === 'balance_low') filtered.sort((a,b) => (balances[a.id]||0) - (balances[b.id]||0));
     else if (sortBy === 'points_high') filtered.sort((a,b) => Number(b.loyalty_points||0) - Number(a.loyalty_points||0));
+    else if (sortBy === 'spend90d_high') filtered.sort((a,b) => (customerMetrics[b.id]?.spend90d || 0) - (customerMetrics[a.id]?.spend90d || 0));
     else if (sortBy === 'recent') filtered.sort((a,b) => {
       const da = lastActivity[a.id] ? new Date(lastActivity[a.id]).getTime() : 0;
       const db = lastActivity[b.id] ? new Date(lastActivity[b.id]).getTime() : 0;
@@ -649,7 +835,7 @@ tbody tr:last-child td{border-bottom:none}
     document.getElementById('tableCount').textContent = filtered.length;
 
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><i data-lucide="users"></i><h3>لا يوجد عملاء</h3><p>' +
+      tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><i data-lucide="users"></i><h3>لا يوجد عملاء</h3><p>' +
         (customers.length === 0 ? 'اضغط "عميل جديد" للبدء' : 'لا نتائج مطابقة') + '</p></td></tr>';
       document.getElementById('pagination').style.display = 'none';
       if (window.lucide) lucide.createIcons();
@@ -670,11 +856,13 @@ tbody tr:last-child td{border-bottom:none}
         ? '<span class="badge badge-success"><i data-lucide="check"></i>نشط</span>'
         : '<span class="badge badge-gray">معطل</span>';
       const lastAct = lastActivity[c.id];
+      const customerSegment = getCustomerSegment(c);
 
       return '<tr>' +
         '<td><div class="customer-cell"><div class="customer-avatar">' + esc((c.name || '?').charAt(0)) + '</div>' +
           '<div class="customer-info"><h4>' + esc(c.name) + (overLimit ? ' <span class="badge badge-danger" style="font-size:9px">تجاوز</span>' : '') + '</h4>' +
           '<p>' + esc(c.address || c.email || '—') + '</p></div></div></td>' +
+        '<td>' + getSegmentBadge(customerSegment) + '</td>' +
         '<td>' + esc(c.phone || '—') + '</td>' +
         '<td><strong class="' + balClass + '">' + balText + '</strong></td>' +
         '<td><span class="badge badge-warning">' + Number(c.loyalty_points || 0).toLocaleString('ar-EG') + ' نقطة</span></td>' +
@@ -1021,22 +1209,23 @@ tbody tr:last-child td{border-bottom:none}
     const reason = document.getElementById('loyaltyReason').value.trim() || 'استبدال نقاط';
     const c = customers.find(x => x.id === customerId);
 
-    if (!points || points <= 0) { errEl.textContent = 'عدد النقاط مطلوب'; errEl.classList.add('show'); return; }
+    if (!Number.isInteger(points) || points <= 0) { errEl.textContent = 'أدخل عدداً صحيحاً من النقاط أكبر من صفر'; errEl.classList.add('show'); return; }
+    if (!c) { errEl.textContent = 'تعذر العثور على العميل'; errEl.classList.add('show'); return; }
     if (points > Number(c.loyalty_points || 0)) { errEl.textContent = 'النقاط غير كافية'; errEl.classList.add('show'); return; }
 
     const btn = document.getElementById('confirmLoyaltyBtn');
     btn.disabled = true;
 
     try {
-      await sb.from('loyalty_points').insert({
-        company_id: session.company_id,
-        customer_id: customerId,
-        points: -points,
-        reason,
-        reference_type: 'manual',
-        reference_id: null
+      const { data: remainingPoints, error } = await sb.rpc('redeem_customer_loyalty_points', {
+        p_customer_id: customerId,
+        p_points: points,
+        p_reason: reason
       });
-      await sb.from('customers').update({ loyalty_points: Number(c.loyalty_points || 0) - points }).eq('id', customerId);
+      if (error) throw error;
+      if (!Number.isInteger(Number(remainingPoints))) {
+        throw new Error('تم تنفيذ الطلب لكن تعذر التحقق من رصيد النقاط المتبقي. راجع سجل العميل قبل إعادة المحاولة.');
+      }
       toast('success', 'تم استبدال النقاط');
       document.getElementById('loyaltyModal').classList.remove('show');
       await loadAllData();
@@ -1050,10 +1239,12 @@ tbody tr:last-child td{border-bottom:none}
 
   function exportCSV() {
     const filtered = getFilteredCustomers();
-    const rows = [['name','phone','email','address','credit_limit','opening_balance','loyalty_points','balance','is_active']];
+    const rows = [['name','phone','email','address','segment','last_purchase','invoices_last_90_days','spend_last_90_days','credit_limit','opening_balance','loyalty_points','balance','is_active']];
     filtered.forEach(c => {
+      const metrics = customerMetrics[c.id] || {};
       rows.push([
-        c.name, c.phone || '', c.email || '', c.address || '',
+        c.name, c.phone || '', c.email || '', c.address || '', getSegmentLabel(getCustomerSegment(c)),
+        lastActivity[c.id] || '', insightsReady ? (metrics.invoiceCount || 0) : '', insightsReady ? (metrics.spend90d || 0) : '',
         c.credit_limit || 0, c.opening_balance || 0, c.loyalty_points || 0,
         balances[c.id] || 0, c.is_active ? 1 : 0
       ]);
@@ -1136,7 +1327,7 @@ tbody tr:last-child td{border-bottom:none}
 
   async function loadAllData() {
     await loadCustomers();
-    await Promise.all([loadBalances(), loadLastActivity()]);
+    await Promise.all([loadBalances(), loadLastActivity(), loadCustomerInsights()]);
     renderStats();
     renderTable();
   }
@@ -1205,14 +1396,28 @@ tbody tr:last-child td{border-bottom:none}
 
     document.getElementById('searchInput').oninput = () => { currentPage = 1; renderTable(); };
     document.getElementById('statusFilter').onchange = () => { currentPage = 1; renderTable(); };
+    document.getElementById('segmentFilter').onchange = () => { currentPage = 1; renderTable(); };
     document.getElementById('sortFilter').onchange = () => { currentPage = 1; renderTable(); };
     document.getElementById('clearFilters').onclick = () => {
       document.getElementById('searchInput').value = '';
       document.getElementById('statusFilter').value = '';
+      document.getElementById('segmentFilter').value = '';
       document.getElementById('sortFilter').value = 'name';
       currentPage = 1;
       renderTable();
     };
+    document.querySelectorAll('[data-segment-card]').forEach(card => {
+      card.onclick = () => {
+        if (!insightsReady) {
+          toast('info', 'تحليل العملاء لم يكتمل بعد');
+          return;
+        }
+        document.getElementById('segmentFilter').value = card.dataset.segmentCard;
+        currentPage = 1;
+        renderTable();
+        document.querySelector('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+    });
 
     document.querySelectorAll('[data-close]').forEach(el => {
       el.onclick = () => document.getElementById(el.dataset.close).classList.remove('show');

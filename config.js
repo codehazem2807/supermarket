@@ -1,5 +1,5 @@
 /* ============================================================
-   config.js — Refad ERP v5.0
+   config.js — Refad ERP v5.1
    ⭐ v5.0: Notifications + Chat + Storefront + Store Admin
    ⭐ v4.2: transfers + counts
    ⭐ v4.1: expenses + presets
@@ -20,7 +20,7 @@
     // 📱 APP INFO
     // ═══════════════════════════════════════════════════════════
     APP_NAME: 'رفاد سوبرماركت',
-    APP_VERSION: '5.0.0',
+    APP_VERSION: '5.1.0',
     LOGO_URL: 'logo.png',
 
     // ═══════════════════════════════════════════════════════════
@@ -195,7 +195,9 @@
       'pos.html':             'pos.use',
       'session.html':         'session.use',
       'products.html':        'products.view',
+      'product-details.html': 'products.view',
       'inventory.html':       'inventory.view',
+      'inventory-reconciliation.html': 'inventory.view',
       'warehouses.html':      'warehouses.view',
       'transfers.html':       'warehouses.transfer',
       'counts.html':          'warehouses.count',
@@ -930,6 +932,7 @@
         items: [
           { href: 'products.html', icon: 'package', label: 'المنتجات', permission: 'products.view' },
           { href: 'inventory.html', icon: 'boxes', label: 'المخزون', permission: 'inventory.view' },
+          { href: 'inventory-reconciliation.html', icon: 'scale', label: 'مصالحة المخزون والحسابات', permission: 'inventory.view' },
           { href: 'warehouses.html', icon: 'warehouse', label: 'المخازن', permission: 'warehouses.view' },
           { href: 'transfers.html', icon: 'arrow-left-right', label: 'تحويلات المخازن', permission: 'warehouses.transfer' },
           { href: 'counts.html', icon: 'clipboard-check', label: 'الجرد', permission: 'warehouses.count' },

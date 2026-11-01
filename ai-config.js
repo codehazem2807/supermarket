@@ -239,7 +239,7 @@
     sales_returns: { description: 'المرتجعات', columns: ['id','company_id','branch_id','original_invoice_id','return_number','total','reason'] },
     accounts: { description: 'الحسابات', columns: ['id','company_id','branch_id','name','account_type','opening_balance','is_active'] },
     account_transactions: { description: 'الحركات المالية', columns: ['id','company_id','branch_id','account_id','direction','amount','operation_type','reference_type','reference_id'] },
-    payments: { description: 'المدفوعات', columns: ['id','company_id','branch_id','payment_number','direction','account_id','customer_id','supplier_id','amount','method','payment_date'] },
+    payments: { description: 'المدفوعات', columns: ['id','company_id','branch_id','payment_number','payment_type','direction','operation_type','account_id','customer_id','supplier_id','amount','method','payment_date','reference','notes','created_by','created_at'] },
     v_party_balances: { description: 'أرصدة العملاء والموردين', columns: ['party_type','party_id','company_id','name','balance','total_debit','total_credit'] },
     v_low_stock: { description: 'منتجات ناقصة', columns: ['company_id','product_id','name','min_stock','on_hand'] },
     v_expiring_lots: { description: 'دفعات قرب الانتهاء', columns: ['company_id','branch_id','warehouse_id','product_id','lot_id','lot_number','quantity_left','expiry_date','days_to_expiry'] },

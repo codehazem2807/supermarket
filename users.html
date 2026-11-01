@@ -455,6 +455,13 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   const PAGE_SIZE = 25;
 
   const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+
+  function can(permission) {
+    const permissions = session && Array.isArray(session.permissions) ? session.permissions : [];
+    return !!(session && session.is_owner) || permissions.includes('*') ||
+      permissions.includes('admin.full') || permissions.includes('users.manage') ||
+      permissions.includes(permission);
+  }
   const fmtDate = (window.Refad && Refad.fmtDate) || function(d){if(!d)return'—';return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})};
   const toast = (function(){
     const base = window.Refad && Refad.toast;
@@ -620,6 +627,10 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
       const isSelf = u.id === session.user_id;
       const initial = (u.full_name || u.email || '?').charAt(0).toUpperCase();
       const roleName = (u.roles && u.roles.name) || (isOwner ? 'مالك' : '—');
+      const assignedRole = roles.find(role => role.id === u.role_id);
+      const assignedRolePermissions = assignedRole && Array.isArray(assignedRole.permissions) ? assignedRole.permissions : [];
+      const assignedRoleIsPrivileged = !!(assignedRole && assignedRole.is_owner) ||
+        assignedRolePermissions.some(permission => ['admin.full', 'company.owner', 'company.delete', 'users.manage', 'roles.manage'].includes(permission));
       const branchName = (u.branches && u.branches.name) || '—';
       const statusBadge = u.is_active
         ? '<span class="badge badge-success"><i data-lucide="check"></i>نشط</span>'
@@ -640,10 +651,10 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
         '<td style="font-size:11.5px;color:var(--text-muted)">' + timeAgo(u.last_login) + '</td>' +
         '<td>' + statusBadge + '</td>' +
         '<td style="text-align:left"><div class="actions-cell">' +
-          (canManage && !isSelf && !isOwner ? '<button class="icon-btn" data-action="edit" data-id="' + u.id + '" title="تعديل"><i data-lucide="edit"></i></button>' : '') +
-          (canManage && !isSelf ? '<button class="icon-btn warn" data-action="password" data-id="' + u.id + '" title="تغيير كلمة المرور"><i data-lucide="key-round"></i></button>' : '') +
-          (canManage && !isSelf && !isOwner ? '<button class="icon-btn ' + (u.is_active ? 'danger' : 'success') + '" data-action="toggle" data-id="' + u.id + '" title="' + (u.is_active ? 'تعطيل' : 'تفعيل') + '"><i data-lucide="' + (u.is_active ? 'user-x' : 'user-check') + '"></i></button>' : '') +
-          (canManage && !isSelf && !isOwner ? '<button class="icon-btn danger" data-action="delete" data-id="' + u.id + '" title="حذف"><i data-lucide="trash-2"></i></button>' : '') +
+          (can('users.edit') && !isSelf && !isOwner && (can('users.manage') || !assignedRoleIsPrivileged) ? '<button class="icon-btn" data-action="edit" data-id="' + u.id + '" title="تعديل"><i data-lucide="edit"></i></button>' : '') +
+          (can('users.manage') && !isSelf ? '<button class="icon-btn warn" data-action="password" data-id="' + u.id + '" title="تغيير كلمة المرور"><i data-lucide="key-round"></i></button>' : '') +
+          (can('users.edit') && !isSelf && !isOwner ? '<button class="icon-btn ' + (u.is_active ? 'danger' : 'success') + '" data-action="toggle" data-id="' + u.id + '" title="' + (u.is_active ? 'تعطيل' : 'تفعيل') + '"><i data-lucide="' + (u.is_active ? 'user-x' : 'user-check') + '"></i></button>' : '') +
+          (can('users.delete') && !isSelf && !isOwner ? '<button class="icon-btn danger" data-action="delete" data-id="' + u.id + '" title="حذف"><i data-lucide="trash-2"></i></button>' : '') +
         '</div></td>' +
       '</tr>';
     }).join('');
@@ -677,8 +688,15 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   function fillSelects() {
+    const assignableRoles = roles.filter(r => !r.is_owner).filter(r => {
+      if (can('users.manage')) return true;
+      const permissions = Array.isArray(r.permissions) ? r.permissions : [];
+      return !permissions.some(permission =>
+        ['admin.full', 'company.owner', 'company.delete', 'users.manage', 'roles.manage'].includes(permission)
+      );
+    });
     const roleOptions = '<option value="">اختر دور...</option>' +
-      roles.map(r => '<option value="' + r.id + '">' + esc(r.name) + (r.is_owner ? ' 👑' : '') + '</option>').join('');
+      assignableRoles.map(r => '<option value="' + r.id + '">' + esc(r.name) + '</option>').join('');
     document.getElementById('userRole').innerHTML = roleOptions;
 
     const roleFilterOptions = '<option value="">كل الأدوار</option>' +
@@ -710,6 +728,7 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   function openAddModal() {
+    if (!can('users.create')) { toast('error', 'لا تملك صلاحية إضافة مستخدمين'); return; }
     document.getElementById('userModalTitle').textContent = 'مستخدم جديد';
     document.getElementById('userFormError').classList.remove('show');
     document.getElementById('userId').value = '';
@@ -733,6 +752,7 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   function openEditModal(id) {
+    if (!can('users.edit')) { toast('error', 'لا تملك صلاحية تعديل المستخدمين'); return; }
     const u = users.find(x => x.id === id);
     if (!u) return;
     if (u.is_owner || (u.roles && u.roles.is_owner)) {
@@ -741,6 +761,14 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
     }
     if (u.id === session.user_id) {
       toast('warning', 'لا يمكنك تعديل نفسك');
+      return;
+    }
+    const assignedRole = roles.find(role => role.id === u.role_id);
+    const assignedPermissions = assignedRole && Array.isArray(assignedRole.permissions) ? assignedRole.permissions : [];
+    if (!can('users.manage') && (assignedRole?.is_owner || assignedPermissions.some(permission =>
+      ['admin.full', 'company.owner', 'company.delete', 'users.manage', 'roles.manage'].includes(permission)
+    ))) {
+      toast('warning', 'تحتاج إلى صلاحية users.manage لتعديل مستخدم ذي دور إداري');
       return;
     }
 
@@ -769,6 +797,11 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
     errEl.classList.remove('show');
 
     const id = document.getElementById('userId').value;
+    if (!can(id ? 'users.edit' : 'users.create')) {
+      errEl.textContent = 'لا تملك الصلاحية اللازمة لهذا الإجراء';
+      errEl.classList.add('show');
+      return;
+    }
     const name = document.getElementById('userName').value.trim();
     const username = document.getElementById('userUsername').value.trim();
     const email = document.getElementById('userEmail').value.trim();
@@ -807,6 +840,16 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
     if (!roleId) {
       document.getElementById('userRole').classList.add('error');
       errEl.textContent = 'اختر الدور';
+      errEl.classList.add('show');
+      return;
+    }
+    const selectedRole = roles.find(role => role.id === roleId);
+    const selectedPermissions = selectedRole && Array.isArray(selectedRole.permissions) ? selectedRole.permissions : [];
+    if (!selectedRole || selectedRole.is_owner || (!can('users.manage') && selectedPermissions.some(permission =>
+      ['admin.full', 'company.owner', 'company.delete', 'users.manage', 'roles.manage'].includes(permission)
+    ))) {
+      document.getElementById('userRole').classList.add('error');
+      errEl.textContent = 'لا تملك صلاحية تعيين هذا الدور الإداري';
       errEl.classList.add('show');
       return;
     }
@@ -921,6 +964,7 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   async function toggleUser(id) {
+    if (!can('users.edit')) { toast('error', 'لا تملك صلاحية تعديل المستخدمين'); return; }
     const u = users.find(x => x.id === id);
     if (!u) return;
     if (u.is_owner || (u.roles && u.roles.is_owner)) {
@@ -943,6 +987,7 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   function openPasswordModal(id) {
+    if (!can('users.manage')) { toast('error', 'لا تملك صلاحية إدارة كلمات المرور'); return; }
     const u = users.find(x => x.id === id);
     if (!u) return;
     if (u.is_owner || (u.roles && u.roles.is_owner)) {
@@ -960,6 +1005,7 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   async function confirmPasswordChange() {
+    if (!can('users.manage')) { toast('error', 'لا تملك صلاحية إدارة كلمات المرور'); return; }
     const errEl = document.getElementById('passwordFormError');
     errEl.classList.remove('show');
     const userId = document.getElementById('pwdUserId').value;
@@ -998,6 +1044,7 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   function openDeleteModal(id) {
+    if (!can('users.delete')) { toast('error', 'لا تملك صلاحية حذف المستخدمين'); return; }
     const u = users.find(x => x.id === id);
     if (!u) return;
     if (u.is_owner || (u.roles && u.roles.is_owner)) {
@@ -1015,6 +1062,7 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
   }
 
   async function confirmDelete() {
+    if (!can('users.delete')) { toast('error', 'لا تملك صلاحية حذف المستخدمين'); return; }
     const errEl = document.getElementById('deleteError');
     errEl.classList.remove('show');
     const id = document.getElementById('deleteUserId').value;
@@ -1104,7 +1152,7 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
       return;
     }
 
-    canManage = !!(session.is_owner || (session.permissions && session.permissions.includes('admin.full')));
+    canManage = can('users.manage');
 
     const branchNameEl = document.getElementById('branchName');
     if (branchNameEl) {
@@ -1112,11 +1160,11 @@ tbody tr.inactive{opacity:0.6;background:rgba(239,68,68,0.03)}
       branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
     }
 
-    if (!canManage) {
+    if (!canManage && !can('users.create') && !can('users.edit') && !can('users.delete')) {
       document.getElementById('permissionBanner').style.display = 'flex';
-      document.getElementById('permissionBannerText').innerHTML = '<strong>أنت في وضع القراءة فقط.</strong> إدارة المستخدمين متاحة للمالك فقط.';
-      document.getElementById('addUserBtn').style.display = 'none';
+      document.getElementById('permissionBannerText').innerHTML = '<strong>أنت في وضع القراءة فقط.</strong> إدارة المستخدمين تتطلب صلاحية users.manage.';
     }
+    if (!can('users.create')) document.getElementById('addUserBtn').style.display = 'none';
 
     await loadRoles();
     await loadBranches();

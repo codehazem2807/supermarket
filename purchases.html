@@ -627,8 +627,32 @@ tbody tr:last-child td{border-bottom:none}
   let currentPage = 1;
   let currentDetailsPoId = null;
   let editingPoId = null;
+  let pendingReceiptId = null;
+  let pendingReceiptPoId = null;
   const PAGE_SIZE = 25;
   let lastPoSupplierMap = {};
+
+  function createRequestId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+    if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') {
+      throw new Error('المتصفح لا يدعم إنشاء رقم آمن لعملية الاستلام');
+    }
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  function hasPurchasePermission(permission) {
+    const permissions = Array.isArray(session && session.permissions) ? session.permissions : [];
+    return !!(session && (session.is_owner || permissions.includes('*') ||
+      permissions.includes('admin.full') || permissions.includes('purchases.full') ||
+      permissions.includes(permission)));
+  }
 
   let purchaseSettings = {
     requireExpiryDate: true,
@@ -792,24 +816,46 @@ tbody tr:last-child td{border-bottom:none}
   // LOADERS
   // ═══════════════════════════════════════════════════════════
   async function loadWarehouse() {
-    let res = await sb.from('warehouses').select('id, name')
+    let res = await sb.from('warehouses').select('id, name, branch_id')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
+      .eq('is_active', true)
+      .is('deleted_at', null)
       .limit(1).maybeSingle();
+    if (res.error) {
+      console.error('[Purchases] warehouse load failed:', res.error);
+      toast('error', 'فشل تحميل المخزن: ' + res.error.message);
+      throw res.error;
+    }
     warehouse = res.data;
     if (!warehouse) {
-      res = await sb.from('warehouses').select('id, name').eq('company_id', session.company_id).limit(1).maybeSingle();
+      res = await sb.from('warehouses').select('id, name, branch_id')
+        .eq('company_id', session.company_id)
+        .is('branch_id', null)
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .limit(1).maybeSingle();
+      if (res.error) {
+        console.error('[Purchases] shared warehouse load failed:', res.error);
+        toast('error', 'فشل تحميل المخزن المشترك: ' + res.error.message);
+        throw res.error;
+      }
       warehouse = res.data;
     }
   }
 
   async function loadProducts() {
     const res = await sb.from('products')
-      .select('id, name, barcode, plu_code, cost_price, sale_price, unit, base_unit, purchase_unit, sale_unit, units_per_purchase, units_per_sale, purchase_price, is_bundle, is_weighted, min_stock')
+      .select('id, name, barcode, plu_code, cost_price, sale_price, unit, base_unit, purchase_unit, sale_unit, units_per_purchase, units_per_sale, purchase_price, is_bundle, is_weighed, min_stock')
       .eq('company_id', session.company_id)
       .eq('is_active', true)
       .is('deleted_at', null)
       .order('name');
+    if (res.error) {
+      console.error('[Purchases] product load failed:', res.error);
+      toast('error', 'فشل تحميل المنتجات: ' + res.error.message);
+      throw res.error;
+    }
     products = res.data || [];
   }
 
@@ -881,8 +927,13 @@ tbody tr:last-child td{border-bottom:none}
 
   async function loadPoItems(poId) {
     const res = await sb.from('purchase_order_items')
-      .select('*, products(name, unit, base_unit, purchase_unit, units_per_purchase, sale_price, is_weighted)')
+      .select('*, products(name, unit, base_unit, purchase_unit, units_per_purchase, sale_price, is_weighed)')
       .eq('po_id', poId);
+    if (res.error) {
+      console.error('[Purchases] purchase order items load failed:', res.error);
+      toast('error', 'فشل تحميل أصناف أمر الشراء: ' + res.error.message);
+      throw res.error;
+    }
     return res.data || [];
   }
 
@@ -959,7 +1010,9 @@ tbody tr:last-child td{border-bottom:none}
     tbody.innerHTML = pageItems.map(po => {
       const info = poItemsMap[po.id] || { count: 0, baseUnits: 0 };
       const canEdit = ['draft', 'pending'].includes(po.status);
-      const canReceive = ['draft', 'pending', 'approved', 'partially_received'].includes(po.status);
+      const canApprove = po.status === 'pending' && hasPurchasePermission('purchases.approve');
+      const canReceive = ['approved', 'partially_received'].includes(po.status) &&
+        hasPurchasePermission('purchases.receive');
       const canCancel = ['draft', 'pending', 'approved'].includes(po.status);
       const canDuplicate = po.status !== 'cancelled';
 
@@ -975,6 +1028,7 @@ tbody tr:last-child td{border-bottom:none}
           (canEdit ? '<button class="icon-btn warn" data-action="edit" data-id="' + po.id + '" title="تعديل"><i data-lucide="edit"></i></button>' : '') +
           (canDuplicate ? '<button class="icon-btn" data-action="duplicate" data-id="' + po.id + '" title="تكرار"><i data-lucide="copy"></i></button>' : '') +
           '<button class="icon-btn" data-action="print" data-id="' + po.id + '" title="طباعة"><i data-lucide="printer"></i></button>' +
+          (canApprove ? '<button class="icon-btn success" data-action="approve" data-id="' + po.id + '" title="اعتماد"><i data-lucide="badge-check"></i></button>' : '') +
           (canReceive ? '<button class="icon-btn success" data-action="receive" data-id="' + po.id + '" title="استلام"><i data-lucide="package-check"></i></button>' : '') +
           (canCancel ? '<button class="icon-btn danger" data-action="cancel" data-id="' + po.id + '" title="إلغاء"><i data-lucide="x"></i></button>' : '') +
         '</div></td>' +
@@ -987,6 +1041,7 @@ tbody tr:last-child td{border-bottom:none}
     tbody.querySelectorAll('[data-action="edit"]').forEach(b => b.onclick = () => openEditModal(b.dataset.id));
     tbody.querySelectorAll('[data-action="duplicate"]').forEach(b => b.onclick = () => duplicatePo(b.dataset.id));
     tbody.querySelectorAll('[data-action="print"]').forEach(b => b.onclick = () => printPo(b.dataset.id));
+    tbody.querySelectorAll('[data-action="approve"]').forEach(b => b.onclick = () => approvePo(b.dataset.id));
     tbody.querySelectorAll('[data-action="receive"]').forEach(b => b.onclick = () => openReceiveModal(b.dataset.id));
     tbody.querySelectorAll('[data-action="cancel"]').forEach(b => b.onclick = () => openCancelModal(b.dataset.id));
 
@@ -1033,14 +1088,14 @@ tbody tr:last-child td{border-bottom:none}
     const productOpts = '<option value="">اختر منتج...</option>' +
       products.filter(p => !p.is_bundle).map(p => {
         let label = p.name;
-        if (p.is_weighted) label += ' [موزون]';
+        if (p.is_weighed) label += ' [موزون]';
         return '<option value="' + p.id + '"' +
           ' data-cost="' + (p.cost_price || 0) + '"' +
           ' data-pp="' + (p.purchase_price || 0) + '"' +
           ' data-upp="' + (p.units_per_purchase || 1) + '"' +
           ' data-pu="' + (p.purchase_unit || 'piece') + '"' +
           ' data-bu="' + (p.base_unit || 'piece') + '"' +
-          ' data-weighted="' + (p.is_weighted ? '1' : '0') + '"' +
+          ' data-weighted="' + (p.is_weighed ? '1' : '0') + '"' +
           (p.id === productId ? ' selected' : '') + '>' + esc(label) + '</option>';
       }).join('');
 
@@ -1283,7 +1338,7 @@ tbody tr:last-child td{border-bottom:none}
       addPoItemRow();
     } else {
       items.forEach(item => {
-        const unitType = item.purchase_unit && item.purchase_unit !== 'base' && item.purchase_unit !== 'piece' ? 'purchase' : 'base';
+        const unitType = item.is_purchase_unit ? 'purchase' : 'base';
         addPoItemRow(item.product_id, item.quantity, item.unit_cost, unitType);
       });
     }
@@ -1295,6 +1350,10 @@ tbody tr:last-child td{border-bottom:none}
   async function duplicatePo(poId) {
     const po = purchaseOrders.find(p => p.id === poId);
     if (!po) return;
+    if (!warehouse) {
+      toast('error', 'لا يوجد مخزن نشط لهذا الفرع أو مخزن مشترك للشركة');
+      return;
+    }
     if (!confirm('تكرار أمر الشراء ' + po.po_number + ' كأمر جديد؟')) return;
 
     try {
@@ -1324,12 +1383,14 @@ tbody tr:last-child td{border-bottom:none}
         quantity: i.quantity,
         unit_cost: i.unit_cost,
         purchase_unit: i.purchase_unit,
+        is_purchase_unit: i.is_purchase_unit,
         units_per_purchase: i.units_per_purchase,
         base_qty: i.base_qty,
         base_unit_cost: i.base_unit_cost,
         received_qty: 0
       }));
-      await sb.from('purchase_order_items').insert(itemRows);
+      const itemRes = await sb.from('purchase_order_items').insert(itemRows);
+      if (itemRes.error) throw itemRes.error;
 
       toast('success', 'تم نسخ الأمر كمسودة جديدة');
       await loadPOs();
@@ -1451,6 +1512,7 @@ tbody tr:last-child td{border-bottom:none}
         quantity: qty,
         unit_cost: cost,
         purchase_unit: unitType === 'purchase' ? purchaseUnit : baseUnit,
+        is_purchase_unit: unitType === 'purchase',
         units_per_purchase: upp,
         base_qty: calc.base_qty,
         base_unit_cost: calc.base_unit_cost,
@@ -1460,6 +1522,7 @@ tbody tr:last-child td{border-bottom:none}
 
     if (!supplierId) { errEl.textContent = 'اختر المورد'; errEl.classList.add('show'); return; }
     if (items.length === 0) { errEl.textContent = 'أضف صنفاً واحداً على الأقل'; errEl.classList.add('show'); return; }
+    if (!warehouse) { errEl.textContent = 'لا يوجد مخزن نشط لهذا الفرع أو مخزن مشترك للشركة'; errEl.classList.add('show'); return; }
 
     const total = items.reduce((s, i) => s + i.line_total, 0);
 
@@ -1522,6 +1585,7 @@ tbody tr:last-child td{border-bottom:none}
         quantity: i.quantity,
         unit_cost: i.unit_cost,
         purchase_unit: i.purchase_unit,
+        is_purchase_unit: i.is_purchase_unit,
         units_per_purchase: i.units_per_purchase,
         base_qty: i.base_qty,
         base_unit_cost: i.base_unit_cost,
@@ -1655,7 +1719,7 @@ tbody tr:last-child td{border-bottom:none}
             (items.length === 0 ? '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted)">لا أصناف</td></tr>' :
               items.map(function (i) {
                 const prod = i.products || {};
-                const unitLabel = i.purchase_unit === 'purchase' ?
+                const unitLabel = i.is_purchase_unit ?
                   (prod.purchase_unit || 'وحدة شراء') :
                   (prod.base_unit || 'وحدة');
                 const baseUnitLabel = prod.base_unit || '—';
@@ -1681,6 +1745,25 @@ tbody tr:last-child td{border-bottom:none}
     if (window.lucide) lucide.createIcons();
   }
 
+  async function approvePo(poId) {
+    if (!hasPurchasePermission('purchases.approve')) {
+      toast('error', 'ليس لديك صلاحية اعتماد أوامر الشراء');
+      return;
+    }
+    if (!confirm('اعتماد أمر الشراء؟ بعد الاعتماد يمكن استلامه للمخزون.')) return;
+    try {
+      const { error } = await sb.rpc('approve_purchase_order', { p_po_id: poId });
+      if (error) throw error;
+      toast('success', 'تم اعتماد أمر الشراء');
+      await loadPOs();
+      renderStats();
+      renderTable();
+    } catch (e) {
+      console.error('[Purchases] approval failed:', e);
+      toast('error', 'فشل اعتماد أمر الشراء: ' + (e.message || ''));
+    }
+  }
+
   function printPo(id) {
     const po = purchaseOrders.find(p => p.id === id);
     if (!po) return;
@@ -1690,10 +1773,28 @@ tbody tr:last-child td{border-bottom:none}
   async function openReceiveModal(poId) {
     const po = purchaseOrders.find(p => p.id === poId);
     if (!po) return;
+    if (!['approved', 'partially_received'].includes(po.status)) {
+      toast('warning', 'يجب اعتماد أمر الشراء قبل استلامه');
+      return;
+    }
+    if (!hasPurchasePermission('purchases.receive')) {
+      toast('error', 'ليس لديك صلاحية استلام المشتريات');
+      return;
+    }
 
     document.getElementById('receivePoId').value = poId;
     document.getElementById('receiveFormError').classList.remove('show');
+    document.getElementById('receiveFormError').textContent = '';
     document.getElementById('receiveAllFull').checked = true;
+    if (!pendingReceiptId || pendingReceiptPoId !== poId) {
+      try {
+        pendingReceiptId = createRequestId();
+        pendingReceiptPoId = poId;
+      } catch (e) {
+        toast('error', e.message);
+        return;
+      }
+    }
 
     const items = await loadPoItems(poId);
 
@@ -1710,13 +1811,13 @@ tbody tr:last-child td{border-bottom:none}
       const receivedQty = Number(i.received_qty || 0);
       const remaining = requestedQty - receivedQty;
       const upp = Number(i.units_per_purchase) || 1;
-      const isPurchaseUnit = i.purchase_unit && i.purchase_unit !== 'base' && i.purchase_unit !== 'piece';
+      const isPurchaseUnit = !!i.is_purchase_unit;
       const defaultExpiry = new Date(Date.now() + 365*24*60*60*1000).toISOString().slice(0,10);
       const suggestedSalePrice = prod.sale_price || i.base_unit_cost || i.unit_cost;
       const baseQtyOrdered = i.base_qty || (requestedQty * (isPurchaseUnit ? upp : 1));
       const baseQtyReceived = receivedQty * (isPurchaseUnit ? upp : 1);
       const baseQtyRemaining = Math.max(0, baseQtyOrdered - baseQtyReceived);
-      const isWeighted = prod.is_weighted;
+      const isWeighted = prod.is_weighed;
       const baseUnit = prod.base_unit || 'piece';
       const allowDecimal = unitAllowsDecimal(baseUnit, isWeighted);
       const step = allowDecimal ? '0.001' : '1';
@@ -1752,49 +1853,55 @@ tbody tr:last-child td{border-bottom:none}
 
     const items = await loadPoItems(poId);
     const payload = [];
-    const itemUpdates = [];
     let missingExpiry = false;
+    let invalidQuantity = false;
 
     document.querySelectorAll('#receiveItemsContainer [data-item-id]').forEach(function (row) {
       const itemId = row.dataset.itemId;
       const upp = Number(row.dataset.upp) || 1;
       const isPurchaseUnit = row.dataset.isPurchase === '1';
       const allowDecimal = row.dataset.allowDecimal === '1';
-      let qty = Number(row.querySelector('.recv-qty').value) || 0;
+      const qtyInput = row.querySelector('.recv-qty').value.trim();
+      let qty = qtyInput === '' ? 0 : Number(qtyInput);
       const expiry = row.querySelector('.recv-expiry').value;
       const salePrice = Number(row.querySelector('.recv-sale').value) || 0;
-      if (qty <= 0) return;
+      if (!Number.isFinite(qty) || qty < 0 || (!allowDecimal && !Number.isInteger(qty))) {
+        invalidQuantity = true;
+        errEl.textContent = 'راجع الكمية: يجب أن تكون موجبة وبصيغة صحيحة لوحدة الصنف';
+        return;
+      }
+      if (qty === 0) return;
 
       if (purchaseSettings.requireExpiryDate && !expiry) {
         missingExpiry = true;
         return;
       }
 
-      if (!allowDecimal) qty = Math.floor(qty);
-
       const item = items.find(function (i) { return i.id === itemId; });
       if (!item) return;
 
-      const baseQty = isPurchaseUnit ? qty * upp : qty;
-      const baseUnitCost = item.base_unit_cost
-        ? Number(item.base_unit_cost)
-        : (isPurchaseUnit ? Number(item.unit_cost) / upp : Number(item.unit_cost));
+      if (qty > Number(row.dataset.defaultQty) + 0.0005) {
+        invalidQuantity = true;
+        errEl.textContent = 'الكمية المستلمة أكبر من الكمية المتبقية في أمر الشراء';
+        return;
+      }
 
       payload.push({
+        purchase_order_item_id: item.id,
         product_id: item.product_id,
-        quantity: baseQty,
-        unit_cost: baseUnitCost,
-        sale_price: salePrice > 0 ? salePrice : ((item.products && item.products.sale_price) || baseUnitCost),
+        received_quantity: qty,
+        sale_price: salePrice > 0 ? salePrice : Number((item.products && item.products.sale_price) || item.base_unit_cost || 0),
         expiry_date: expiry,
         lot_number: null
       });
-
-      const currentReceived = Number(item.received_qty || 0);
-      itemUpdates.push({ id: itemId, received_qty: currentReceived + qty });
     });
 
+    if (invalidQuantity) {
+      errEl.classList.add('show');
+      return;
+    }
     if (missingExpiry) {
-      errEl.textContent = 'تاريخ الصلاحية مطلوب لكل صنف حسب إعدادات الشركة';
+      if (!errEl.textContent) errEl.textContent = 'تاريخ الصلاحية مطلوب لكل صنف حسب إعدادات الشركة';
       errEl.classList.add('show');
       return;
     }
@@ -1810,27 +1917,24 @@ tbody tr:last-child td{border-bottom:none}
     btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
 
     try {
-      const res = await sb.rpc('record_receipt', {
+      const res = await sb.rpc('record_purchase_receipt', {
+        p_receipt_id: pendingReceiptId,
         p_company: session.company_id,
-        p_branch: session.active_branch_id,
-        p_warehouse: warehouse.id,
+        p_branch: po.branch_id,
+        p_warehouse: po.warehouse_id,
         p_supplier: po.supplier_id,
         p_po: poId,
         p_items: payload,
         p_notes: null
       });
       if (res.error) throw res.error;
-
-      for (const upd of itemUpdates) {
-        await sb.from('purchase_order_items').update({ received_qty: upd.received_qty }).eq('id', upd.id);
-      }
-
-      const updatedItems = await loadPoItems(poId);
-      const allReceived = updatedItems.every(i => Number(i.received_qty || 0) >= Number(i.quantity || 0));
-      await sb.from('purchase_orders').update({ status: allReceived ? 'received' : 'partially_received' }).eq('id', poId);
-
-      toast('success', 'تم استلام ' + payload.length + ' صنف');
+      const receipt = res.data || {};
+      toast('success', receipt.duplicate
+        ? 'تم تأكيد عملية الاستلام السابقة دون تكرار المخزون'
+        : 'تم استلام ' + payload.length + ' صنف');
       document.getElementById('receiveModal').classList.remove('show');
+      pendingReceiptId = null;
+      pendingReceiptPoId = null;
       await loadPOs();
       renderStats();
       renderTable();
@@ -1876,7 +1980,7 @@ tbody tr:last-child td{border-bottom:none}
 
           const smart = smartUnitSelection(product, s.suggested_qty);
 
-          const allowDecimal = unitAllowsDecimal(smart.baseUnit, product.is_weighted);
+          const allowDecimal = unitAllowsDecimal(smart.baseUnit, product.is_weighed);
           let finalQty = smart.qty;
           if (!allowDecimal) finalQty = Math.floor(finalQty);
           if (finalQty <= 0) finalQty = 1;
@@ -2070,6 +2174,10 @@ tbody tr:last-child td{border-bottom:none}
 
   async function applyAiSuggest(analysis, coverageDays) {
     if (!analysis) return;
+    if (!warehouse) {
+      toast('error', 'لا يوجد مخزن نشط لهذا الفرع أو مخزن مشترك للشركة');
+      return;
+    }
 
     const selected = [];
     document.querySelectorAll('.ai-suggest-item').forEach(function (item) {
@@ -2139,6 +2247,7 @@ tbody tr:last-child td{border-bottom:none}
           quantity: it.quantity,
           unit_cost: it.unit_cost,
           purchase_unit: it.unit_type === 'purchase' ? it.unit_label : it.base_label,
+          is_purchase_unit: it.unit_type === 'purchase',
           units_per_purchase: it.upp,
           base_qty: it.base_qty,
           base_unit_cost: it.base_unit_cost,

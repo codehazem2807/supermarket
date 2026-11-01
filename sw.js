@@ -1,7 +1,7 @@
 // ============================================================================
-// REFAD ERP v3.0 — Service Worker
+// REFAD ERP v5.1 — Service Worker
 // ============================================================================
-const CACHE_VERSION = 'refad-v3.0.0';
+const CACHE_VERSION = 'refad-v5.1.0';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -10,7 +10,12 @@ const STATIC_ASSETS = [
   '/index.html',
   '/dashboard.html',
   '/pos.html',
+  '/offline_queue.html',
   '/config.js',
+  '/app.js',
+  '/theme.js',
+  '/design-system.css',
+  '/ai-reorder.js',
   '/manifest.json',
   '/logo.png',
   '/icons/icon-192.png',

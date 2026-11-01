@@ -340,9 +340,12 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     ]},
     { key: 'products', label: 'المنتجات', icon: 'package', permissions: [
       { code: 'products.view', label: 'عرض المنتجات' },
+      { code: 'products.manage', label: 'إضافة وتعديل المنتجات' },
       { code: 'products.create', label: 'إضافة منتجات' },
       { code: 'products.edit', label: 'تعديل منتجات' },
-      { code: 'products.delete', label: 'حذف منتجات' }
+      { code: 'products.delete', label: 'حذف منتجات' },
+      { code: 'products.price_edit', label: 'تعديل أسعار البيع' },
+      { code: 'products.cost_view', label: 'عرض التكلفة وهوامش الربح' }
     ]},
     { key: 'purchases', label: 'المشتريات', icon: 'truck', permissions: [
       { code: 'purchases.view', label: 'عرض المشتريات' },
@@ -378,11 +381,64 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     ]},
     { key: 'users', label: 'المستخدمون', icon: 'user-cog', permissions: [
       { code: 'users.view', label: 'عرض المستخدمين' },
+      { code: 'users.manage', label: 'إدارة المستخدمين' },
       { code: 'users.create', label: 'إضافة مستخدمين' },
       { code: 'users.edit', label: 'تعديل مستخدمين' },
       { code: 'users.delete', label: 'حذف مستخدمين' }
     ]}
   ];
+
+  const knownPermissionCodes = new Set(PERMISSION_GROUPS.flatMap(g => g.permissions.map(p => p.code)));
+  const permissionGroupLabels = {
+    accounting: 'المحاسبة', audit: 'سجل التدقيق', branches: 'الفروع', company: 'الشركة',
+    expenses: 'المصروفات', forecast: 'التنبؤ', loyalty: 'الولاء', offline_queue: 'العمليات غير المتصلة',
+    payments: 'المدفوعات', promotions: 'العروض', seasons: 'المواسم', session: 'الورديات',
+    store: 'المتجر الإلكتروني', warehouses: 'المخازن', barcode: 'الباركود',
+    chat: 'المحادثات', notifications: 'الإشعارات', subscriptions: 'الاشتراكات'
+  };
+  const permissionActionLabels = {
+    view: 'عرض', manage: 'إدارة', create: 'إضافة', edit: 'تعديل', delete: 'حذف',
+    full: 'تحكم كامل', export: 'تصدير', approve: 'اعتماد', receive: 'استلام',
+    transfer: 'تحويل', count: 'جرد', compare: 'مقارنة', security: 'أمان',
+    post: 'ترحيل', use: 'استخدام', generate: 'إنشاء', adjust: 'تسوية',
+    shrink: 'هالك', refund: 'مرتجعات', theme: 'تخصيص', 'preset_apply': 'تطبيق إعداد مسبق',
+    'orders_view': 'عرض الطلبات', 'orders_manage': 'إدارة الطلبات',
+    'settings_view': 'عرض إعدادات المتجر', 'settings_manage': 'إدارة إعدادات المتجر',
+    'force_close': 'إغلاق إجباري', 'financial': 'التقارير المالية'
+  };
+  const configuredPermissions = [...new Set(Object.values(cfg.PERMISSIONS || {}))];
+  const extraPermissionGroups = {};
+  configuredPermissions.forEach(code => {
+    if (!code || knownPermissionCodes.has(code)) return;
+    const key = code.split('.')[0];
+    if (!extraPermissionGroups[key]) {
+      extraPermissionGroups[key] = {
+        key: 'catalog-' + key,
+        label: permissionGroupLabels[key] || key,
+        icon: 'key-round',
+        permissions: []
+      };
+    }
+    const action = code.slice(code.indexOf('.') + 1);
+    const label = (permissionGroupLabels[key] || key) + ' — ' + (permissionActionLabels[action] || action.replace(/_/g, ' '));
+    extraPermissionGroups[key].permissions.push({ code, label });
+    knownPermissionCodes.add(code);
+  });
+  Object.keys(extraPermissionGroups).forEach(key => PERMISSION_GROUPS.push(extraPermissionGroups[key]));
+  rolesPermissionGroupsAddLegacyLabels();
+
+  function rolesPermissionGroupsAddLegacyLabels() {
+    rolesPermissionGroupsAddMissing(cfg.PERMISSIONS && cfg.PERMISSIONS.POS_REFUND, 'إنشاء مرتجعات');
+    rolesPermissionGroupsAddMissing(cfg.PERMISSIONS && cfg.PERMISSIONS.SALES_MANAGE, 'إدارة المبيعات');
+  }
+
+  function rolesPermissionGroupsAddMissing(code, label) {
+    if (!code || knownPermissionCodes.has(code)) return;
+    const group = PERMISSION_GROUPS.find(g => g.key === (code.startsWith('pos.') ? 'pos' : 'sales'));
+    if (!group) return;
+    group.permissions.push({ code, label });
+    knownPermissionCodes.add(code);
+  }
 
   const ALL_PERMISSIONS = PERMISSION_GROUPS.flatMap(g => g.permissions.map(p => p.code));
 
@@ -508,6 +564,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
   }
 
   function buildPermissionsUI(selectedPerms, readonly) {
+    addLegacyPermissions(selectedPerms);
     document.getElementById('permTabs').innerHTML = PERMISSION_GROUPS.map((grp, g) => {
       const count = grp.permissions.filter(p => selectedPerms.includes(p.code)).length;
       return '<button type="button" class="perm-tab' + (g === 0 ? ' active' : '') + '" data-perm-tab="' + grp.key + '">' +
@@ -521,8 +578,10 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
       return '<div class="perm-group' + (g === 0 ? ' active' : '') + '" data-perm-group="' + grp.key + '">' +
         grp.permissions.map(perm => {
           const checked = selectedPerms.includes(perm.code);
+          const protectedPermission = ['admin.full', 'company.owner', 'company.delete', 'users.manage', 'roles.manage'].includes(perm.code);
+          const locked = readonly || grp.key === 'legacy' || (protectedPermission && !session.is_owner);
           return '<label class="perm-check' + (checked ? ' checked' : '') + '">' +
-            '<input type="checkbox" data-perm-code="' + perm.code + '"' + (checked ? ' checked' : '') + (readonly ? ' disabled' : '') + '>' +
+            '<input type="checkbox" data-perm-code="' + perm.code + '"' + (checked ? ' checked' : '') + (locked ? ' disabled' : '') + '>' +
             '<span class="perm-check-label">' + esc(perm.label) + '</span>' +
             '<span class="perm-check-code">' + esc(perm.code) + '</span>' +
           '</label>';
@@ -561,6 +620,19 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
         updateTabCounts();
       };
     });
+  }
+
+  function addLegacyPermissions(selectedPerms) {
+    const uncatalogued = selectedPerms.filter(code => !knownPermissionCodes.has(code));
+    if (uncatalogued.length) {
+      const legacyGroup = PERMISSION_GROUPS.find(group => group.key === 'legacy');
+      const group = legacyGroup || { key: 'legacy', label: 'صلاحيات أخرى محفوظة', icon: 'key-round', permissions: [] };
+      uncatalogued.forEach(code => {
+        group.permissions.push({ code, label: 'صلاحية محفوظة: ' + code });
+        knownPermissionCodes.add(code);
+      });
+      if (!legacyGroup) PERMISSION_GROUPS.push(group);
+    }
   }
 
   function updateSelectionCount() {
@@ -665,6 +737,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     document.getElementById('saveRoleBtn').style.display = 'none';
 
     const perms = Array.isArray(role.permissions) ? role.permissions : [];
+    addLegacyPermissions(perms);
     const usersCount = roleUsersCount[role.id] || 0;
 
     let html = '<div style="background:var(--bg-soft);padding:16px;border-radius:10px;margin-bottom:20px">' +
@@ -700,6 +773,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
   }
 
   async function saveRole() {
+    if (!canManage) { toast('error', 'لا تملك صلاحية إدارة الأدوار'); return; }
     const errEl = document.getElementById('roleFormError');
     errEl.classList.remove('show');
 
@@ -708,6 +782,17 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     const code = document.getElementById('roleCode').value.trim().toLowerCase();
     const description = document.getElementById('roleDescription').value.trim();
     const perms = getSelectedPermissions();
+    const existingRole = id ? roles.find(role => role.id === id) : null;
+    const existingPermissions = existingRole && Array.isArray(existingRole.permissions) ? existingRole.permissions : [];
+    const protectedPermissions = ['admin.full', 'company.owner', 'company.delete', 'users.manage', 'roles.manage'];
+    const attemptedPrivilegeGrant = !session.is_owner && perms.some(permission =>
+      protectedPermissions.includes(permission) && !existingPermissions.includes(permission)
+    );
+    if (attemptedPrivilegeGrant) {
+      errEl.textContent = 'الصلاحيات الإدارية المحمية لا يمنحها إلا مالك الشركة';
+      errEl.classList.add('show');
+      return;
+    }
 
     document.querySelectorAll('#roleModal .form-input.error, #roleModal .form-textarea.error').forEach(i => i.classList.remove('error'));
 
@@ -785,6 +870,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
   }
 
   async function deleteRole(id) {
+    if (!canManage) { toast('error', 'لا تملك صلاحية إدارة الأدوار'); return; }
     const role = roles.find(r => r.id === id);
     if (!role) return;
 
@@ -840,7 +926,8 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
       return;
     }
 
-    canManage = !!(session.is_owner || (session.permissions && session.permissions.includes('roles.manage')));
+    canManage = !!(session.is_owner || (session.permissions &&
+      (session.permissions.includes('admin.full') || session.permissions.includes('roles.manage'))));
 
     const branchNameEl = document.getElementById('branchName');
     if (branchNameEl) {

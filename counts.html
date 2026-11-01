@@ -86,6 +86,14 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 .stat-value{font-size:20px;font-weight:800}
 .stat-sub{font-size:10.5px;color:var(--text-muted);margin-top:3px;font-weight:600}
 
+.active-count-card{border-color:var(--info);background:var(--info-soft)}
+.active-count-list{display:grid;gap:10px;padding:14px 18px}
+.active-count-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.active-count-info{display:flex;align-items:center;gap:12px;min-width:0}
+.active-count-info>div{min-width:0}
+.active-count-meta{font-size:12px;color:var(--text-muted);margin-top:4px}
+.active-count-item .btn{flex-shrink:0}
+
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
 .card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
 .card-title{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px}
@@ -633,6 +641,10 @@ tbody tr.clickable{cursor:pointer}
   .stat-label{font-size:10.5px}
   .stat-icon{width:28px;height:28px;margin-bottom:6px}
   .stat-icon svg{width:14px;height:14px}
+  .active-count-list{padding:10px}
+  .active-count-item{align-items:flex-start;flex-direction:column}
+  .active-count-info{width:100%}
+  .active-count-item .btn{width:100%;justify-content:center}
   .card-header{padding:12px 14px}
   .card-title{font-size:13px}
   .modal{padding:0;border-radius:16px 16px 0 0;max-height:96vh;margin-top:auto}
@@ -831,6 +843,14 @@ tbody tr.clickable{cursor:pointer}
       </div>
     </div>
 
+    <section class="card active-count-card hidden" id="activeCountsSection">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="loader"></i><span>جرد قيد التنفيذ</span></div>
+        <span class="badge badge-info" id="activeCountsTotal">0</span>
+      </div>
+      <div class="active-count-list" id="activeCountsList"></div>
+    </section>
+
     <div class="card">
       <div class="card-header">
         <div class="card-title"><i data-lucide="list"></i><span>قائمة الجرد</span></div>
@@ -1014,6 +1034,7 @@ tbody tr.clickable{cursor:pointer}
   let session = null;
   let warehouses = [];
   let counts = [];
+  let activeCounts = [];
   let currentCount = null;
   let currentItems = [];
   let completeTarget = null;
@@ -1021,6 +1042,7 @@ tbody tr.clickable{cursor:pointer}
   let productMapGlobal = {};
   let productByBarcode = {};
   let currentItemsByProductId = {};
+  const barcodeProcessing = new Set();
   let barcodeFocusTimer = null;
   let html5QrCode = null;
   let currentScanMode = 'manual'; // 'manual' | 'camera'
@@ -1124,15 +1146,24 @@ tbody tr.clickable{cursor:pointer}
   }
 
   async function loadCounts() {
-    let q = sb.from('v_warehouse_counts_summary')
+    let q = sb.from('v_warehouse_counts_summary_v2')
       .select('*')
       .eq('company_id', session.company_id)
       .order('started_at', { ascending: false });
     if (state.status) q = q.eq('status', state.status);
     if (state.type) q = q.eq('count_type', state.type);
     if (state.warehouse) q = q.eq('warehouse_id', state.warehouse);
-    const { data } = await q;
+    const { data, error } = await q;
+    if (error) throw error;
     counts = data || [];
+
+    const { data: activeData, error: activeError } = await sb.from('v_warehouse_counts_summary_v2')
+      .select('*')
+      .eq('company_id', session.company_id)
+      .eq('status', 'in_progress')
+      .order('started_at', { ascending: false });
+    if (activeError) throw activeError;
+    activeCounts = activeData || [];
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1149,6 +1180,35 @@ tbody tr.clickable{cursor:pointer}
     document.getElementById('statInProgress').textContent = inProgress;
     document.getElementById('statCompleted').textContent = completed;
     document.getElementById('statVariance').textContent = money(totalVarValue);
+    renderActiveCounts();
+  }
+
+  function renderActiveCounts() {
+    const section = document.getElementById('activeCountsSection');
+    const list = document.getElementById('activeCountsList');
+    if (!section || !list) return;
+
+    section.classList.toggle('hidden', activeCounts.length === 0);
+    document.getElementById('activeCountsTotal').textContent = activeCounts.length;
+    list.innerHTML = activeCounts.map(c => `
+      <div class="active-count-item">
+        <div class="active-count-info">
+          <span class="badge badge-info"><i data-lucide="loader"></i>جاري</span>
+          <div>
+            <strong class="count-num">${esc(c.count_number)}</strong>
+            <div class="active-count-meta">${esc(c.warehouse_name || '—')} · ${c.counted_items || 0} / ${c.total_items || 0} صنف</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" type="button" data-active-count="${esc(c.id)}">
+          <i data-lucide="arrow-up-left"></i><span>متابعة الجرد</span>
+        </button>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('[data-active-count]').forEach(button => {
+      button.onclick = () => openDetails(button.dataset.activeCount);
+    });
+    if (window.lucide) lucide.createIcons();
   }
 
   function renderTable() {
@@ -1331,7 +1391,22 @@ tbody tr.clickable{cursor:pointer}
   // ═══════════════════════════════════════════════════════════
   async function openDetails(countId) {
     currentCount = counts.find(c => c.id === countId);
-    if (!currentCount) return;
+    if (!currentCount) {
+      const { data, error } = await sb.from('v_warehouse_counts_summary_v2')
+        .select('*')
+        .eq('company_id', session.company_id)
+        .eq('id', countId)
+        .maybeSingle();
+      if (error) {
+        toast('error', 'فشل تحميل بيانات الجرد: ' + error.message);
+        return;
+      }
+      currentCount = data;
+    }
+    if (!currentCount) {
+      toast('error', 'الجرد غير موجود أو لم يعد متاحًا');
+      return;
+    }
 
     const detailsModal = document.getElementById('countDetailsModal');
     const detailsBody = document.getElementById('detailsBody');
@@ -1343,10 +1418,15 @@ tbody tr.clickable{cursor:pointer}
     detailsBody.innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
     detailsModal.classList.add('show');
 
-    const { data: itemsData } = await sb.from('warehouse_count_items')
+    const { data: itemsData, error: itemsError } = await sb.from('warehouse_count_items')
       .select('*')
       .eq('count_id', countId)
       .order('product_id');
+    if (itemsError) {
+      toast('error', 'فشل تحميل أصناف الجرد: ' + itemsError.message);
+      detailsBody.innerHTML = '';
+      return;
+    }
 
     currentItems = itemsData || [];
 
@@ -1356,13 +1436,17 @@ tbody tr.clickable{cursor:pointer}
       const chunks = [];
       for (let i = 0; i < productIds.length; i += 100) chunks.push(productIds.slice(i, i + 100));
       for (const chunk of chunks) {
-        const { data: prods } = await sb.from('products')
+        const { data: prods, error: productsError } = await sb.from('products')
           .select('id, name, barcode, plu_code, sale_unit, base_unit, min_stock')
           .in('id', chunk);
+        if (productsError) {
+          toast('error', 'فشل تحميل المنتجات: ' + productsError.message);
+          detailsBody.innerHTML = '';
+          return;
+        }
         (prods || []).forEach(p => { productMap[p.id] = p; });
       }
     }
-
     productMapGlobal = productMap;
     productByBarcode = {};
     currentItemsByProductId = {};
@@ -1372,6 +1456,23 @@ tbody tr.clickable{cursor:pointer}
       if (p.barcode) productByBarcode[p.barcode] = p;
       if (p.plu_code) productByBarcode[p.plu_code] = p;
     });
+
+    if (productIds.length > 0) {
+      const { data: barcodeRows, error: barcodeError } = await sb.from('product_barcodes')
+        .select('barcode, product_id')
+        .eq('company_id', session.company_id)
+        .in('product_id', productIds);
+      if (barcodeError) {
+        toast('error', 'فشل تحميل الباركودات البديلة: ' + barcodeError.message);
+        detailsBody.innerHTML = '';
+        return;
+      }
+      (barcodeRows || []).forEach(row => {
+        const product = productMap[row.product_id];
+        const barcode = row.barcode && row.barcode.trim();
+        if (product && barcode && !productByBarcode[barcode]) productByBarcode[barcode] = product;
+      });
+    }
 
     currentItems.forEach(it => {
       if (!currentItemsByProductId[it.product_id]) currentItemsByProductId[it.product_id] = [];
@@ -1695,6 +1796,8 @@ tbody tr.clickable{cursor:pointer}
       showBarcodeToast('error', 'المنتج غير موجود في هذا الجرد', product.name);
       return;
     }
+    if (barcodeProcessing.has(code)) return;
+    barcodeProcessing.add(code);
     let targetItem = items.find(it => it.counted_qty === null) || items[0];
     const newQty = Number(targetItem.counted_qty || 0) + 1;
     try {
@@ -1740,6 +1843,8 @@ tbody tr.clickable{cursor:pointer}
     } catch (e) {
       console.error('[Counts] barcode error:', e);
       showBarcodeToast('error', 'فشل التحديث', e.message);
+    } finally {
+      barcodeProcessing.delete(code);
     }
   }
 
@@ -1977,28 +2082,32 @@ tbody tr.clickable{cursor:pointer}
 
   async function confirmComplete() {
     if (!completeTarget) return;
+    const countId = completeTarget;
     const btn = document.getElementById('confirmCompleteBtn');
     if (!btn) return;
     btn.disabled = true;
     const original = btn.innerHTML;
     btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
+    let completed = false;
     try {
       const { error } = await sb.rpc('complete_warehouse_count', {
-        p_count_id: completeTarget,
+        p_count_id: countId,
         p_apply_adjustments: true
       });
       if (error) throw error;
+      completed = true;
       toast('success', '✅ تم إكمال الجرد وتطبيق التسويات');
       const completeModal = document.getElementById('completeModal');
       if (completeModal) completeModal.classList.remove('show');
-      const detailsModal = document.getElementById('countDetailsModal');
-      if (detailsModal) detailsModal.classList.remove('show');
       await loadCounts();
       renderStats();
       renderTable();
+      await openDetails(countId);
     } catch (e) {
       console.error('[Counts] complete error:', e);
-      toast('error', 'فشل الإكمال: ' + (e.message || ''));
+      toast('error', completed
+        ? 'تم إكمال الجرد، لكن تعذر تحديث تفاصيله: ' + (e.message || '')
+        : 'فشل الإكمال: ' + (e.message || ''));
     } finally {
       if (btn) {
         btn.disabled = false;

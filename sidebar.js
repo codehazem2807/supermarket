@@ -527,7 +527,7 @@
 
       .refad-sidebar {
         width: var(--refad-sidebar-w);
-        background: var(--refad-sidebar-bg);
+        background: linear-gradient(160deg, var(--refad-sidebar-bg), var(--primary-dark, #061a2e));
         color: var(--refad-sidebar-text);
         position: fixed;
         top: 0;
@@ -1141,12 +1141,118 @@
         }
       }
 
+      .refad-main-content {
+        background: var(--bg, #F1F5F9);
+      }
+      .refad-main-content > .topbar {
+        min-height: 72px;
+        height: auto;
+        padding: 14px clamp(16px, 2.4vw, 36px);
+        background: var(--card, #fff);
+        border-bottom-color: var(--border, #e2e8f0);
+        box-shadow: 0 4px 18px rgba(11,44,77,0.045);
+      }
+      .refad-main-content > .topbar h1 {
+        letter-spacing: -0.35px;
+        line-height: 1.35;
+      }
+      .refad-main-content > .content {
+        width: 100%;
+        max-width: 1680px;
+        margin-inline: auto;
+        padding: clamp(16px, 2.2vw, 32px);
+      }
+      .refad-main-content .card,
+      .refad-main-content .stat-card,
+      .refad-main-content .kpi-card {
+        border-color: var(--border, #e2e8f0);
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(11,44,77,0.035);
+      }
+      .refad-main-content .card {
+        box-shadow: 0 4px 18px rgba(11,44,77,0.045);
+      }
+      .refad-main-content .card-header {
+        min-height: 60px;
+        padding: 16px 20px;
+      }
+      .refad-main-content .btn,
+      .refad-main-content .icon-btn {
+        transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+      }
+      .refad-main-content .btn {
+        border-radius: 10px;
+      }
+      .refad-main-content .btn:focus-visible,
+      .refad-main-content .icon-btn:focus-visible,
+      .refad-main-content input:focus-visible,
+      .refad-main-content select:focus-visible,
+      .refad-main-content textarea:focus-visible,
+      .refad-sidebar a:focus-visible,
+      .refad-sidebar button:focus-visible {
+        outline: 3px solid var(--accent, #14B8A6);
+        outline-offset: 2px;
+      }
+      .refad-main-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+      .refad-main-content select,
+      .refad-main-content textarea {
+        border-radius: 9px;
+      }
+      .refad-main-content .table-wrap {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border, #e2e8f0) transparent;
+      }
+      .refad-main-content table thead {
+        background: var(--bg-soft, #f8fafc);
+      }
+      .refad-main-content table th {
+        font-size: 11px;
+        letter-spacing: 0.25px;
+      }
+      .refad-main-content table tbody tr:hover {
+        background: var(--bg-soft, #f8fafc);
+      }
+
+      @media (max-width: 768px) {
+        .refad-main-content > .topbar {
+          min-height: 64px;
+          padding: 12px 16px;
+        }
+        .refad-main-content > .topbar h1 {
+          font-size: 17px;
+        }
+        .refad-main-content > .content {
+          padding: 16px;
+        }
+        .refad-main-content .card-header {
+          padding: 14px 16px;
+        }
+      }
+      @media (max-width: 480px) {
+        .refad-main-content > .topbar {
+          gap: 8px;
+        }
+        .refad-main-content > .topbar .topbar-actions {
+          gap: 6px;
+        }
+        .refad-main-content > .content {
+          padding: 12px;
+        }
+        .refad-main-content .card,
+        .refad-main-content .stat-card,
+        .refad-main-content .kpi-card {
+          border-radius: 12px;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .refad-sidebar,
         .refad-sidebar-overlay,
         .refad-main-content,
         .refad-nav-item,
-        .refad-quick-search-box {
+        .refad-quick-search-box,
+        .refad-main-content .btn,
+        .refad-main-content .icon-btn {
           transition: none !important;
         }
         .refad-sk-line::after,

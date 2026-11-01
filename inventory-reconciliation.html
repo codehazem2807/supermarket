@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مصالحة المخزون والحسابات</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="config.js"></script>
+  <script src="theme-manager.js"></script>
+  <script src="settings-manager.js"></script>
+  <script src="app.js"></script>
+  <script src="theme.js"></script>
+  <style>
+    :root{--primary:#0B2C4D;--accent:#14B8A6;--accent-dark:#0d9488;--accent-soft:rgba(20,184,166,.1);--success:#10b981;--danger:#ef4444;--warning:#f59e0b;--bg:#F1F5F9;--bg-soft:#f8fafc;--card:#fff;--surface:#fff;--text:#0f172a;--text-muted:#64748b;--border:#e2e8f0;--font-family:'Segoe UI',Tahoma,sans-serif}
+    [data-theme="dark"]{--bg:#0f172a;--bg-soft:#1e293b;--card:#1e293b;--surface:#1e293b;--text:#f1f5f9;--text-muted:#94a3b8;--border:#334155}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font-family);font-size:14px}
+    button{font-family:inherit;cursor:pointer}
+    .btn{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;border:1px solid transparent;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;text-decoration:none}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-ghost{background:var(--bg-soft);color:var(--text);border-color:var(--border)}
+    .btn-sm{padding:7px 12px;font-size:12px}
+    .text-muted{color:var(--text-muted)}
+    .badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800}
+    .badge-success{background:rgba(16,185,129,.12);color:var(--success)}
+    .badge-gray{background:rgba(100,116,139,.12);color:var(--text-muted)}
+    .spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .reconcile-page{max-width:1180px;margin:0 auto;padding:28px 24px 48px}
+    .reconcile-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+    .reconcile-heading h1{margin:0 0 7px;font-size:25px;font-weight:850}
+    .reconcile-heading p{margin:0;color:var(--text-muted);font-size:13px}
+    .reconcile-actions{display:flex;gap:9px;flex-wrap:wrap}
+    .reconcile-actions a,.reconcile-actions button{display:inline-flex;align-items:center;gap:7px}
+    .reconcile-actions svg{width:16px;height:16px}
+    .reconcile-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .reconcile-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;min-height:145px}
+    .reconcile-card-label{display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:12px;font-weight:700}
+    .reconcile-card-label svg{width:17px;height:17px}
+    .reconcile-card-value{margin-top:17px;font-size:25px;font-weight:850;letter-spacing:-.4px}
+    .reconcile-card-sub{margin-top:7px;color:var(--text-muted);font-size:11px}
+    .reconcile-banner{display:flex;align-items:flex-start;gap:11px;margin:16px 0 24px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+    .reconcile-banner svg{width:18px;height:18px;flex:none;margin-top:1px}
+    .reconcile-banner strong{display:block;font-size:13px;margin-bottom:4px}
+    .reconcile-banner span{font-size:12px;color:var(--text-muted);line-height:1.7}
+    .reconcile-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+    .reconcile-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 20px;border-bottom:1px solid var(--border)}
+    .reconcile-section-head h2{margin:0;font-size:15px}
+    .reconcile-table-wrap{overflow:auto}
+    .reconcile-table{width:100%;border-collapse:collapse;min-width:620px}
+    .reconcile-table th,.reconcile-table td{padding:13px 18px;text-align:right;border-bottom:1px solid var(--border);font-size:12px}
+    .reconcile-table th{color:var(--text-muted);font-weight:750;background:var(--surface-2,var(--surface))}
+    .reconcile-table tr:last-child td{border-bottom:0}
+    .reconcile-empty{padding:36px 20px;text-align:center;color:var(--text-muted);font-size:13px}
+    .reconcile-empty svg{width:28px;height:28px;margin-bottom:8px}
+    .reconcile-loading{padding:48px;text-align:center;color:var(--text-muted)}
+    .reconcile-loading .spinner{margin:0 auto 12px}
+    .reconcile-error{display:none;margin:16px 0;padding:13px 15px;border:1px solid var(--danger);border-radius:10px;color:var(--danger);font-size:13px}
+    @media(max-width:760px){.reconcile-page{padding:20px 14px 36px}.reconcile-heading{display:block}.reconcile-actions{margin-top:14px}.reconcile-cards{grid-template-columns:1fr}.reconcile-card{min-height:unset}.reconcile-card-value{font-size:22px}}
+  </style>
+</head>
+<body>
+  <div id="refad-sidebar"></div>
+  <main class="main">
+    <div class="reconcile-page">
+      <header class="reconcile-heading">
+        <div>
+          <h1>مصالحة المخزون والحسابات</h1>
+          <p id="branchName">مقارنة قيمة المخزون الفعلية برصيد حساب المخزون في القيود المرحلة</p>
+        </div>
+        <div class="reconcile-actions">
+          <button class="btn btn-ghost btn-sm" id="refreshButton"><i data-lucide="refresh-cw"></i>تحديث</button>
+          <a class="btn btn-ghost btn-sm" href="counts.html"><i data-lucide="clipboard-check"></i>الجرد</a>
+          <a class="btn btn-primary btn-sm" href="accounting.html"><i data-lucide="book-open"></i>المحاسبة</a>
+        </div>
+      </header>
+
+      <div class="reconcile-error" id="reconcileError" role="alert"></div>
+      <div class="reconcile-cards" id="reconcileCards">
+        <div class="reconcile-loading"><div class="spinner"></div>جاري تحميل المصالحة...</div>
+      </div>
+      <div class="reconcile-banner" id="reconcileBanner" hidden></div>
+
+      <section class="reconcile-section">
+        <div class="reconcile-section-head">
+          <h2>قيود تسويات الجرد</h2>
+          <span class="text-muted" style="font-size:11px">آخر 20 عملية</span>
+        </div>
+        <div class="reconcile-table-wrap">
+          <table class="reconcile-table">
+            <thead>
+              <tr><th>رقم القيد</th><th>التاريخ</th><th>الوصف</th><th>الحالة</th></tr>
+            </thead>
+            <tbody id="countEntries">
+              <tr><td class="reconcile-empty" colspan="4">جاري التحميل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+  <div class="toast-container" id="toastContainer"></div>
+  <script src="sidebar.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      const cfg = window.REFAD_CONFIG;
+      const sb = (window.Refad && window.Refad.sb) ||
+        window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+      let session = null;
+      const money = (window.Refad && window.Refad.money) ||
+        (value => Number(value || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م');
+      const esc = (window.Refad && window.Refad.esc) ||
+        (value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])));
+      const toast = (type, message) => {
+        const handler = window.Refad && window.Refad.toast;
+        if (typeof handler === 'function') handler(type, message);
+        else if (handler && typeof handler === 'object' && handler[type]) handler[type](message);
+      };
+
+      function showError(message) {
+        const errorElement = document.getElementById('reconcileError');
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+        const cards = document.getElementById('reconcileCards');
+        cards.innerHTML = '<div class="reconcile-empty">يتطلب عرض المصالحة تثبيت ترحيل ربط المخزون والحسابات.</div>';
+        const entries = document.getElementById('countEntries');
+        entries.innerHTML = '<tr><td class="reconcile-empty" colspan="4">تعذر تحميل القيود</td></tr>';
+      }
+
+      async function loadReconciliation() {
+        const errorElement = document.getElementById('reconcileError');
+        errorElement.style.display = 'none';
+        document.getElementById('reconcileCards').innerHTML =
+          '<div class="reconcile-loading"><div class="spinner"></div>جاري تحميل المصالحة...</div>';
+
+        const [reconciliationResult, entriesResult] = await Promise.all([
+          sb.rpc('get_inventory_ledger_reconciliation', { p_company_id: session.company_id }),
+          sb.from('journal_entries')
+            .select('id, entry_number, entry_date, description, status')
+            .eq('company_id', session.company_id)
+            .eq('reference_type', 'stock_count')
+            .order('entry_date', { ascending: false })
+            .limit(20)
+        ]);
+        if (reconciliationResult.error) throw reconciliationResult.error;
+        if (entriesResult.error) throw entriesResult.error;
+
+        const row = Array.isArray(reconciliationResult.data)
+          ? reconciliationResult.data[0]
+          : reconciliationResult.data;
+        if (!row) throw new Error('لم ترجع قاعدة البيانات بيانات المصالحة');
+
+        const difference = Number(row.difference || 0);
+        const balanced = Math.abs(difference) < 0.01;
+        const cards = [
+          ['قيمة المخزون الفعلية', row.inventory_value, 'boxes', 'مجموع الكمية × تكلفة الدفعات الحالية'],
+          ['رصيد حساب المخزون', row.ledger_balance, 'book-open', 'حساب ' + row.inventory_account_code],
+          ['فرق المصالحة', difference, balanced ? 'badge-check' : 'triangle-alert',
+            balanced ? 'القيمة الدفترية متوافقة' : 'القيمة الفعلية ناقص الرصيد الدفتري']
+        ];
+        document.getElementById('reconcileCards').innerHTML = cards.map((card, index) => {
+          const value = Number(card[1] || 0);
+          const color = index === 2 ? (balanced ? 'var(--success)' : 'var(--danger)') : 'var(--text)';
+          return `<article class="reconcile-card">
+            <div class="reconcile-card-label"><i data-lucide="${card[2]}"></i>${card[0]}</div>
+            <div class="reconcile-card-value" style="color:${color}">${money(value)}</div>
+            <div class="reconcile-card-sub">${esc(card[3])}</div>
+          </article>`;
+        }).join('');
+
+        const banner = document.getElementById('reconcileBanner');
+        banner.hidden = false;
+        banner.style.borderColor = balanced ? 'var(--success)' : 'var(--warning)';
+        banner.innerHTML = `<i data-lucide="${balanced ? 'circle-check' : 'info'}"></i>
+          <div><strong>${balanced ? 'الحساب متوافق' : 'يوجد فرق يحتاج مراجعة'}</strong>
+          <span>${balanced
+            ? 'قيمة المخزون الحالية تساوي رصيد حساب المخزون في القيود المرحلة.'
+            : `رصيد تكلفة البضاعة المستخدم في تسويات الجرد: ${esc(row.cogs_account_code)}. راجع القيود والحركات غير المرحلة قبل تسجيل أي تسوية يدوية.`}</span></div>`;
+
+        const entries = entriesResult.data || [];
+        document.getElementById('countEntries').innerHTML = entries.length
+          ? entries.map(entry => `<tr>
+              <td><a href="accounting.html" style="font-weight:800">${esc(entry.entry_number)}</a></td>
+              <td>${esc(entry.entry_date || '—')}</td>
+              <td>${esc(entry.description || 'تسوية فروق الجرد')}</td>
+              <td><span class="badge badge-${entry.status === 'posted' ? 'success' : 'gray'}">${entry.status === 'posted' ? 'مرحّل' : esc(entry.status)}</span></td>
+            </tr>`).join('')
+          : '<tr><td class="reconcile-empty" colspan="4"><i data-lucide="notebook-tabs"></i><br>لا توجد قيود جرد حتى الآن</td></tr>';
+
+        if (window.lucide) lucide.createIcons();
+      }
+
+      async function init() {
+        try {
+          session = window.Refad && window.Refad.requireSession
+            ? await window.Refad.requireSession()
+            : await window.getSession();
+          if (!session || !session.company_id) {
+            location.href = 'index.html';
+            return;
+          }
+          if (window.Refad && window.Refad.requireRoute &&
+              !await window.Refad.requireRoute('inventory-reconciliation.html', 'dashboard.html', session)) return;
+          const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name || '';
+          document.getElementById('branchName').textContent =
+            `${companyName ? companyName + ' · ' : ''}إجمالي الشركة · مقارنة قيمة المخزون برصيد حسابه`;
+          await loadReconciliation();
+          document.getElementById('refreshButton').addEventListener('click', () =>
+            loadReconciliation().catch(error => showError(error.message || 'تعذر تحديث المصالحة')));
+          if (window.lucide) lucide.createIcons();
+        } catch (error) {
+          console.error('[Inventory reconciliation] load failed:', error);
+          showError(error.message || 'تعذر تحميل بيانات المصالحة');
+          toast('error', error.message || 'تعذر تحميل المصالحة');
+        }
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>

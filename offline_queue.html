@@ -245,6 +245,16 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     try {
       const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
       allOps = raw ? JSON.parse(raw) : [];
+      let updated = false;
+      allOps.forEach(op => {
+        const hasSafeIdempotencyKey = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(op.id || ''));
+        if (op.type === 'sale' && !hasSafeIdempotencyKey && (op.status === 'pending' || op.status === 'failed' || op.status === 'syncing')) {
+          op.status = 'failed';
+          op.error = 'عملية قديمة بلا مفتاح منع التكرار. راجع سجل المبيعات حسب وقت العملية ومبلغها قبل حذفها؛ لن نعيد إرسالها تلقائياً لتجنب فاتورة مكررة.';
+          updated = true;
+        }
+      });
+      if (updated) saveOfflineQueue();
       console.log('[OfflineQueue] Loaded', allOps.length, 'operations');
     } catch (e) {
       console.error('[OfflineQueue] load error:', e);
@@ -417,7 +427,8 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
     const methodLabel = { cash: 'نقدي', card: 'بطاقة', credit: 'آجل', mixed: 'مختلط', wallet: 'محفظة', bank: 'بنكي' }[method] || method;
 
     const isOffline = !isOnline;
-    const canRetry = op.status === 'pending' || op.status === 'failed';
+    const hasSafeIdempotencyKey = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(op.id || ''));
+    const canRetry = (op.status === 'pending' || op.status === 'failed') && hasSafeIdempotencyKey;
 
     return `
       <div class="op-card ${op.status}">
@@ -530,8 +541,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
       await render();
 
       if (op.type === 'sale') {
-        const r = await sb.rpc('record_invoice_v3', op.payload);
-        if (r.error) throw r.error;
+        op.invoice_id = await Refad.syncOfflineSale(op);
       } else {
         throw new Error('نوع العملية غير مدعوم: ' + op.type);
       }
@@ -566,9 +576,15 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
       return;
     }
 
-    const pending = allOps.filter(o => o.status === 'pending' || o.status === 'failed');
+    const pending = allOps.filter(o =>
+      (o.status === 'pending' || o.status === 'failed') &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(o.id || ''))
+    );
     if (pending.length === 0) {
-      toast('info', 'لا توجد عمليات للمزامنة');
+      const needsReview = allOps.filter(o => o.type === 'sale' && (o.status === 'pending' || o.status === 'failed')).length;
+      toast('info', needsReview > 0
+        ? 'لا توجد عمليات آمنة لإعادة الإرسال؛ راجع العمليات القديمة يدوياً لتجنب التكرار'
+        : 'لا توجد عمليات للمزامنة');
       return;
     }
 
@@ -587,8 +603,7 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
         await render();
 
         if (op.type === 'sale') {
-          const r = await sb.rpc('record_invoice_v3', op.payload);
-          if (r.error) throw r.error;
+          op.invoice_id = await Refad.syncOfflineSale(op);
         } else {
           throw new Error('نوع غير مدعوم');
         }

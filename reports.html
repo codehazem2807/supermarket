@@ -159,6 +159,15 @@ tbody tr:last-child td{border-bottom:none}
 .compare-bar-change.up{color:var(--success)}
 .compare-bar-change.down{color:var(--danger)}
 .compare-bar-change.flat{color:var(--text-muted)}
+.product-chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 16px}
+.product-chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.product-chart-title{font-size:13px;font-weight:800;margin-bottom:12px}
+.product-rank-row{display:grid;grid-template-columns:minmax(90px,1.2fr) 2fr auto;align-items:center;gap:9px;margin:10px 0;font-size:11.5px}
+.product-rank-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);text-decoration:none;font-weight:700}
+.product-rank-name:hover{color:var(--accent)}
+.product-rank-track{height:9px;background:var(--bg-soft);border-radius:8px;overflow:hidden}
+.product-rank-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--info))}
+.product-rank-value{font-weight:800;white-space:nowrap}
 
 /* ═══ HEATMAP ═══ */
 .heatmap-wrap{overflow-x:auto;padding:4px}
@@ -223,6 +232,7 @@ tbody tr:last-child td{border-bottom:none}
   .chart-container{height:220px}
   .stats-grid{grid-template-columns:1fr 1fr}
   .compare-grid{grid-template-columns:1fr}
+  .product-chart-grid{grid-template-columns:1fr}
 }
 @media (max-width:480px){
   .stat-value{font-size:18px}
@@ -261,8 +271,8 @@ tbody tr:last-child td{border-bottom:none}
         <div class="stat-value" id="statAvg">—</div>
         <div class="stat-sub" id="statAvgSub">لكل فاتورة</div>
       </div>
-      <div class="stat-card success">
-        <div class="stat-label"><i data-lucide="percent"></i>هامش الربح الفعلي</div>
+      <div class="stat-card success" data-cost-field>
+        <div class="stat-label"><i data-lucide="percent"></i>هامش الربح التقديري</div>
         <div class="stat-value" id="statProfit" style="color:var(--success)">—</div>
         <div class="stat-sub" id="statProfitSub">من الأصناف المباعة</div>
       </div>
@@ -313,7 +323,7 @@ tbody tr:last-child td{border-bottom:none}
                 <th>الخصم</th>
                 <th>الإجمالي</th>
                 <th>المدفوع</th>
-                <th>الربح</th>
+                <th data-cost-field>الربح التقديري</th>
               </tr>
             </thead>
             <tbody id="salesTable">
@@ -446,6 +456,20 @@ tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ PANEL: PRODUCTS ═══ -->
       <div data-panel="products" style="display:none">
+        <div class="stats-grid">
+          <div class="stat-card info"><div class="stat-label">أصناف باعت في الفترة</div><div class="stat-value" id="productStatCount">—</div><div class="stat-sub">حسب الأصناف المسجلة في الفواتير</div></div>
+          <div class="stat-card success"><div class="stat-label">إجمالي الوحدات المباعة</div><div class="stat-value" id="productStatQty">—</div><div class="stat-sub">ضمن الفترة والفرع المحددين</div></div>
+          <div class="stat-card gold"><div class="stat-label">إيراد الأصناف</div><div class="stat-value" id="productStatRevenue">—</div><div class="stat-sub">مجموع إجمالي بنود البيع</div></div>
+          <div class="stat-card purple" data-cost-field><div class="stat-label">الربح التقديري</div><div class="stat-value" id="productStatProfit">—</div><div class="stat-sub">محسوب بتكلفة الصنف الحالية</div></div>
+        </div>
+        <div class="product-chart-grid">
+          <div class="product-chart-card"><div class="product-chart-title">الأعلى إيراداً</div><div id="productRevenueChart"></div></div>
+          <div class="product-chart-card"><div class="product-chart-title">الأكثر مبيعاً بالكمية</div><div id="productQuantityChart"></div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><div class="card-title"><i data-lucide="info"></i>قراءة التقرير</div></div>
+          <div class="card-body" style="font-size:12px;color:var(--text-muted)">الأرباح المعروضة تقديرية باستخدام تكلفة الصنف الحالية، وليست تكلفة تاريخية مثبتة وقت البيع. افتح ملف أي صنف لمراجعة تفاصيله ومخزونه.</div>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -455,11 +479,13 @@ tbody tr:last-child td{border-bottom:none}
                 <th>الكمية المباعة</th>
                 <th>سعر الوحدة (متوسط)</th>
                 <th>إجمالي الإيراد</th>
-                <th>الربح التقديري</th>
+                <th>نسبة الإيراد</th>
+                <th data-cost-field>هامش تقديري</th>
+                <th data-cost-field>الربح التقديري</th>
               </tr>
             </thead>
             <tbody id="productsTable">
-              <tr><td colspan="6" class="loading-state"><div class="spinner"></div></td></tr>
+              <tr><td colspan="8" class="loading-state"><div class="spinner"></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -476,7 +502,7 @@ tbody tr:last-child td{border-bottom:none}
                 <th>المخزون</th>
                 <th>الحد الأدنى</th>
                 <th>النقص</th>
-                <th>تكلفة إعادة الطلب التقديرية</th>
+                <th data-cost-field>تكلفة إعادة الطلب التقديرية</th>
                 <th>الحالة</th>
               </tr>
             </thead>
@@ -672,31 +698,39 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   async function loadTopProducts(range) {
-    const invRes = await sb.from('sales_invoices')
-      .select('id')
-      .eq('company_id', session.company_id)
-      .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', range.from + 'T00:00:00')
-      .lte('invoice_date', range.to + 'T23:59:59')
-      .in('status', ['paid', 'partial', 'credit']);
-    if (invRes.error) return [];
+    const invoiceIds = [];
+    for (let offset = 0; ; offset += 500) {
+      const invoiceResult = await sb.from('sales_invoices')
+        .select('id')
+        .eq('company_id', session.company_id)
+        .eq('branch_id', session.active_branch_id)
+        .gte('invoice_date', range.from + 'T00:00:00')
+        .lte('invoice_date', range.to + 'T23:59:59')
+        .in('status', ['paid', 'partial', 'credit'])
+        .order('id', { ascending: true })
+        .range(offset, offset + 499);
+      if (invoiceResult.error) throw invoiceResult.error;
+      const page = invoiceResult.data || [];
+      invoiceIds.push(...page.map(invoice => invoice.id));
+      if (page.length < 500) break;
+    }
 
-    const invoiceIds = (invRes.data || []).map(i => i.id);
-    if (invoiceIds.length === 0) return [];
-
-    const itemsRes = await sb.from('sales_invoice_items')
-      .select('product_id, quantity, total')
-      .in('invoice_id', invoiceIds);
-    if (itemsRes.error) return [];
-
-    const items = itemsRes.data || [];
+    const items = [];
+    for (let offset = 0; offset < invoiceIds.length; offset += 200) {
+      const itemsResult = await sb.from('sales_invoice_items')
+        .select('product_id, quantity, total')
+        .in('invoice_id', invoiceIds.slice(offset, offset + 200));
+      if (itemsResult.error) throw itemsResult.error;
+      items.push(...(itemsResult.data || []));
+    }
 
     const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))];
-    let productMap = {};
-    if (productIds.length > 0) {
+    const productMap = {};
+    for (let offset = 0; offset < productIds.length; offset += 200) {
       const prodRes = await sb.from('products')
-        .select('id, name, cost_price, sale_price')
-        .in('id', productIds);
+        .select(canViewProductCosts() ? 'id, name, cost_price, sale_price' : 'id, name, sale_price')
+        .in('id', productIds.slice(offset, offset + 200));
+      if (prodRes.error) throw prodRes.error;
       (prodRes.data || []).forEach(p => { productMap[p.id] = p; });
     }
 
@@ -729,18 +763,20 @@ tbody tr:last-child td{border-bottom:none}
 
   async function loadLowStock() {
     const res = await sb.from('v_low_stock')
-      .select('*')
+      .select(canViewProductCosts() ? 'name, on_hand, min_stock, cost_price' : 'name, on_hand, min_stock')
       .eq('company_id', session.company_id)
       .order('on_hand', { ascending: true });
+    if (res.error) throw res.error;
     return res.data || [];
   }
 
   async function loadExpiring() {
     const res = await sb.from('v_expiring_lots')
-      .select('*')
+      .select('lot_id, company_id, branch_id, product_id, lot_number, quantity_left, sale_price, expiry_date, days_to_expiry')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .order('expiry_date', { ascending: true });
+    if (res.error) throw res.error;
 
     const lots = res.data || [];
     if (lots.length === 0) return [];
@@ -749,8 +785,9 @@ tbody tr:last-child td{border-bottom:none}
     if (productIds.length === 0) return lots;
 
     const prodRes = await sb.from('products')
-      .select('id, name, sale_price, cost_price')
+      .select('id, name, sale_price')
       .in('id', productIds);
+    if (prodRes.error) throw prodRes.error;
     const productMap = {};
     (prodRes.data || []).forEach(p => { productMap[p.id] = p; });
 
@@ -956,9 +993,16 @@ tbody tr:last-child td{border-bottom:none}
         '<td style="color:var(--danger)">' + (v.discount > 0 ? '-' + money(v.discount) : '—') + '</td>' +
         '<td><strong>' + money(v.total) + '</strong></td>' +
         '<td>' + money(v.paid) + '</td>' +
-        '<td><strong style="color:var(--success)">' + money(v.profit) + '</strong></td>' +
+        (canViewProductCosts() ? '<td><strong style="color:var(--success)">' + money(v.profit) + '</strong></td>' : '') +
       '</tr>';
     }).join('');
+  }
+
+  function canViewProductCosts() {
+    const permissions = session && Array.isArray(session.permissions) ? session.permissions : [];
+    return !!(session && session.is_owner) || permissions.includes('*') ||
+      permissions.includes('admin.full') || permissions.includes('products.cost_view') ||
+      permissions.includes('reports.financial') || permissions.includes('reports.full');
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -967,26 +1011,33 @@ tbody tr:last-child td{border-bottom:none}
   function renderTopProducts(products) {
     const tbody = document.getElementById('productsTable');
     if (products.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i data-lucide="package"></i><h3>لا توجد بيانات</h3></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><i data-lucide="package"></i><h3>لا توجد بيانات</h3></td></tr>';
       document.getElementById('productsPagination').style.display = 'none';
+      renderProductInsights([]);
       if (window.lucide) lucide.createIcons();
       return;
     }
 
+    renderProductInsights(products);
     const totalPages = Math.ceil(products.length / PRODUCTS_PAGE_SIZE);
     if (productsPage > totalPages) productsPage = totalPages;
     const pageItems = products.slice((productsPage-1)*PRODUCTS_PAGE_SIZE, productsPage*PRODUCTS_PAGE_SIZE);
+    const totalRevenue = products.reduce((sum, item) => sum + Number(item.revenue || 0), 0);
 
     tbody.innerHTML = pageItems.map((p, idx) => {
       const globalIdx = (productsPage-1)*PRODUCTS_PAGE_SIZE + idx;
       const rankCls = globalIdx === 0 ? 'top1' : (globalIdx === 1 ? 'top2' : (globalIdx === 2 ? 'top3' : ''));
+      const share = totalRevenue > 0 ? Number(p.revenue || 0) / totalRevenue * 100 : 0;
+      const margin = Number(p.revenue || 0) > 0 ? Number(p.profit || 0) / Number(p.revenue) * 100 : 0;
       return '<tr>' +
         '<td><span class="rank ' + rankCls + '">' + (globalIdx + 1) + '</span></td>' +
-        '<td><strong>' + esc(p.name) + '</strong></td>' +
+        '<td><a class="product-rank-name" href="product-details.html?id=' + encodeURIComponent(p.product_id) + '"><strong>' + esc(p.name) + '</strong></a></td>' +
         '<td>' + Number(p.qty).toFixed(2) + '</td>' +
         '<td>' + money(p.avg_price) + '</td>' +
         '<td><strong style="color:var(--accent)">' + money(p.revenue) + '</strong></td>' +
-        '<td><strong style="color:var(--success)">' + money(p.profit) + '</strong></td>' +
+        '<td>' + share.toFixed(1) + '%</td>' +
+        (canViewProductCosts() ? '<td>' + margin.toFixed(1) + '%</td>' : '') +
+        (canViewProductCosts() ? '<td><strong style="color:var(--success)">' + money(p.profit) + '</strong></td>' : '') +
       '</tr>';
     }).join('');
 
@@ -1016,6 +1067,34 @@ tbody tr:last-child td{border-bottom:none}
     if (window.lucide) lucide.createIcons();
   }
 
+  function renderProductInsights(products) {
+    const quantity = products.reduce((sum, product) => sum + Number(product.qty || 0), 0);
+    const revenue = products.reduce((sum, product) => sum + Number(product.revenue || 0), 0);
+    const profit = products.reduce((sum, product) => sum + Number(product.profit || 0), 0);
+    document.getElementById('productStatCount').textContent = products.length.toLocaleString('ar-EG');
+    document.getElementById('productStatQty').textContent = quantity.toLocaleString('ar-EG', {maximumFractionDigits:2});
+    document.getElementById('productStatRevenue').textContent = money(revenue);
+    document.getElementById('productStatProfit').textContent = canViewProductCosts() ? money(profit) : '—';
+
+    function renderRanking(targetId, metric, formatter) {
+      const container = document.getElementById(targetId);
+      const ranked = products.slice().sort((a,b) => Number(b[metric] || 0) - Number(a[metric] || 0)).slice(0,10);
+      const max = Math.max(...ranked.map(p => Number(p[metric] || 0)), 1);
+      container.innerHTML = ranked.length ? ranked.map(p => {
+        const value = Number(p[metric] || 0);
+        const width = Math.max(2, value / max * 100);
+        return '<div class="product-rank-row">' +
+          '<a class="product-rank-name" title="' + esc(p.name) + '" href="product-details.html?id=' + encodeURIComponent(p.product_id) + '">' + esc(p.name) + '</a>' +
+          '<div class="product-rank-track"><div class="product-rank-fill" style="width:' + width.toFixed(1) + '%"></div></div>' +
+          '<span class="product-rank-value">' + formatter(value) + '</span>' +
+        '</div>';
+      }).join('') : '<div class="empty-state" style="padding:20px">لا توجد بيانات للفترة المحددة</div>';
+    }
+
+    renderRanking('productRevenueChart', 'revenue', money);
+    renderRanking('productQuantityChart', 'qty', value => value.toLocaleString('ar-EG', {maximumFractionDigits:2}));
+  }
+
   // ═══════════════════════════════════════════════════════════
   // RENDER LOW STOCK
   // ═══════════════════════════════════════════════════════════
@@ -1038,7 +1117,7 @@ tbody tr:last-child td{border-bottom:none}
         '<td><span style="color:var(--danger);font-weight:800">' + Number(p.on_hand || 0) + '</span></td>' +
         '<td>' + Number(p.min_stock || 0) + '</td>' +
         '<td><span class="badge badge-' + cls + '">' + shortage.toFixed(0) + '</span></td>' +
-        '<td>' + money(reorderCost) + '</td>' +
+        (canViewProductCosts() ? '<td>' + money(reorderCost) + '</td>' : '') +
         '<td><span class="badge badge-' + cls + '">' + (cls === 'danger' ? 'حرج' : 'يحتاج طلب') + '</span></td>' +
       '</tr>';
     }).join('');
@@ -1437,15 +1516,23 @@ tbody tr:last-child td{border-bottom:none}
         }
       });
     } else if (currentTab === 'products') {
-      headers = ['#', 'المنتج', 'الكمية المباعة', 'سعر الوحدة', 'الإيراد', 'الربح'];
+      headers = canViewProductCosts()
+        ? ['#', 'المنتج', 'الكمية المباعة', 'سعر الوحدة', 'الإيراد', 'الربح التقديري']
+        : ['#', 'المنتج', 'الكمية المباعة', 'سعر الوحدة', 'الإيراد'];
       (dataCache.products || []).forEach((p, i) => {
-        rows.push([i+1, p.name, p.qty.toFixed(2), p.avg_price.toFixed(2), p.revenue.toFixed(2), p.profit.toFixed(2)]);
+        const row = [i+1, p.name, p.qty.toFixed(2), p.avg_price.toFixed(2), p.revenue.toFixed(2)];
+        if (canViewProductCosts()) row.push(p.profit.toFixed(2));
+        rows.push(row);
       });
     } else if (currentTab === 'lowstock') {
-      headers = ['المنتج', 'المخزون', 'الحد الأدنى', 'النقص', 'تكلفة إعادة الطلب'];
+      headers = canViewProductCosts()
+        ? ['المنتج', 'المخزون', 'الحد الأدنى', 'النقص', 'تكلفة إعادة الطلب']
+        : ['المنتج', 'المخزون', 'الحد الأدنى', 'النقص'];
       (dataCache.lowStock || []).forEach(l => {
         const shortage = Number(l.min_stock || 0) - Number(l.on_hand || 0);
-        rows.push([l.name, l.on_hand, l.min_stock, shortage.toFixed(0), (shortage * Number(l.cost_price || 0)).toFixed(2)]);
+        const row = [l.name, l.on_hand, l.min_stock, shortage.toFixed(0)];
+        if (canViewProductCosts()) row.push((shortage * Number(l.cost_price || 0)).toFixed(2));
+        rows.push(row);
       });
     } else if (currentTab === 'expiring') {
       headers = ['المنتج', 'الدفعة', 'الكمية', 'سعر البيع', 'القيمة المعرضة', 'الصلاحية', 'الأيام'];
@@ -1619,6 +1706,9 @@ tbody tr:last-child td{border-bottom:none}
     if (branchNameEl) {
       const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
       branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
+    }
+    if (!canViewProductCosts()) {
+      document.querySelectorAll('[data-cost-field]').forEach(element => { element.style.display = 'none'; });
     }
 
     setRangePreset('30');

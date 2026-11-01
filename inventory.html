@@ -245,7 +245,7 @@ tbody tr.clickable{cursor:pointer}
         <div class="stat-value" id="statLots" style="color:var(--info)">—</div>
         <div class="stat-sub" id="statLotsSub"></div>
       </div>
-      <div class="stat-card warn">
+      <div class="stat-card warn" data-cost-field>
         <div class="stat-label">قيمة المخزون</div>
         <div class="stat-value" id="statValue" style="color:var(--gold)">—</div>
         <div class="stat-sub">بتكلفة الشراء</div>
@@ -288,7 +288,7 @@ tbody tr.clickable{cursor:pointer}
                   <th>المنتج</th>
                   <th>المخزون الحالي</th>
                   <th>الحد الأدنى</th>
-                  <th>قيمة المخزون</th>
+                  <th data-cost-field>قيمة المخزون</th>
                   <th>الحالة</th>
                   <th>عدد الدفعات</th>
                   <th style="text-align:left">إجراءات</th>
@@ -324,7 +324,7 @@ tbody tr.clickable{cursor:pointer}
                   <th>المنتج</th>
                   <th>رقم الدفعة</th>
                   <th>الكمية</th>
-                  <th>التكلفة</th>
+                  <th data-cost-field>التكلفة</th>
                   <th>سعر البيع</th>
                   <th>الصلاحية</th>
                   <th>الحالة</th>
@@ -368,7 +368,7 @@ tbody tr.clickable{cursor:pointer}
                   <th>المنتج</th>
                   <th>النوع</th>
                   <th>الكمية</th>
-                  <th>التكلفة</th>
+                  <th data-cost-field>التكلفة</th>
                   <th>المرجع</th>
                   <th>السبب</th>
                 </tr>
@@ -570,6 +570,7 @@ tbody tr.clickable{cursor:pointer}
     </div>
     <div class="modal-body" id="productDetailsBody"></div>
     <div class="modal-footer">
+      <a class="btn btn-primary" id="fullProductDetailsLink" href="product-details.html" style="text-decoration:none;display:none"><i data-lucide="external-link"></i><span>الملف الكامل للصنف</span></a>
       <button class="btn btn-ghost" data-close="productDetailsModal">إغلاق</button>
     </div>
   </div>
@@ -596,6 +597,13 @@ tbody tr.clickable{cursor:pointer}
   let bundleComponentsMap = {};
   let stockMap = {};
   let currentTab = 'stock';
+
+  function can(permission) {
+    const permissions = session && Array.isArray(session.permissions) ? session.permissions : [];
+    return !!(session && session.is_owner) || permissions.includes('*') ||
+      permissions.includes('admin.full') || permissions.includes(permission) ||
+      (permission.startsWith('inventory.') && permissions.includes('inventory.full'));
+  }
 
   const PAGE_SIZE = 25;
   const state = {
@@ -686,20 +694,21 @@ tbody tr.clickable{cursor:pointer}
   }
 
   async function loadWarehouse() {
-    let res = await sb.from('warehouses').select('id, name')
+    const res = await sb.from('warehouses').select('id, name')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
+      .eq('is_active', true)
+      .is('deleted_at', null)
       .limit(1).maybeSingle();
+    if (res.error) throw res.error;
     warehouse = res.data;
-    if (!warehouse) {
-      res = await sb.from('warehouses').select('id, name').eq('company_id', session.company_id).limit(1).maybeSingle();
-      warehouse = res.data;
-    }
   }
 
   async function loadProducts() {
+    const fields = ['id','name','barcode','plu_code','unit','base_unit','sale_unit','units_per_purchase','min_stock','sale_price','is_bundle','is_weighed','category_id'];
+    if (can('products.cost_view')) fields.push('cost_price');
     const { data } = await sb.from('products')
-      .select('id, name, barcode, plu_code, unit, base_unit, sale_unit, units_per_purchase, min_stock, cost_price, sale_price, is_bundle, is_weighed, category_id')
+      .select(fields.join(', '))
       .eq('company_id', session.company_id)
       .eq('is_active', true)
       .is('deleted_at', null)
@@ -742,17 +751,13 @@ tbody tr.clickable{cursor:pointer}
 
   async function loadStockOnHand() {
     stockMap = {};
-    try {
-      const rpcRes = await sb.rpc('get_products_stock_bulk', { p_company_id: session.company_id });
-      if (!rpcRes.error && Array.isArray(rpcRes.data)) {
-        rpcRes.data.forEach(r => { stockMap[r.product_id] = Number(r.on_hand || 0); });
-      } else {
-        const res = await sb.from('v_stock_on_hand').select('product_id, on_hand')
-          .eq('company_id', session.company_id)
-          .eq('branch_id', session.active_branch_id);
-        (res.data || []).forEach(r => { stockMap[r.product_id] = Number(r.on_hand || 0); });
-      }
-    } catch (e) { console.warn('[Inventory] stock load failed:', e); }
+    const res = await sb.from('v_stock_on_hand').select('product_id, on_hand')
+      .eq('company_id', session.company_id)
+      .eq('branch_id', session.active_branch_id);
+    if (res.error) throw res.error;
+    (res.data || []).forEach(r => {
+      stockMap[r.product_id] = (stockMap[r.product_id] || 0) + Number(r.on_hand || 0);
+    });
 
     Object.keys(bundleComponentsMap).forEach(bundleId => {
       const comps = bundleComponentsMap[bundleId];
@@ -770,8 +775,10 @@ tbody tr.clickable{cursor:pointer}
   }
 
   async function loadLots() {
+    const fields = ['id','company_id','branch_id','warehouse_id','product_id','lot_number','quantity_in','quantity_left','sale_price','expiry_date','is_quarantined','received_at'];
+    if (can('products.cost_view')) fields.push('effective_unit_cost');
     let q = sb.from('stock_lots')
-      .select('*')
+      .select(fields.join(', '))
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .order('expiry_date', { ascending: true });
@@ -792,7 +799,9 @@ tbody tr.clickable{cursor:pointer}
 
   async function loadMovements() {
     const { data } = await sb.from('inventory_movements')
-      .select('*')
+      .select(can('products.cost_view')
+        ? 'product_id, movement_type, quantity, unit_cost, reason, reference_type, created_at'
+        : 'product_id, movement_type, quantity, reason, reference_type, created_at')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .order('created_at', { ascending: false })
@@ -810,7 +819,7 @@ tbody tr.clickable{cursor:pointer}
 
   async function loadExpiring() {
     const { data } = await sb.from('v_expiring_lots')
-      .select('*')
+      .select('lot_id, product_id, lot_number, quantity_left, days_to_expiry, sale_price, expiry_date')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .order('expiry_date', { ascending: true });
@@ -913,7 +922,7 @@ tbody tr.clickable{cursor:pointer}
         <td><div class="product-cell"><div class="product-avatar">${esc(p.name).charAt(0)}</div><div class="product-info"><h4>${esc(p.name)}${p.is_bundle ? ' <span class="badge badge-purple" style="font-size:9px;padding:1px 5px">كومبو</span>' : ''}</h4><p>${esc(p.barcode || '—')}</p></div></div></td>
         <td><strong style="color:${out ? 'var(--danger)' : isLow ? 'var(--gold)' : 'var(--success)'}">${num(p.on_hand)}</strong> <span style="font-size:11px;color:var(--text-muted)">${esc(unit)}</span></td>
         <td>${num(min)}</td>
-        <td>${money(value)}</td>
+        ${can('products.cost_view') ? `<td>${money(value)}</td>` : ''}
         <td>${badge}</td>
         <td>${lotCount} دفعة</td>
         <td style="text-align:left"><button class="icon-btn" data-act="view" data-pid="${p.id}" title="تفاصيل"><i data-lucide="eye"></i></button></td>
@@ -963,13 +972,13 @@ tbody tr.clickable{cursor:pointer}
         <td><div class="product-cell"><div class="product-avatar">${esc(l.products?.name || '?').charAt(0)}</div><div class="product-info"><h4>${esc(l.products?.name || 'منتج')}</h4><p>${esc(l.products?.barcode || '')}</p></div></div></td>
         <td><span style="font-family:monospace;font-size:12px">${esc(l.lot_number || '—')}</span></td>
         <td><strong style="color:${qty > 0 ? 'var(--success)' : 'var(--text-muted)'}">${num(qty)}</strong> <span style="font-size:11px;color:var(--text-muted)">${esc(l.products?.unit || '')}</span></td>
-        <td>${money(l.effective_unit_cost)}</td>
+        ${can('products.cost_view') ? `<td>${money(l.effective_unit_cost)}</td>` : ''}
         <td>${money(salePrice)}</td>
         <td><span class="badge badge-${isExpired ? 'danger' : isExpiring ? 'warning' : 'info'}"><i data-lucide="calendar"></i>${fmtDate(l.expiry_date)}</span></td>
         <td>${l.is_quarantined ? '<span class="badge badge-purple">محجوز</span>' : qty > 0 ? '<span class="badge badge-success">متاح</span>' : '<span class="badge badge-gray">منتهي</span>'}</td>
         <td style="text-align:left">
           <button class="icon-btn" data-act="details" data-lid="${l.id}" title="تفاصيل"><i data-lucide="eye"></i></button>
-          <button class="icon-btn danger" data-act="shrink" data-lid="${l.id}" data-pid="${l.product_id}" data-qty="${qty}" title="هالك"><i data-lucide="trash-2"></i></button>
+          ${can('inventory.shrink') && warehouse ? `<button class="icon-btn danger" data-act="shrink" data-lid="${l.id}" data-pid="${l.product_id}" data-qty="${qty}" title="هالك"><i data-lucide="trash-2"></i></button>` : ''}
         </td>
       </tr>`;
     }).join('');
@@ -1009,7 +1018,7 @@ tbody tr.clickable{cursor:pointer}
         <td>${esc(m.products?.name || '—')}</td>
         <td><span class="badge badge-${cls}">${txt}</span></td>
         <td><strong>${num(m.quantity)}</strong></td>
-        <td>${money(m.unit_cost || 0)}</td>
+        ${can('products.cost_view') ? `<td>${money(m.unit_cost || 0)}</td>` : ''}
         <td style="font-size:12px">${esc(m.reference_type || '—')}</td>
         <td style="font-size:12px;color:var(--text-muted)">${esc(m.reason || '—')}</td>
       </tr>`;
@@ -1039,9 +1048,9 @@ tbody tr.clickable{cursor:pointer}
         <td>${money(salePrice)}</td>
         <td>${fmtDate(l.expiry_date)}</td>
         <td><span class="badge badge-${cls}"><i data-lucide="clock"></i>${txt}</span></td>
-        <td style="text-align:left">
-          <button class="icon-btn danger" data-act="shrink" data-lid="${l.lot_id}" data-pid="${l.product_id}" data-qty="${l.quantity_left}" title="هالك"><i data-lucide="trash-2"></i></button>
-        </td>
+        <td style="text-align:left">${can('inventory.shrink') && warehouse
+          ? `<button class="icon-btn danger" data-act="shrink" data-lid="${l.lot_id}" data-pid="${l.product_id}" data-qty="${l.quantity_left}" title="هالك"><i data-lucide="trash-2"></i></button>`
+          : '—'}</td>
       </tr>`;
     }).join('');
     tbody.querySelectorAll('[data-act="shrink"]').forEach(btn => {
@@ -1111,7 +1120,7 @@ tbody tr.clickable{cursor:pointer}
         <div class="detail-item"><div class="detail-label">الباركود</div><div class="detail-value" style="font-family:monospace">${esc(p.barcode || '—')}</div></div>
         <div class="detail-item"><div class="detail-label">المخزون الحالي</div><div class="detail-value" style="color:var(--accent)">${num(stock)} ${esc(p.sale_unit || p.unit || '')}</div></div>
         <div class="detail-item"><div class="detail-label">الحد الأدنى</div><div class="detail-value">${num(p.min_stock)}</div></div>
-        <div class="detail-item"><div class="detail-label">سعر الشراء</div><div class="detail-value">${money(p.cost_price)}</div></div>
+        ${can('products.cost_view') ? `<div class="detail-item"><div class="detail-label">سعر الشراء</div><div class="detail-value">${money(p.cost_price)}</div></div>` : ''}
         <div class="detail-item"><div class="detail-label">سعر البيع</div><div class="detail-value">${money(p.sale_price)}</div></div>
       </div>`;
     if (p.is_bundle && comps.length > 0) {
@@ -1134,6 +1143,9 @@ tbody tr.clickable{cursor:pointer}
       html += `</tbody></table></div>`;
     }
     document.getElementById('productDetailsBody').innerHTML = html;
+    const fullDetailsLink = document.getElementById('fullProductDetailsLink');
+    fullDetailsLink.href = 'product-details.html?id=' + encodeURIComponent(productId);
+    fullDetailsLink.style.display = can('products.view') ? 'inline-flex' : 'none';
     document.getElementById('productDetailsModal').classList.add('show');
     if (window.lucide) lucide.createIcons();
   }
@@ -1148,7 +1160,7 @@ tbody tr.clickable{cursor:pointer}
         <div class="detail-item"><div class="detail-label">رقم الدفعة</div><div class="detail-value" style="font-family:monospace">${esc(l.lot_number || '—')}</div></div>
         <div class="detail-item"><div class="detail-label">الكمية الحالية</div><div class="detail-value">${num(l.quantity_left)}</div></div>
         <div class="detail-item"><div class="detail-label">الكمية الواردة</div><div class="detail-value">${num(l.quantity_in)}</div></div>
-        <div class="detail-item"><div class="detail-label">تكلفة الوحدة</div><div class="detail-value">${money(l.effective_unit_cost)}</div></div>
+        ${can('products.cost_view') ? `<div class="detail-item"><div class="detail-label">تكلفة الوحدة</div><div class="detail-value">${money(l.effective_unit_cost)}</div></div>` : ''}
         <div class="detail-item"><div class="detail-label">سعر البيع</div><div class="detail-value">${money(l.sale_price)}</div></div>
         <div class="detail-item"><div class="detail-label">تاريخ الصلاحية</div><div class="detail-value">${fmtDate(l.expiry_date)}</div></div>
         <div class="detail-item"><div class="detail-label">الأيام المتبقية</div><div class="detail-value" style="color:${days < 0 ? 'var(--danger)' : days < 7 ? 'var(--gold)' : 'var(--success)'}">${days < 0 ? 'منتهي' : days + ' يوم'}</div></div>
@@ -1171,6 +1183,8 @@ tbody tr.clickable{cursor:pointer}
   }
 
   function openShrinkFor(productId, lotId, qty) {
+    if (!can('inventory.shrink')) { toast('error', 'لا تملك صلاحية تسجيل الهالك'); return; }
+    if (!warehouse) { toast('error', 'لا يوجد مخزن نشط لهذا الفرع'); return; }
     document.getElementById('shrinkProduct').value = productId;
     fillLotSelect(productId, 'shrinkLot').then(() => {
       document.getElementById('shrinkLot').value = lotId;
@@ -1180,6 +1194,8 @@ tbody tr.clickable{cursor:pointer}
   }
 
   async function saveAdjustment() {
+    if (!can('inventory.adjust')) { toast('error', 'لا تملك صلاحية تسوية المخزون'); return; }
+    if (!warehouse) { toast('error', 'لا يوجد مخزن نشط لهذا الفرع'); return; }
     const errEl = document.getElementById('adjustFormError');
     errEl.classList.remove('show');
     const productId = document.getElementById('adjustProduct').value;
@@ -1206,6 +1222,8 @@ tbody tr.clickable{cursor:pointer}
   }
 
   async function saveShrinkage() {
+    if (!can('inventory.shrink')) { toast('error', 'لا تملك صلاحية تسجيل الهالك'); return; }
+    if (!warehouse) { toast('error', 'لا يوجد مخزن نشط لهذا الفرع'); return; }
     const errEl = document.getElementById('shrinkageFormError');
     errEl.classList.remove('show');
     const productId = document.getElementById('shrinkProduct').value;
@@ -1238,16 +1256,23 @@ tbody tr.clickable{cursor:pointer}
   }
 
   function exportCsv() {
+    const costVisible = can('products.cost_view');
     let rows = [];
     if (currentTab === 'stock' || currentTab === 'lowstock') {
-      rows = [['المنتج','الباركود','المخزون','الحد الأدنى','سعر الشراء','سعر البيع']];
-      stockOnHand.forEach(p => rows.push([p.name, p.barcode || '', p.on_hand, p.min_stock || 0, p.cost_price || 0, p.sale_price || 0]));
+      rows = [costVisible ? ['المنتج','الباركود','المخزون','الحد الأدنى','سعر الشراء','سعر البيع'] : ['المنتج','الباركود','المخزون','الحد الأدنى','سعر البيع']];
+      stockOnHand.forEach(p => rows.push(costVisible
+        ? [p.name, p.barcode || '', p.on_hand, p.min_stock || 0, p.cost_price || 0, p.sale_price || 0]
+        : [p.name, p.barcode || '', p.on_hand, p.min_stock || 0, p.sale_price || 0]));
     } else if (currentTab === 'lots') {
-      rows = [['المنتج','رقم الدفعة','الكمية','التكلفة','سعر البيع','الصلاحية']];
-      lots.forEach(l => rows.push([l.products?.name || '', l.lot_number || '', l.quantity_left, l.effective_unit_cost, l.sale_price || '', l.expiry_date || '']));
+      rows = [costVisible ? ['المنتج','رقم الدفعة','الكمية','التكلفة','سعر البيع','الصلاحية'] : ['المنتج','رقم الدفعة','الكمية','سعر البيع','الصلاحية']];
+      lots.forEach(l => rows.push(costVisible
+        ? [l.products?.name || '', l.lot_number || '', l.quantity_left, l.effective_unit_cost, l.sale_price || '', l.expiry_date || '']
+        : [l.products?.name || '', l.lot_number || '', l.quantity_left, l.sale_price || '', l.expiry_date || '']));
     } else if (currentTab === 'movements') {
-      rows = [['التاريخ','المنتج','النوع','الكمية','التكلفة','المرجع']];
-      movements.forEach(m => rows.push([m.created_at, m.products?.name || '', m.movement_type, m.quantity, m.unit_cost || 0, m.reference_type || '']));
+      rows = [costVisible ? ['التاريخ','المنتج','النوع','الكمية','التكلفة','المرجع'] : ['التاريخ','المنتج','النوع','الكمية','المرجع']];
+      movements.forEach(m => rows.push(costVisible
+        ? [m.created_at, m.products?.name || '', m.movement_type, m.quantity, m.unit_cost || 0, m.reference_type || '']
+        : [m.created_at, m.products?.name || '', m.movement_type, m.quantity, m.reference_type || '']));
     } else {
       toast('info', 'لا يوجد بيانات لتصديرها في هذا التبويب'); return;
     }
@@ -1312,8 +1337,20 @@ tbody tr.clickable{cursor:pointer}
       const companyName = (window.RefadSettings && window.RefadSettings.get('general.company_name')) || session.company_name;
       branchNameEl.textContent = (companyName || '') + ' — ' + (session.branch_name || '—');
     }
+    if (!can('inventory.adjust')) document.getElementById('adjustBtn').style.display = 'none';
+    if (!can('inventory.shrink')) document.getElementById('shrinkageBtn').style.display = 'none';
+    if (!can('warehouses.transfer')) document.querySelector('a[href="transfers.html"]').style.display = 'none';
+    if (!can('warehouses.count')) document.querySelector('a[href="counts.html"]').style.display = 'none';
+    if (!can('products.cost_view')) {
+      document.querySelectorAll('[data-cost-field]').forEach(element => { element.style.display = 'none'; });
+    }
 
     await loadWarehouse();
+    if (!warehouse) {
+      document.getElementById('adjustBtn').disabled = true;
+      document.getElementById('shrinkageBtn').disabled = true;
+      toast('warning', 'لا يوجد مخزن نشط لهذا الفرع؛ عمليات التسوية والهالك غير متاحة');
+    }
     await loadAll();
 
     document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchTab(t.dataset.tab));

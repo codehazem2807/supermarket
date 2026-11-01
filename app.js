@@ -111,6 +111,25 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
   }
 
+  async function syncOfflineSale(operation) {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!operation || operation.type !== 'sale' || !operation.payload) {
+      throw new Error('عملية البيع غير مكتملة ولا يمكن مزامنتها.');
+    }
+    if (!uuidPattern.test(String(operation.id || ''))) {
+      throw new Error('هذه عملية قديمة بلا مفتاح منع التكرار. راجع سجل المبيعات قبل إعادة المحاولة لتجنب فاتورة مكررة.');
+    }
+    if (!sb) throw new Error(connectionIssue || 'الاتصال بالخادم غير متاح.');
+
+    const result = await sb.rpc('record_invoice_v3', Object.assign({}, operation.payload, {
+      p_payments: operation.payload.p_payments || null,
+      p_offline_operation_id: operation.id
+    }));
+    if (result.error) throw result.error;
+    if (!result.data) throw new Error('لم يؤكد الخادم رقم الفاتورة بعد المزامنة.');
+    return result.data;
+  }
+
   // ═══════════════════════════════════════════════════════════
   // TOAST
   // ═══════════════════════════════════════════════════════════
@@ -1592,6 +1611,7 @@
   window.Refad.timeAgo = timeAgo;
   window.Refad.today = today;
   window.Refad.monthStart = monthStart;
+  window.Refad.syncOfflineSale = syncOfflineSale;
 
   window.Refad.toast = toast;
 

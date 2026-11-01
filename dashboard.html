@@ -136,6 +136,32 @@ button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inhe
 .kpi-trend svg{width:12px;height:12px}
 .kpi-card.danger::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--danger)}
 
+.sales-goal-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:24px;box-shadow:var(--shadow-xs)}
+.sales-goal-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+.sales-goal-title{display:flex;align-items:center;gap:10px;min-width:0}
+.sales-goal-icon{width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sales-goal-icon svg{width:20px;height:20px}
+.sales-goal-title h3{font-size:14px;font-weight:800}
+.sales-goal-title p{font-size:11.5px;color:var(--text-muted);margin-top:3px}
+.sales-goal-values{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.sales-goal-values strong{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+.sales-goal-values span{font-size:12px;color:var(--text-muted)}
+.sales-goal-track{height:9px;background:var(--bg-soft);border-radius:9px;overflow:hidden}
+.sales-goal-progress{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--success));border-radius:inherit;transition:width .4s ease}
+.sales-goal-progress.complete{background:linear-gradient(90deg,var(--success),#34d399)}
+.sales-goal-footer{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:11.5px;color:var(--text-muted)}
+.sales-goal-empty{padding:10px 0;color:var(--text-muted);font-size:13px}
+.goal-dialog{width:min(440px,calc(100vw - 32px));border:1px solid var(--border);border-radius:18px;padding:0;background:var(--card);color:var(--text);box-shadow:var(--shadow-lg);margin:auto}
+.goal-dialog::backdrop{background:rgba(15,23,42,.55);backdrop-filter:blur(3px)}
+.goal-dialog-header{padding:20px 22px 14px;border-bottom:1px solid var(--border)}
+.goal-dialog-header h2{font-size:17px;font-weight:800}
+.goal-dialog-header p{margin-top:5px;color:var(--text-muted);font-size:12px}
+.goal-dialog-body{padding:20px 22px}
+.goal-dialog-body label{display:block;font-size:12px;font-weight:700;margin-bottom:8px}
+.goal-dialog-body input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-soft);color:var(--text);font:inherit}
+.goal-dialog-body input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+.goal-dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 22px 20px}
+
 .chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;overflow:hidden}
 .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
 .chart-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px}
@@ -586,6 +612,8 @@ tbody tr:last-child td{border-bottom:none}
   .chart-container { height: 150px; }
   .session-banner, .season-banner, .offline-indicator { padding: 10px 14px; font-size: 12px; }
   .grid-2 { grid-template-columns: 1fr; }
+  .sales-goal-card{padding:16px}
+  .sales-goal-values strong{font-size:16px}
   
   .ai-fab {
     bottom: 16px;
@@ -673,6 +701,33 @@ tbody tr:last-child td{border-bottom:none}
         <a href="purchases.html" class="greeting-btn"><i data-lucide="truck"></i><span>استلام مخزون</span></a>
       </div>
     </div>
+
+    <section class="sales-goal-card" aria-labelledby="salesGoalTitle">
+      <div class="sales-goal-heading">
+        <div class="sales-goal-title">
+          <div class="sales-goal-icon"><i data-lucide="target"></i></div>
+          <div>
+            <h3 id="salesGoalTitle">هدف مبيعات اليوم</h3>
+            <p id="salesGoalStatus">حدد هدفاً يومياً لمتابعة تقدم الفرع</p>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" type="button" id="editSalesGoalBtn">تحديد الهدف</button>
+      </div>
+      <div id="salesGoalProgress" hidden>
+        <div class="sales-goal-values">
+          <strong id="salesGoalCurrent">—</strong>
+          <span id="salesGoalTarget">—</span>
+        </div>
+        <div class="sales-goal-track" role="progressbar" id="salesGoalBar" aria-label="نسبة تحقيق هدف المبيعات" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="sales-goal-progress" id="salesGoalFill"></div>
+        </div>
+        <div class="sales-goal-footer">
+          <span id="salesGoalRemaining">—</span>
+          <span id="salesGoalPercent">0%</span>
+        </div>
+      </div>
+      <p class="sales-goal-empty" id="salesGoalEmpty">تابع إنجاز الفرع لحظياً وحدد هدفاً واضحاً للفريق.</p>
+    </section>
 
     <!-- KPI Grid -->
     <div class="kpi-grid">
@@ -820,6 +875,7 @@ tbody tr:last-child td{border-bottom:none}
             <i data-lucide="calendar-clock"></i>
             <span>قريبة الانتهاء</span>
             <span class="count-badge gold" id="expiringCount" style="display:none">0</span>
+            <span id="expiringExposure" style="font-size:11px;color:var(--text-muted)"></span>
           </div>
           <a href="inventory.html" class="btn btn-ghost btn-sm">عرض الكل <i data-lucide="arrow-left"></i></a>
         </div>
@@ -831,10 +887,11 @@ tbody tr:last-child td{border-bottom:none}
                   <th>المنتج</th>
                   <th>الكمية</th>
                   <th>الصلاحية</th>
+                  <th>إجراء مقترح</th>
                 </tr>
               </thead>
               <tbody id="expiringTable">
-                <tr><td colspan="3" class="loading-state"><div class="spinner"></div></td></tr>
+                <tr><td colspan="4" class="loading-state"><div class="spinner"></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -986,6 +1043,23 @@ tbody tr:last-child td{border-bottom:none}
 
 <div class="toast-container" id="toastContainer"></div>
 
+<dialog class="goal-dialog" id="salesGoalDialog" aria-labelledby="salesGoalDialogTitle">
+  <form id="salesGoalForm">
+    <div class="goal-dialog-header">
+      <h2 id="salesGoalDialogTitle">هدف مبيعات الفرع</h2>
+      <p>يُحفظ الهدف لهذا الفرع ويُحدّث تلقائياً مع مبيعات اليوم.</p>
+    </div>
+    <div class="goal-dialog-body">
+      <label for="salesGoalInput">قيمة الهدف اليومي</label>
+      <input id="salesGoalInput" type="number" min="1" step="0.01" inputmode="decimal" required placeholder="مثال: 15000">
+    </div>
+    <div class="goal-dialog-actions">
+      <button class="btn btn-ghost" type="button" id="cancelSalesGoalBtn">إلغاء</button>
+      <button class="btn btn-primary" type="submit" id="saveSalesGoalBtn">حفظ الهدف</button>
+    </div>
+  </form>
+</dialog>
+
 <script>
 (function () {
   'use strict';
@@ -997,6 +1071,7 @@ tbody tr:last-child td{border-bottom:none}
   let aiPanelOpen = false;
   let aiHistory = [];
   let aiBusy = false;
+  let dailySalesTarget = 0;
 
   const esc = (window.Refad && Refad.esc) || function(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
   const money = (window.Refad && Refad.money) || function(v){return Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م'};
@@ -1022,30 +1097,53 @@ tbody tr:last-child td{border-bottom:none}
   function yesterday() { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
   function monthStart() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01'; }
   function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0,10); }
+  function nextDay(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00Z');
+    date.setUTCDate(date.getUTCDate() + 1);
+    return date.toISOString().slice(0, 10);
+  }
   function daysLeft(expiry) { return Math.ceil((new Date(expiry) - new Date()) / (1000*60*60*24)); }
 
   // ═══════════════════════════════════════════════════════════
   // DATA LOADERS
   // ═══════════════════════════════════════════════════════════
-  async function loadSalesForDate(dateStr) {
-    const { data } = await sb.from('sales_invoices')
-      .select('total')
+  async function loadSalesForRange(startDate, endDateExclusive) {
+    const start = startDate + 'T00:00:00Z';
+    const end = endDateExclusive + 'T00:00:00Z';
+    const invoiceRes = await sb.from('sales_invoices')
+      .select('id, total, status')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', dateStr + 'T00:00:00')
-      .lt('invoice_date', dateStr + 'T23:59:59')
+      .gte('invoice_date', start)
+      .lt('invoice_date', end)
       .neq('status', 'voided');
-    return { total: (data||[]).reduce((s,i)=>s+Number(i.total||0),0), count: (data||[]).length };
+    if (invoiceRes.error) throw invoiceRes.error;
+
+    const returnsByInvoice = {};
+    const invoiceIds = (invoiceRes.data || []).map(invoice => invoice.id);
+    if (invoiceIds.length > 0) {
+      const returnRes = await sb.from('sales_returns')
+        .select('total, original_invoice_id')
+        .in('original_invoice_id', invoiceIds);
+      if (returnRes.error) throw returnRes.error;
+      (returnRes.data || []).forEach(item => {
+      returnsByInvoice[item.original_invoice_id] = (returnsByInvoice[item.original_invoice_id] || 0) + Number(item.total || 0);
+      });
+    }
+    const invoices = invoiceRes.data || [];
+    const total = invoices.reduce((sum, invoice) => {
+      const returned = returnsByInvoice[invoice.id] || (invoice.status === 'returned' ? Number(invoice.total || 0) : 0);
+      return sum + Number(invoice.total || 0) - returned;
+    }, 0);
+    return { total, count: invoices.length };
+  }
+
+  async function loadSalesForDate(dateStr) {
+    return loadSalesForRange(dateStr, nextDay(dateStr));
   }
 
   async function loadMonthSales() {
-    const { data } = await sb.from('sales_invoices')
-      .select('total')
-      .eq('company_id', session.company_id)
-      .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', monthStart() + 'T00:00:00')
-      .neq('status', 'voided');
-    return (data||[]).reduce((s,i)=>s+Number(i.total||0),0);
+    return (await loadSalesForRange(monthStart(), nextDay(today()))).total;
   }
 
   async function loadMonthExpenses() {
@@ -1156,7 +1254,7 @@ tbody tr:last-child td{border-bottom:none}
 
   async function loadExpiring() {
     const { data, error } = await sb.from('v_expiring_lots')
-      .select('lot_id, product_id, lot_number, quantity_left, expiry_date, days_to_expiry, products(name)')
+      .select('lot_id, product_id, lot_number, quantity_left, expiry_date, days_to_expiry, products(name, sale_price, cost_price)')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
       .order('expiry_date', { ascending: true })
@@ -1200,20 +1298,38 @@ tbody tr:last-child td{border-bottom:none}
 
   async function loadChartData(days) {
     const start = daysAgo(days - 1);
-    const { data } = await sb.from('sales_invoices')
-      .select('invoice_date, total')
+    const end = nextDay(today());
+    const invoiceRes = await sb.from('sales_invoices')
+      .select('id, invoice_date, total, status')
       .eq('company_id', session.company_id)
       .eq('branch_id', session.active_branch_id)
-      .gte('invoice_date', start + 'T00:00:00')
+      .gte('invoice_date', start + 'T00:00:00Z')
+      .lt('invoice_date', end + 'T00:00:00Z')
       .neq('status', 'voided');
+    if (invoiceRes.error) throw invoiceRes.error;
     const map = {};
+    const returnsByInvoice = {};
     for (let i = days - 1; i >= 0; i--) {
       const d = daysAgo(i);
       map[d] = 0;
     }
-    (data||[]).forEach(inv => {
+    const invoices = invoiceRes.data || [];
+    const invoiceIds = invoices.map(invoice => invoice.id);
+    if (invoiceIds.length > 0) {
+      const returnRes = await sb.from('sales_returns')
+        .select('original_invoice_id, total')
+        .in('original_invoice_id', invoiceIds);
+      if (returnRes.error) throw returnRes.error;
+      (returnRes.data || []).forEach(ret => {
+        returnsByInvoice[ret.original_invoice_id] = (returnsByInvoice[ret.original_invoice_id] || 0) + Number(ret.total || 0);
+      });
+    }
+    invoices.forEach(inv => {
       const d = inv.invoice_date ? inv.invoice_date.slice(0,10) : '';
-      if (map[d] !== undefined) map[d] += Number(inv.total||0);
+      if (map[d] !== undefined) {
+        const returned = returnsByInvoice[inv.id] || (inv.status === 'returned' ? Number(inv.total || 0) : 0);
+        map[d] += Number(inv.total || 0) - returned;
+      }
     });
     return Object.entries(map).map(([date, total]) => ({ date, total }));
   }
@@ -1223,7 +1339,10 @@ tbody tr:last-child td{border-bottom:none}
   // ═══════════════════════════════════════════════════════════
   function renderKPIs(data) {
     const { today: t, yesterday: y, monthSales, productsCount, monthExpenses } = data;
-    document.getElementById('kpiSalesToday').textContent = money(t.total);
+    const salesToday = document.getElementById('kpiSalesToday');
+    salesToday.textContent = money(t.total);
+    salesToday.dataset.rawValue = String(Number(t.total) || 0);
+    renderSalesGoal(t.total);
     let trendHtml = '';
     if (y.total > 0) {
       const pct = ((t.total - y.total) / y.total) * 100;
@@ -1241,6 +1360,44 @@ tbody tr:last-child td{border-bottom:none}
     document.getElementById('kpiSalesMonthSub').textContent = 'من بداية الشهر';
     document.getElementById('kpiExpensesMonth').textContent = money(monthExpenses);
     document.getElementById('kpiExpensesMonthSub').textContent = monthExpenses > 0 ? 'من بداية الشهر' : 'لا مصاريف بعد';
+  }
+
+  function renderSalesGoal(todaySales) {
+    const target = Number(dailySalesTarget);
+    const status = document.getElementById('salesGoalStatus');
+    const progress = document.getElementById('salesGoalProgress');
+    const empty = document.getElementById('salesGoalEmpty');
+    const editButton = document.getElementById('editSalesGoalBtn');
+    if (!status || !progress || !empty || !editButton) return;
+
+    editButton.textContent = target > 0 ? 'تعديل الهدف' : 'تحديد الهدف';
+    if (!Number.isFinite(target) || target <= 0) {
+      status.textContent = 'حدد هدفاً يومياً لمتابعة تقدم الفرع';
+      progress.hidden = true;
+      empty.hidden = false;
+      return;
+    }
+
+    const achieved = Math.max(0, Number(todaySales) || 0);
+    const ratio = achieved / target;
+    const percent = Math.floor(ratio * 100);
+    const remaining = Math.max(target - achieved, 0);
+    document.getElementById('salesGoalCurrent').textContent = money(achieved);
+    document.getElementById('salesGoalTarget').textContent = 'الهدف ' + money(target);
+    document.getElementById('salesGoalRemaining').textContent = remaining > 0
+      ? 'متبقي ' + money(remaining)
+      : 'تم تجاوز الهدف بـ ' + money(achieved - target);
+    document.getElementById('salesGoalPercent').textContent = percent + '%';
+
+    const fill = document.getElementById('salesGoalFill');
+    fill.style.width = Math.min(ratio * 100, 100) + '%';
+    fill.classList.toggle('complete', ratio >= 1);
+    const bar = document.getElementById('salesGoalBar');
+    bar.setAttribute('aria-valuenow', String(Math.min(percent, 100)));
+    bar.setAttribute('aria-valuetext', percent + '% من الهدف');
+    status.textContent = ratio >= 1 ? 'تم تحقيق هدف الفرع اليوم' : 'تقدم الفرع نحو هدف المبيعات اليومي';
+    progress.hidden = false;
+    empty.hidden = true;
   }
 
   function renderSessionBanner(activeSession) {
@@ -1345,12 +1502,17 @@ tbody tr:last-child td{border-bottom:none}
   function renderExpiring(list) {
     const tbody = document.getElementById('expiringTable');
     const badge = document.getElementById('expiringCount');
+    const exposure = list.reduce((sum, lot) => {
+      return sum + Math.max(0, Number(lot.quantity_left) || 0) * Math.max(0, Number(lot.products?.cost_price) || 0);
+    }, 0);
+    const exposureEl = document.getElementById('expiringExposure');
+    if (exposureEl) exposureEl.textContent = exposure > 0 ? 'قيمة التكلفة المعرضة: ' + money(exposure) : '';
     if (list.length > 0) {
       badge.textContent = list.length;
       badge.style.display = 'inline-block';
     }
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3" class="empty-state"><i data-lucide="check-circle-2" style="color:var(--success)"></i><h3>لا توجد منتجات قريبة الانتهاء</h3></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><i data-lucide="check-circle-2" style="color:var(--success)"></i><h3>لا توجد منتجات قريبة الانتهاء</h3></td></tr>';
       if (window.lucide) lucide.createIcons();
       return;
     }
@@ -1358,10 +1520,19 @@ tbody tr:last-child td{border-bottom:none}
       const days = l.days_to_expiry != null ? Number(l.days_to_expiry) : daysLeft(l.expiry_date);
       const cls = days < 3 ? 'danger' : days < 7 ? 'warning' : 'info';
       const label = days < 0 ? 'منتهي' : days === 0 ? 'اليوم' : days + ' يوم';
+      const action = days < 0
+        ? 'اعزل الدفعة وراجعها فوراً'
+        : days <= 3
+          ? 'أولوية بيع أو نقل عاجل'
+          : days <= 7
+            ? 'راجع عرضاً بموافقة المدير'
+            : 'طبّق الصرف بالأقرب انتهاءً';
+      const actionTone = days < 0 ? 'danger' : days <= 3 ? 'warning' : 'gray';
       return '<tr>' +
         '<td><div class="product-cell"><div class="product-avatar">' + esc(l.products?.name || '?').charAt(0) + '</div><div class="product-name">' + esc(l.products?.name || 'منتج') + '</div></div></td>' +
         '<td>' + Number(l.quantity_left || 0) + '</td>' +
         '<td><span class="badge badge-' + cls + '"><i data-lucide="clock"></i>' + label + '</span></td>' +
+        '<td><span class="badge badge-' + actionTone + '">' + action + '</span><div><a href="inventory.html" style="font-size:11px;color:var(--accent);text-decoration:none">مراجعة المخزون</a></div></td>' +
       '</tr>';
     }).join('');
     if (window.lucide) lucide.createIcons();
@@ -1761,6 +1932,11 @@ tbody tr:last-child td{border-bottom:none}
       return;
     }
 
+    if (window.RefadSettings) {
+      await window.RefadSettings.load(sb);
+      dailySalesTarget = Number(window.RefadSettings.get('dashboard.daily_sales_target', 0)) || 0;
+    }
+
     // theme
     try {
       if (window.RefadSettings) {
@@ -1782,6 +1958,7 @@ tbody tr:last-child td{border-bottom:none}
     document.getElementById('greeting').textContent = 'أهلاً ' + (session.full_name || 'مستخدم') + ' 👋';
 
     await loadAll();
+    setupSalesGoal();
 
     // AI Assistant (owner only)
     initAI();
@@ -1817,6 +1994,54 @@ tbody tr:last-child td{border-bottom:none}
 
     if (window.lucide) lucide.createIcons();
     console.log('[Dashboard v3.0] Ready — AI Assistant for owner only');
+  }
+
+  function setupSalesGoal() {
+    const dialog = document.getElementById('salesGoalDialog');
+    const form = document.getElementById('salesGoalForm');
+    const input = document.getElementById('salesGoalInput');
+    const saveButton = document.getElementById('saveSalesGoalBtn');
+    if (!dialog || !form || !input || !saveButton) return;
+
+    input.addEventListener('input', () => input.setCustomValidity(''));
+    document.getElementById('editSalesGoalBtn').addEventListener('click', () => {
+      input.value = dailySalesTarget > 0 ? String(dailySalesTarget) : '';
+      dialog.showModal();
+      input.focus();
+    });
+    document.getElementById('cancelSalesGoalBtn').addEventListener('click', () => dialog.close());
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const target = Number(input.value);
+      if (!Number.isFinite(target) || target <= 0) {
+        input.setCustomValidity('أدخل هدفاً أكبر من صفر');
+        input.reportValidity();
+        return;
+      }
+
+      input.setCustomValidity('');
+      saveButton.disabled = true;
+      try {
+        const saved = await window.RefadSettings.save(
+          sb,
+          'dashboard',
+          'daily_sales_target',
+          target,
+          session.active_branch_id || null
+        );
+        if (!saved) throw new Error('تعذر حفظ الهدف. تحقق من الاتصال والصلاحيات ثم حاول مرة أخرى.');
+        dailySalesTarget = target;
+        const currentSales = Number(document.getElementById('kpiSalesToday').dataset.rawValue || 0);
+        renderSalesGoal(currentSales);
+        dialog.close();
+        toast('success', 'تم حفظ هدف مبيعات الفرع');
+      } catch (error) {
+        console.error('[Dashboard] Failed to save sales target:', error);
+        toast('error', error.message || 'تعذر حفظ هدف المبيعات');
+      } finally {
+        saveButton.disabled = false;
+      }
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

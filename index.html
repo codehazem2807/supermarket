@@ -92,11 +92,12 @@ body::after {
 
 .login-wrap {
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
   background: var(--card);
   border-radius: 24px;
   box-shadow: var(--shadow-lg);
-  padding: 40px 32px;
+  border: 1px solid var(--border);
+  padding: 44px 36px;
   position: relative;
   overflow: hidden;
   z-index: 1;
@@ -238,6 +239,13 @@ body::after {
   border-color: var(--accent);
   background: var(--card);
   box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.form-input:focus-visible,
+.btn-primary:focus-visible,
+.toggle:focus-visible,
+.theme-toggle:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
 }
 .form-input:focus ~ .icon {
   color: var(--accent);
