@@ -688,6 +688,13 @@ tbody tr:last-child td{border-bottom:none}
         <div class="kpi-value" id="kpiInvoiceCount">—</div>
         <div class="kpi-sub" id="kpiAvgTicket">—</div>
       </div>
+      <!-- 💰 كارت صافي ربح اليوم (المبيعات - تكلفة البضاعة المباعة) -->
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:var(--success-soft);color:var(--success)"><i data-lucide="coins"></i></div>
+        <div class="kpi-label">صافي ربح اليوم</div>
+        <div class="kpi-value" id="kpiNetProfitToday">—</div>
+        <div class="kpi-sub" id="kpiNetProfitTodaySub">—</div>
+      </div>
       <div class="kpi-card">
         <div class="kpi-icon gold"><i data-lucide="trending-up"></i></div>
         <div class="kpi-label">مبيعات الشهر</div>
@@ -700,6 +707,11 @@ tbody tr:last-child td{border-bottom:none}
         <div class="kpi-value" id="kpiExpensesMonth">—</div>
         <div class="kpi-sub" id="kpiExpensesMonthSub">من بداية الشهر</div>
       </div>
+    </div>
+
+    <!-- 🎯 شريط هدف الشهر -->
+    <div class="card" id="monthGoalWrap" style="margin-bottom:20px;padding:0;overflow:hidden">
+      <div style="padding:14px 20px;font-size:12.5px;color:var(--text-muted)">جاري تحميل الهدف...</div>
     </div>
 
     <!-- Chart -->
@@ -718,6 +730,14 @@ tbody tr:last-child td{border-bottom:none}
       <div class="chart-container" id="chartContainer">
         <div class="loading-state"><div class="spinner"></div></div>
       </div>
+    </div>
+
+    <!-- 🧾 توزيع طرق الدفع (الشهر الحالي) -->
+    <div class="card" id="paymentMixCard" style="margin-bottom:20px;display:none">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="credit-card"></i><span>توزيع طرق الدفع هذا الشهر</span></div>
+      </div>
+      <div class="card-body" id="paymentMixBody"></div>
     </div>
 
     <div class="grid-2">
@@ -1383,7 +1403,17 @@ tbody tr:last-child td{border-bottom:none}
     const avg = t.count > 0 ? t.total / t.count : 0;
     document.getElementById('kpiAvgTicket').textContent = avg > 0 ? 'متوسط ' + money(avg) : 'لا فواتير بعد';
     document.getElementById('kpiSalesMonth').textContent = money(monthSales);
-    document.getElementById('kpiSalesMonthSub').textContent = 'من بداية الشهر';
+    // 📊 مقارنة بنفس الفترة من الشهر الماضي (بدلاً من الشهر كاملاً)
+    const prevSameEl = document.getElementById('kpiSalesMonthSub');
+    if (data.prevMonthToDate != null && data.prevMonthToDate > 0) {
+      const pmPct = ((monthSales - data.prevMonthToDate) / data.prevMonthToDate) * 100;
+      const up = pmPct >= 0;
+      prevSameEl.innerHTML = '<span class="kpi-trend ' + (up ? 'up' : 'down') + '">' +
+        '<i data-lucide="' + (up ? 'trending-up' : 'trending-down') + '"></i>' + Math.abs(pmPct).toFixed(0) + '%</span>' +
+        '<span>مقارنة بنفس الفترة الشهر الماضي (' + money(data.prevMonthToDate) + ')</span>';
+    } else {
+      prevSameEl.textContent = 'من بداية الشهر';
+    }
     document.getElementById('kpiExpensesMonth').textContent = money(monthExpenses);
     document.getElementById('kpiExpensesMonthSub').textContent = monthExpenses > 0 ? 'من بداية الشهر' : 'لا مصاريف بعد';
 
