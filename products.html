@@ -697,17 +697,27 @@ tbody tr.selected{background:var(--accent-soft)}
     <div class="modal-body">
       <div class="form-error" id="importError"></div>
       <p style="color:var(--text-muted);margin-bottom:14px;font-size:13px">
-        ارفع ملف CSV بالأعمدة: <code style="background:var(--bg-soft);padding:2px 6px;border-radius:4px;font-size:11px">name,barcode,plu_code,base_unit,sale_price,min_stock,category</code>
+        حمّل القالب أولاً، واملأ بيانات الأصناف. الأعمدة المالية تحتاج صلاحية عرض التكلفة، ورصيد أول المدة يحتاج صلاحية تسوية المخزون.
       </p>
+      <button type="button" class="btn btn-ghost btn-sm" id="downloadImportTemplateBtn" style="margin-bottom:14px">
+        <i data-lucide="file-down"></i><span>تحميل قالب الاستيراد CSV</span>
+      </button>
+      <div class="form-hint" style="margin-bottom:12px">
+        يتضمن القالب بيانات الصنف والأسعار والوحدات والفئة والضريبة والحدود، بالإضافة إلى
+        <strong>opening_quantity</strong> و<strong>opening_warehouse</strong> وبيانات الدفعة والصلاحية وتكلفة الوحدة الافتتاحية.
+        اكتب الكمية بوحدتك الأساسية. الفئات غير الموجودة تُنشأ تلقائياً، وتُقبل أسماء أعمدة عربية أو إنجليزية.
+        والتاريخ يقبل YYYY-MM-DD أو DD/MM/YYYY.
+        عند ترك المخزن فارغاً سيُستخدم المخزن الافتراضي، وحقلا is_active وis_weighted يقبلان 1 أو 0.
+      </div>
       <div class="form-group">
         <label class="form-label">وضع الاستيراد</label>
         <select class="form-select" id="importMode">
           <option value="insert">إضافة فقط (تجاهل المكرر)</option>
-          <option value="upsert">إضافة أو تحديث (حسب الباركود)</option>
+          <option value="upsert">إضافة أو تحديث (حسب الباركود أو PLU أو SKU)</option>
         </select>
       </div>
-      <input type="file" id="importFile" accept=".csv" class="form-input">
-      <div class="form-hint">الحد الأقصى 1000 منتج</div>
+      <input type="file" id="importFile" accept=".csv,text/csv" class="form-input">
+      <div class="form-hint">CSV بترميز UTF-8، حتى 1000 صنف و5 ميجابايت. يدعم الفاصلة أو الفاصلة المنقوطة والأرقام العربية وصيغ الأسعار الشائعة. رصيد أول المدة يُضاف للأصناف الجديدة فقط؛ التحديث لا يكرر الرصيد.</div>
       <div id="importPreview" style="margin-top:12px"></div>
     </div>
     <div class="modal-footer">
@@ -753,6 +763,9 @@ tbody tr.selected{background:var(--accent-soft)}
   let selectedIds = new Set();
   let currentPage = 1;
   let warehouses = [];
+  let importRows = [];
+  let importHeaders = [];
+  let importCompleted = false;
   const PAGE_SIZE = 25;
 
   let productSettings = {
@@ -874,7 +887,7 @@ tbody tr.selected{background:var(--accent-soft)}
   async function loadProducts() {
     const fields = [
       'id', 'company_id', 'name', 'barcode', 'plu_code', 'category_id', 'sku', 'shelf_life_days',
-      'is_active', 'is_bundle', 'is_weighted', 'base_unit', 'purchase_unit', 'sale_unit',
+      'is_active', 'is_bundle', 'is_weighed', 'base_unit', 'purchase_unit', 'sale_unit',
       'units_per_purchase', 'sale_price', 'tax_rate', 'tax_rate_id', 'min_stock', 'reorder_qty', 'created_at'
     ];
     if (can('products.cost_view')) fields.push('purchase_price', 'cost_price');
@@ -885,6 +898,7 @@ tbody tr.selected{background:var(--accent-soft)}
       .order('created_at', { ascending: false });
     if (res.error) { safeToast('error', 'فشل تحميل المنتجات'); return; }
     products = res.data || [];
+    products.forEach(product => { product.is_weighted = !!product.is_weighed; });
     await loadStock();
     await loadExtraBarcodes();
   }
@@ -1157,6 +1171,21 @@ tbody tr.selected{background:var(--accent-soft)}
     else bar.classList.remove('show');
   }
 
+  function setProductUnitSelect(selectId, unitValue) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const unit = String(unitValue || '').trim() || 'piece';
+    const exists = Array.from(select.options).some(option => option.value === unit);
+    if (!exists) {
+      const option = document.createElement('option');
+      option.value = unit;
+      option.textContent = unit;
+      option.dataset.importCustomUnit = 'true';
+      select.appendChild(option);
+    }
+    select.value = unit;
+  }
+
   // ═══════════════════════════════════════════════════════════
   // PRODUCT MODAL
   // ═══════════════════════════════════════════════════════════
@@ -1171,6 +1200,7 @@ tbody tr.selected{background:var(--accent-soft)}
     document.getElementById('productId').value = id || '';
     bundleItems = [];
     extraBarcodes = [];
+    document.querySelectorAll('option[data-import-custom-unit]').forEach(option => option.remove());
 
     document.querySelectorAll('[data-product-tab]').forEach((t, i) => t.classList.toggle('active', i === 0));
     document.querySelectorAll('[data-product-panel]').forEach((p, i) => p.style.display = i === 0 ? 'block' : 'none');
@@ -1216,10 +1246,10 @@ tbody tr.selected{background:var(--accent-soft)}
       document.getElementById('prodActive').value = p.is_active ? '1' : '0';
       document.getElementById('prodIsBundle').checked = !!p.is_bundle;
       document.getElementById('prodIsWeighted').checked = !!p.is_weighted;
-      document.getElementById('prodBaseUnit').value = p.base_unit || 'piece';
-      document.getElementById('prodPurchaseUnit').value = p.purchase_unit || 'piece';
+      setProductUnitSelect('prodBaseUnit', p.base_unit);
+      setProductUnitSelect('prodPurchaseUnit', p.purchase_unit);
       document.getElementById('prodUnitsPerPurchase').value = p.units_per_purchase || 1;
-      document.getElementById('prodSaleUnit').value = p.sale_unit || 'piece';
+      setProductUnitSelect('prodSaleUnit', p.sale_unit);
       document.getElementById('prodPurchasePrice').value = p.purchase_price || 0;
       document.getElementById('prodPrice').value = p.sale_price || 0;
       document.getElementById('prodCost').value = p.cost_price || 0;
@@ -1577,7 +1607,7 @@ tbody tr.selected{background:var(--accent-soft)}
       shelf_life_days: Number(document.getElementById('prodShelfLife').value) || null,
       is_active: document.getElementById('prodActive').value === '1',
       is_bundle: isBundle,
-      is_weighted: document.getElementById('prodIsWeighted').checked,
+      is_weighed: document.getElementById('prodIsWeighted').checked,
       base_unit: document.getElementById('prodBaseUnit').value,
       purchase_unit: document.getElementById('prodPurchaseUnit').value,
       sale_unit: document.getElementById('prodSaleUnit').value,
@@ -1833,6 +1863,31 @@ tbody tr.selected{background:var(--accent-soft)}
   // ═══════════════════════════════════════════════════════════
   // IMPORT / EXPORT
   // ═══════════════════════════════════════════════════════════
+  const importTemplateHeaders = [
+    'name', 'barcode', 'plu_code', 'sku', 'category', 'base_unit', 'purchase_unit',
+    'sale_unit', 'units_per_purchase', 'purchase_price', 'cost_price', 'sale_price',
+    'tax_rate', 'min_stock', 'reorder_qty', 'shelf_life_days', 'is_active', 'is_weighted',
+    'opening_quantity', 'opening_warehouse', 'opening_lot_number', 'opening_expiry_date',
+    'opening_unit_cost'
+  ];
+
+  function downloadCsvFile(rows, filename) {
+    const csv = rows.map(row => row.map(value =>
+      '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"'
+    ).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function downloadImportTemplate() {
+    downloadCsvFile([importTemplateHeaders], 'products-import-template.csv');
+    safeToast('success', 'تم تحميل قالب استيراد الأصناف');
+  }
+
   function exportCSV() {
     const filtered = getFilteredProducts();
     const costVisible = can('products.cost_view');
@@ -1846,16 +1901,23 @@ tbody tr.selected{background:var(--accent-soft)}
       row.push(p.sale_price || 0, p.min_stock || 0, (p.categories?.name) || '', p.is_active ? 1 : 0);
       rows.push(row);
     });
-    const csv = rows.map(r => r.map(x => '"' + String(x || '').replace(/"/g, '""') + '"').join(',')).join('\n');
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'products-' + new Date().toISOString().slice(0,10) + '.csv';
-    a.click();
+    downloadCsvFile(rows, 'products-' + new Date().toISOString().slice(0,10) + '.csv');
     safeToast('success', 'تم تصدير ' + filtered.length + ' منتج');
   }
 
   function parseCSV(text) {
+    text = String(text || '').replace(/^\uFEFF/, '');
+    const counts = { ',': 0, ';': 0, '\t': 0 };
+    let quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const character = text[i];
+      if (character === '"' && text[i + 1] === '"' && quoted) { i++; continue; }
+      if (character === '"') { quoted = !quoted; continue; }
+      if (character === '\n' || character === '\r') break;
+      if (!quoted && Object.prototype.hasOwnProperty.call(counts, character)) counts[character]++;
+    }
+    const delimiter = Object.keys(counts).reduce((best, candidate) =>
+      counts[candidate] > counts[best] ? candidate : best, ',');
     const rows = [];
     let current = [];
     let field = '';
@@ -1869,7 +1931,7 @@ tbody tr.selected{background:var(--accent-soft)}
         else { field += ch; }
       } else {
         if (ch === '"') inQuotes = true;
-        else if (ch === ',') { current.push(field); field = ''; }
+        else if (ch === delimiter) { current.push(field); field = ''; }
         else if (ch === '\n' || ch === '\r') {
           if (ch === '\r' && next === '\n') i++;
           current.push(field);
@@ -1878,80 +1940,546 @@ tbody tr.selected{background:var(--accent-soft)}
         } else { field += ch; }
       }
     }
+    if (inQuotes) throw new Error('يوجد حقل نصي غير مغلق بعلامة اقتباس في ملف CSV');
     if (field || current.length) { current.push(field); if (current.some(c => c.trim())) rows.push(current); }
     return rows;
   }
 
-  async function doImport() {
-    if (!can('products.manage')) { safeToast('error', 'لا تملك صلاحية استيراد المنتجات'); return; }
-    const file = document.getElementById('importFile').files[0];
-    if (!file) { safeToast('error', 'اختر ملف'); return; }
-    const errEl = document.getElementById('importError');
-    errEl.classList.remove('show');
+  function normalizeImportValue(value) {
+    return String(value == null ? '' : value).trim().toLocaleLowerCase('ar')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+      .replace(/\s+/g, ' ');
+  }
 
-    const text = await file.text();
-    const rows = parseCSV(text);
-    if (rows.length < 2) { errEl.textContent = 'ملف فارغ'; errEl.classList.add('show'); return; }
+  const importHeaderAliases = {
+    name: ['name', 'product', 'product_name', 'item', 'item_name', 'اسم', 'الاسم', 'اسم الصنف', 'اسم المنتج'],
+    barcode: ['barcode', 'bar_code', 'ean', 'باركود', 'الباركود', 'الباركود الرئيسي'],
+    plu_code: ['plu_code', 'plu', 'كود plu'],
+    sku: ['sku', 'code', 'product_code', 'كود', 'كود الصنف', 'كود المنتج'],
+    category: ['category', 'category_name', 'الفئة', 'التصنيف'],
+    base_unit: ['base_unit', 'unit', 'الوحدة', 'الوحدة الاساسية', 'الوحدة الأساسية'],
+    purchase_unit: ['purchase_unit', 'وحدة الشراء'],
+    sale_unit: ['sale_unit', 'وحدة البيع'],
+    units_per_purchase: ['units_per_purchase', 'units_per_box', 'معامل الشراء', 'عدد الوحدات في العبوة'],
+    purchase_price: ['purchase_price', 'buy_price', 'سعر الشراء'],
+    cost_price: ['cost_price', 'unit_cost', 'التكلفة', 'سعر التكلفة'],
+    sale_price: ['sale_price', 'price', 'selling_price', 'سعر البيع', 'السعر'],
+    tax_rate: ['tax_rate', 'tax', 'الضريبة', 'نسبة الضريبة'],
+    min_stock: ['min_stock', 'minimum_stock', 'الحد الادنى', 'الحد الأدنى للمخزون'],
+    reorder_qty: ['reorder_qty', 'كمية اعادة الطلب', 'كمية إعادة الطلب'],
+    shelf_life_days: ['shelf_life_days', 'shelf_life', 'مدة الصلاحية'],
+    is_active: ['is_active', 'active', 'status', 'نشط', 'الحالة'],
+    is_weighted: ['is_weighted', 'is_weighed', 'weighted', 'weighed', 'موزون', 'بالوزن'],
+    opening_quantity: ['opening_quantity', 'opening_stock', 'opening_balance', 'opening_qty', 'opening_stock_qty', 'initial_stock', 'quantity_on_hand', 'رصيد اول المدة', 'رصيد أول المدة', 'الكمية الافتتاحية', 'رصيد أول المدة بالوحدة الأساسية'],
+    opening_warehouse: ['opening_warehouse', 'warehouse', 'المخزن', 'مخزن رصيد اول المدة'],
+    opening_lot_number: ['opening_lot_number', 'lot_number', 'batch', 'رقم الدفعة'],
+    opening_expiry_date: ['opening_expiry_date', 'expiry_date', 'expiration_date', 'تاريخ الصلاحية'],
+    opening_unit_cost: ['opening_unit_cost', 'opening_cost', 'تكلفة الرصيد الافتتاحي']
+  };
 
-    const headers = rows[0].map(h => h.replace(/"/g, '').trim().toLowerCase());
-    const nameIdx = headers.indexOf('name');
-    const priceIdx = headers.indexOf('sale_price');
-    if (nameIdx === -1 || priceIdx === -1) {
-      errEl.textContent = 'الأعمدة name و sale_price مطلوبة';
-      errEl.classList.add('show');
-      return;
+  function normalizeImportHeaders(headers) {
+    const mapped = headers.map(header => {
+      const normalized = normalizeImportValue(header).replace(/[\s-]+/g, '_');
+      const canonical = Object.keys(importHeaderAliases).find(key =>
+        importHeaderAliases[key].some(alias =>
+          normalizeImportValue(alias).replace(/[\s-]+/g, '_') === normalized));
+      return canonical || normalized;
+    });
+    const duplicates = mapped.filter((header, index) => mapped.indexOf(header) !== index);
+    if (duplicates.length) throw new Error('أسماء أعمدة مكررة بعد توحيدها: ' + Array.from(new Set(duplicates)).join('، '));
+    return mapped;
+  }
+
+  function normalizeImportIdentifier(value) {
+    return String(value == null ? '' : value).trim()
+      .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+      .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+      .replace(/^(\d+)\.0+$/, '$1');
+  }
+
+  function parseImportNumber(value) {
+    let text = String(value == null ? '' : value).trim()
+      .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+      .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+      .replace(/[٬،]/g, ',').replace(/٫/g, '.')
+      .replace(/(?:EGP|جنيه(?:\s*مصري)?|ج\.?\s*م\.?)/gi, '')
+      .replace(/[\s\u00a0]/g, '');
+    if (!text) return null;
+    if (!/^[+-]?(?:\d[\d.,]*|[.,]\d+)$/.test(text)) return NaN;
+    const comma = text.lastIndexOf(',');
+    const dot = text.lastIndexOf('.');
+    if (comma >= 0 && dot >= 0) {
+      const decimalSeparator = comma > dot ? ',' : '.';
+      const thousandsSeparator = decimalSeparator === ',' ? /\./g : /,/g;
+      text = text.replace(thousandsSeparator, '');
+      if (decimalSeparator === ',') text = text.replace(',', '.');
+    } else if (comma >= 0) {
+      const decimalComma = /,\d{1,2}$/.test(text);
+      text = decimalComma ? text.replace(',', '.') : text.replace(/,/g, '');
+    }
+    const number = Number(text);
+    return Number.isFinite(number) ? number : NaN;
+  }
+
+  function normalizeImportDate(value) {
+    const text = String(value == null ? '' : value).trim()
+      .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+      .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+    if (!text) return '';
+    let match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (match) return match[1] + '-' + match[2].padStart(2, '0') + '-' + match[3].padStart(2, '0');
+    match = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if (match) return match[3] + '-' + match[2].padStart(2, '0') + '-' + match[1].padStart(2, '0');
+    if (/^\d{4,6}(?:\.0+)?$/.test(text)) {
+      const serial = Number(text);
+      if (serial >= 1 && serial <= 2958465) {
+        const date = new Date(Date.UTC(1899, 11, 30) + Math.floor(serial) * 86400000);
+        return date.toISOString().slice(0, 10);
+      }
+    }
+    return text;
+  }
+
+  function normalizeImportUnit(rawValue, kind, warnings) {
+    const raw = String(rawValue || '').trim();
+    if (!raw) return kind === 'purchase' ? 'carton' : 'piece';
+    if (/[\u0600-\u06FF]/.test(raw)) return raw;
+    const normalized = normalizeImportValue(raw);
+    const aliases = {
+      piece: ['piece', 'pieces', 'pc', 'pcs', 'unit', 'وحدة', 'قطعة', 'حبة'],
+      carton: ['carton', 'ctn', 'كرتونة', 'كرتون'],
+      box: ['box', 'صندوق', 'علبة'],
+      pack: ['pack', 'package', 'عبوة', 'عبوات', 'باكيت', 'كيس', 'أكياس'],
+      kg: ['kg', 'كيلو', 'كيلوجرام', 'كجم'],
+      g: ['g', 'gram', 'جرام', 'جم'],
+      liter: ['liter', 'litre', 'لتر'],
+      ml: ['ml', 'ملليلتر', 'مل']
+    };
+    const canonical = Object.keys(aliases).find(unit =>
+      aliases[unit].some(alias => normalizeImportValue(alias) === normalized));
+    const allowed = kind === 'purchase'
+      ? ['piece', 'carton', 'box', 'pack', 'kg']
+      : kind === 'sale' ? ['piece', 'kg', 'g', 'carton', 'pack'] : ['piece', 'kg', 'g', 'liter', 'ml', 'pack', 'box'];
+    if (canonical && allowed.includes(canonical)) return canonical;
+    return raw;
+  }
+
+  function parseImportBoolean(value, fallback) {
+    const text = normalizeImportValue(value);
+    if (!text) return fallback;
+    if (['1', 'true', 'yes', 'نعم', 'نشط', 'active', 'موزون'].includes(text)) return true;
+    if (['0', 'false', 'no', 'لا', 'غير نشط', 'معطل', 'disabled', 'inactive', 'عادي'].includes(text)) return false;
+    return null;
+  }
+
+  function validateImportRow(row, mode) {
+    const errors = [];
+    const warnings = [];
+    const value = key => {
+      const index = importHeaders.indexOf(key);
+      return index < 0 ? '' : String(row.cells[index] == null ? '' : row.cells[index]).trim();
+    };
+    const name = value('name');
+    const barcode = normalizeImportIdentifier(value('barcode'));
+    const pluCode = normalizeImportIdentifier(value('plu_code'));
+    const sku = value('sku');
+    const salePrice = parseImportNumber(value('sale_price'));
+    if (!name) errors.push('اسم الصنف مطلوب');
+    if (salePrice === null || Number.isNaN(salePrice) || salePrice < 0) errors.push('سعر البيع مطلوب ويجب أن يكون رقماً غير سالب');
+
+    const numericRules = {
+      units_per_purchase: [1, 0.0001, 'معامل الشراء'],
+      purchase_price: [0, 0, 'سعر الشراء'],
+      cost_price: [null, 0, 'سعر التكلفة'],
+      tax_rate: [0, 0, 'الضريبة'],
+      min_stock: [0, 0, 'الحد الأدنى للمخزون'],
+      reorder_qty: [0, 0, 'كمية إعادة الطلب'],
+      shelf_life_days: [0, 0, 'مدة الصلاحية'],
+      opening_quantity: [0, 0, 'كمية رصيد أول المدة'],
+      opening_unit_cost: [null, 0, 'تكلفة رصيد أول المدة']
+    };
+    const numbers = {};
+    Object.keys(numericRules).forEach(key => {
+      const raw = value(key);
+      const parsed = raw ? parseImportNumber(raw) : numericRules[key][0];
+      if (parsed === null) { numbers[key] = null; return; }
+      if (Number.isNaN(parsed) || parsed < numericRules[key][1] ||
+          (key === 'tax_rate' && parsed > 100)) {
+        errors.push(numericRules[key][2] + ' غير صالح');
+      } else {
+        numbers[key] = parsed;
+      }
+    });
+
+    const categoryName = value('category');
+    const category = categoryName && categories.find(item =>
+      normalizeImportValue(item.name) === normalizeImportValue(categoryName));
+    if (categoryName && !category) warnings.push('سيتم إنشاء الفئة "' + categoryName + '" تلقائياً');
+    const isActive = parseImportBoolean(value('is_active'), true);
+    const isWeighted = parseImportBoolean(value('is_weighted'), false);
+    if (isActive === null) warnings.push('حالة الصنف غير مفهومة؛ تم تعيينه نشطاً');
+    if (isWeighted === null) warnings.push('قيمة الوزن غير مفهومة؛ تم تعيين الصنف غير موزون');
+
+    const openingQuantity = numbers.opening_quantity || 0;
+    const warehouseName = value('opening_warehouse');
+    let warehouse = warehouseName && warehouses.find(item =>
+      normalizeImportValue(item.name) === normalizeImportValue(warehouseName));
+    if (openingQuantity > 0 && (!warehouseName || !warehouse)) {
+      const requestedWarehouse = warehouseName;
+      warehouse = warehouses.find(item => item.is_default) || warehouses[0];
+      if (warehouse) warnings.push((requestedWarehouse
+        ? 'المخزن "' + requestedWarehouse + '" غير معروف؛ سيُستخدم المخزن الافتراضي '
+        : 'سيُستخدم المخزن الافتراضي ') + warehouse.name);
+      else errors.push('لا يوجد مخزن نشط لرصيد أول المدة');
     }
 
+    let expiryDate = normalizeImportDate(value('opening_expiry_date'));
+    if (openingQuantity > 0 && expiryDate) {
+      const expiryParts = expiryDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const parsedExpiry = expiryParts
+        ? new Date(Date.UTC(Number(expiryParts[1]), Number(expiryParts[2]) - 1, Number(expiryParts[3])))
+        : null;
+      if (!parsedExpiry || Number.isNaN(parsedExpiry.getTime()) ||
+          parsedExpiry.toISOString().slice(0, 10) !== expiryDate) {
+        errors.push('تاريخ الصلاحية يجب أن يكون بصيغة YYYY-MM-DD');
+      }
+    } else if (openingQuantity > 0) {
+      const defaultDays = Number(numbers.shelf_life_days) || Number(productSettings.defaultShelfLifeDays) || 365;
+      const defaultExpiry = new Date();
+      defaultExpiry.setDate(defaultExpiry.getDate() + defaultDays);
+      expiryDate = defaultExpiry.toISOString().slice(0, 10);
+      warnings.push('تم تحديد تاريخ صلاحية تلقائي: ' + expiryDate);
+    }
+
+    if ((value('purchase_price') || value('cost_price') || value('opening_unit_cost')) && !can('products.cost_view')) {
+      errors.push('استيراد الأسعار والتكلفة يتطلب صلاحية عرض التكلفة');
+    }
+    if (openingQuantity > 0 && !can('products.cost_view')) {
+      errors.push('رصيد أول المدة يتطلب صلاحية عرض التكلفة');
+    }
+    if (openingQuantity > 0 && !can('inventory.adjust')) errors.push('رصيد أول المدة يتطلب صلاحية تسوية المخزون');
+
+    const normalizedPlu = normalizeImportValue(pluCode);
+    const normalizedSku = normalizeImportValue(sku);
+    const identityMatches = products.filter(item =>
+      (barcode && normalizeImportIdentifier(item.barcode) === barcode) ||
+      (barcode && (item._extra_barcodes || []).some(extra => normalizeImportIdentifier(extra.barcode) === barcode)) ||
+      (normalizedPlu && normalizeImportValue(item.plu_code) === normalizedPlu) ||
+      (normalizedSku && normalizeImportValue(item.sku) === normalizedSku)
+    );
+    const matchedIds = Array.from(new Set(identityMatches.map(item => item.id)));
+    if (matchedIds.length > 1) errors.push('الباركود أو PLU أو SKU يطابق أكثر من صنف؛ راجع بيانات التعريف');
+    const existing = identityMatches[0] || null;
+    const action = mode === 'insert' && existing ? 'skip' : 'import';
+    const nameMatch = name && products.find(item =>
+      normalizeImportValue(item.name) === normalizeImportValue(name));
+    if (nameMatch && !existing) warnings.push('يوجد صنف بنفس الاسم؛ لن يتم دمجه دون باركود أو PLU أو SKU مطابق');
+    if (mode === 'upsert' && existing && openingQuantity > 0) {
+      warnings.push('سيتم تحديث بيانات الصنف دون إضافة رصيد لتجنب تكراره');
+    }
+    const item = {
+      company_id: session.company_id,
+      name,
+      barcode: barcode || null,
+      plu_code: pluCode || null,
+      sku: sku || null,
+      category_id: category ? category.id : null,
+      base_unit: normalizeImportUnit(value('base_unit'), 'base', warnings),
+      purchase_unit: normalizeImportUnit(value('purchase_unit'), 'purchase', warnings),
+      sale_unit: normalizeImportUnit(value('sale_unit'), 'sale', warnings),
+      units_per_purchase: numbers.units_per_purchase == null ? 1 : numbers.units_per_purchase,
+      sale_price: salePrice,
+      tax_rate: numbers.tax_rate || 0,
+      min_stock: numbers.min_stock || 0,
+      reorder_qty: numbers.reorder_qty || 0,
+      shelf_life_days: numbers.shelf_life_days || null,
+      is_active: isActive !== false,
+      is_weighed: isWeighted === true,
+      tax_rate_id: (taxRatesList.find(rate => Number(rate.rate) === Number(numbers.tax_rate || 0)) || {}).id || null
+    };
+    if (can('products.cost_view')) {
+      item.purchase_price = numbers.purchase_price || 0;
+      item.cost_price = numbers.cost_price == null
+        ? (item.purchase_price / item.units_per_purchase)
+        : numbers.cost_price;
+      if (numbers.cost_price == null && item.purchase_price > 0) {
+        warnings.push('تم حساب تكلفة الوحدة الأساسية من سعر الشراء ومعامل الشراء');
+      }
+    }
+    return {
+      rowNumber: row.rowNumber, cells: row.cells, name, barcode, errors, warnings, action, existing, item,
+      malformed: row.malformed,
+      duplicateInFile: row.duplicateInFile,
+      opening: {
+        quantity: openingQuantity, warehouse, lotNumber: value('opening_lot_number') || null,
+        expiryDate: expiryDate || null,
+        unitCost: numbers.opening_unit_cost == null ? (item.cost_price || 0) : numbers.opening_unit_cost
+      }
+    };
+  }
+
+  function renderImportPreview(mode) {
+    const preview = document.getElementById('importPreview');
+    if (!importRows.length) { preview.innerHTML = ''; return; }
+    const validated = importRows.map(row => {
+      const result = validateImportRow(row, mode);
+      if (result.malformed) result.errors.push('عدد الحقول لا يطابق عدد الأعمدة');
+      if (result.duplicateInFile) result.errors.push('الباركود مكرر داخل الملف');
+      return result;
+    });
+    const errors = validated.filter(row => row.errors.length).length;
+    const skipped = validated.filter(row => !row.errors.length && row.action === 'skip').length;
+    const ready = validated.length - errors - skipped;
+    preview.innerHTML =
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+        '<span class="badge badge-info">' + validated.length + ' صف</span>' +
+        '<span class="badge badge-success">' + ready + ' جاهز</span>' +
+        (skipped ? '<span class="badge badge-warning">' + skipped + ' مكرر سيتم تجاهله</span>' : '') +
+        (errors ? '<span class="badge badge-danger">' + errors + ' يحتاج تصحيح</span>' : '') +
+      '</div><div class="table-wrap" style="max-height:300px;border:1px solid var(--border);border-radius:8px">' +
+        '<table><thead><tr><th>السطر</th><th>الصنف</th><th>الباركود</th><th>المراجعة</th></tr></thead><tbody>' +
+          validated.slice(0, 20).map(row => '<tr><td>' + row.rowNumber + '</td><td>' + esc(row.name || '—') +
+            '</td><td>' + esc(row.barcode || '—') + '</td><td>' +
+            (row.errors.length ? '<span class="badge badge-danger">' + esc(row.errors.join('، ')) + '</span>' :
+              row.action === 'skip' ? '<span class="badge badge-warning">مكرر — سيتم التجاهل</span>' :
+              '<span class="badge ' + (row.warnings.length ? 'badge-warning' : 'badge-success') + '">' +
+                esc(row.warnings.join('، ') || 'جاهز') + '</span>') +
+            '</td></tr>').join('') +
+        '</tbody></table></div>' +
+        (validated.length > 20 ? '<div class="form-hint">يتم عرض أول 20 صفاً من ' + validated.length + '.</div>' : '');
+  }
+
+  async function prepareImportFile(file) {
+    const errorEl = document.getElementById('importError');
+    importRows = [];
+    importHeaders = [];
+    importCompleted = false;
+    document.getElementById('doImportBtn').disabled = false;
+    errorEl.classList.remove('show');
+    document.getElementById('importPreview').innerHTML = '';
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) throw new Error('حجم الملف يتجاوز الحد المسموح (5 ميجابايت)');
+    const rows = parseCSV(await file.text());
+    if (rows.length < 2) throw new Error('ملف فارغ أو لا يحتوي على أصناف');
+    const headers = normalizeImportHeaders(rows[0].map(header => header.replace(/^\uFEFF/, '').trim()));
+    if (!headers.includes('name') || !headers.includes('sale_price')) {
+      throw new Error('القالب يتطلب عمودي name و sale_price على الأقل');
+    }
+    if (rows.length - 1 > 1000) throw new Error('الحد الأقصى 1000 صنف في الملف الواحد');
+    importHeaders = headers;
+    importRows = rows.slice(1).map((cells, index) => ({
+      rowNumber: index + 2, cells: cells.map(cell => cell.trim()),
+      malformed: cells.length !== headers.length
+    }));
+    const identifierCounts = {};
+    importRows.forEach(row => {
+      ['barcode', 'plu_code', 'sku'].forEach(key => {
+        const index = importHeaders.indexOf(key);
+        const raw = index < 0 ? '' : row.cells[index];
+        const identifier = key === 'sku' ? normalizeImportValue(raw) : normalizeImportIdentifier(raw);
+        if (identifier) {
+          const composite = key + ':' + identifier;
+          identifierCounts[composite] = (identifierCounts[composite] || 0) + 1;
+        }
+      });
+    });
+    importRows.forEach(row => {
+      row.duplicateInFile = ['barcode', 'plu_code', 'sku'].some(key => {
+        const index = importHeaders.indexOf(key);
+        const raw = index < 0 ? '' : row.cells[index];
+        const identifier = key === 'sku' ? normalizeImportValue(raw) : normalizeImportIdentifier(raw);
+        return identifier && identifierCounts[key + ':' + identifier] > 1;
+      });
+    });
+    renderImportPreview(document.getElementById('importMode').value);
+  }
+
+  function getMissingImportCategories(sourceRows) {
+    const pending = new Map();
+    const categoryIndex = importHeaders.indexOf('category');
+    if (categoryIndex < 0) return pending;
+    (sourceRows || importRows).forEach(row => {
+      const name = String(row.cells[categoryIndex] || '').trim();
+      const normalized = normalizeImportValue(name);
+      if (name && !categories.some(category => normalizeImportValue(category.name) === normalized)) {
+        pending.set(normalized, name);
+      }
+    });
+    return pending;
+  }
+
+  async function ensureImportCategories(sourceRows) {
+    const pending = getMissingImportCategories(sourceRows);
+    const failures = new Map();
+    let createdCount = 0;
+    for (const [normalizedName, name] of pending) {
+      const result = await sb.from('categories').insert({
+        company_id: session.company_id,
+        name,
+        is_active: true,
+        sort_order: 0
+      }).select('id, name, parent_id').single();
+      if (result.error) {
+        const existing = await sb.from('categories')
+          .select('id, name, parent_id')
+          .eq('company_id', session.company_id)
+          .eq('name', name)
+          .eq('is_active', true)
+          .maybeSingle();
+        if (existing.error || !existing.data) {
+          failures.set(normalizedName, result.error.message +
+            (existing.error ? '؛ تعذر التحقق من وجود فئة بالاسم نفسه: ' + existing.error.message : ''));
+          continue;
+        }
+        categories.push(existing.data);
+      } else {
+        categories.push(result.data);
+        createdCount++;
+      }
+    }
+    if (createdCount) {
+      renderCategoryOptions();
+      renderCategoryTree();
+    }
+    return { failures, createdCount };
+  }
+
+  async function saveOpeningStock(productId, item, opening) {
+    const expiryDate = opening.expiryDate || (function() {
+      const date = new Date();
+      date.setFullYear(date.getFullYear() + 1);
+      return date.toISOString().slice(0, 10);
+    })();
+    const lotResult = await sb.from('stock_lots').insert({
+      company_id: session.company_id, branch_id: session.active_branch_id,
+      warehouse_id: opening.warehouse.id, product_id: productId,
+      lot_number: opening.lotNumber || ('OPEN-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.random().toString(36).substring(2, 6).toUpperCase()),
+      quantity_in: opening.quantity, quantity_left: opening.quantity,
+      effective_unit_cost: opening.unitCost, sale_price: item.sale_price,
+      expiry_date: expiryDate, is_quarantined: false, received_at: new Date().toISOString()
+    }).select('id').single();
+    if (lotResult.error) throw new Error('فشل إنشاء دفعة رصيد أول المدة: ' + lotResult.error.message);
+    const movementResult = await sb.from('inventory_movements').insert({
+      company_id: session.company_id, branch_id: session.active_branch_id,
+      warehouse_id: opening.warehouse.id, product_id: productId, lot_id: lotResult.data.id,
+      movement_type: 'in', quantity: opening.quantity, unit_cost: opening.unitCost,
+      reference_type: 'opening_stock', reference_id: productId,
+      reason: 'رصيد أول المدة - استيراد أصناف', created_by: session.user_id
+    });
+    if (movementResult.error) {
+      const cleanup = await sb.from('stock_lots').delete().eq('id', lotResult.data.id);
+      throw new Error('فشل تسجيل حركة رصيد أول المدة: ' + movementResult.error.message +
+        (cleanup.error ? '؛ وتعذر حذف الدفعة غير المكتملة: ' + cleanup.error.message : ''));
+    }
+  }
+
+  async function doImport() {
+    if (!can('products.manage')) { safeToast('error', 'لا تملك صلاحية استيراد المنتجات'); return; }
+    const errorEl = document.getElementById('importError');
+    errorEl.classList.remove('show');
+    if (importCompleted) { safeToast('warning', 'أغلق نافذة الاستيراد وافتحها لبدء عملية جديدة'); return; }
+    if (!document.getElementById('importFile').files[0] || !importRows.length) {
+      errorEl.textContent = 'اختر ملفاً صالحاً وراجع المعاينة قبل الاستيراد';
+      errorEl.classList.add('show');
+      return;
+    }
     const mode = document.getElementById('importMode').value;
-    const btn = document.getElementById('doImportBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
+    const validated = importRows.map(row => validateImportRow(row, mode));
+    validated.forEach(row => {
+      if (row.malformed) row.errors.push('عدد الحقول لا يطابق عدد الأعمدة');
+      if (row.duplicateInFile) row.errors.push('الباركود أو PLU أو SKU مكرر داخل الملف');
+    });
+    const ready = validated.filter(row => !row.errors.length && row.action === 'import');
+    const skipped = validated.filter(row => !row.errors.length && row.action === 'skip').length;
+    if (!ready.length && !skipped) {
+      errorEl.textContent = 'لا توجد صفوف صالحة للاستيراد. راجع أخطاء المعاينة أو وضع الاستيراد.';
+      errorEl.classList.add('show');
+      return;
+    }
+    const readyRowNumbers = new Set(ready.map(row => row.rowNumber));
+    const rowsForImport = importRows.filter(row => readyRowNumbers.has(row.rowNumber));
+    const newCategoryCount = getMissingImportCategories(rowsForImport).size;
+    if (!window.confirm('سيتم استيراد ' + ready.length + ' صنف' +
+        (newCategoryCount ? ' وإنشاء ' + newCategoryCount + ' فئة غير موجودة تلقائياً' : '') +
+        (skipped ? ' وتجاهل ' + skipped + ' صنف مكرر' : '') +
+        '. هل تريد المتابعة؟')) return;
 
+    const button = document.getElementById('doImportBtn');
+    button.disabled = true;
+    button.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div><span>جاري...</span>';
     try {
-      let successCount = 0, updateCount = 0, failCount = 0;
-      for (let i = 1; i < rows.length; i++) {
-        const cells = rows[i];
-        if (!cells || cells.length === 0) continue;
-        const name = cells[nameIdx]?.trim();
-        const salePrice = Number(cells[priceIdx]) || 0;
-        if (!name || salePrice <= 0) { failCount++; continue; }
-
-        const item = {
-          company_id: session.company_id,
-          name,
-          barcode: headers.indexOf('barcode') >= 0 ? (cells[headers.indexOf('barcode')]?.trim() || null) : null,
-          plu_code: headers.indexOf('plu_code') >= 0 ? (cells[headers.indexOf('plu_code')]?.trim() || null) : null,
-          base_unit: headers.indexOf('base_unit') >= 0 ? (cells[headers.indexOf('base_unit')]?.trim() || 'piece') : 'piece',
-          sale_unit: headers.indexOf('sale_unit') >= 0 ? (cells[headers.indexOf('sale_unit')]?.trim() || 'piece') : 'piece',
-          units_per_purchase: headers.indexOf('units_per_purchase') >= 0 ? Number(cells[headers.indexOf('units_per_purchase')]) || 1 : 1,
-          purchase_price: headers.indexOf('purchase_price') >= 0 ? Number(cells[headers.indexOf('purchase_price')]) || 0 : 0,
-          cost_price: headers.indexOf('cost_price') >= 0 ? Number(cells[headers.indexOf('cost_price')]) || 0 : 0,
-          sale_price: salePrice,
-          min_stock: headers.indexOf('min_stock') >= 0 ? Number(cells[headers.indexOf('min_stock')]) || 0 : 0,
-          is_active: true
-        };
-
+      const categoryResult = await ensureImportCategories(rowsForImport);
+      const resolvedRows = importRows.map(row => validateImportRow(row, mode));
+      resolvedRows.forEach(row => {
+        if (row.malformed) row.errors.push('عدد الحقول لا يطابق عدد الأعمدة');
+        if (row.duplicateInFile) row.errors.push('الباركود أو PLU أو SKU مكرر داخل الملف');
+        const categoryIndex = importHeaders.indexOf('category');
+        const categoryName = categoryIndex < 0 ? '' : String(row.cells[categoryIndex] || '').trim();
+        const categoryError = categoryResult.failures.get(normalizeImportValue(categoryName));
+        if (categoryError) row.errors.push('تعذر إنشاء الفئة "' + categoryName + '": ' + categoryError);
+      });
+      const rowsToImport = resolvedRows.filter(row => !row.errors.length && row.action === 'import');
+      const duplicateCount = resolvedRows.filter(row => !row.errors.length && row.action === 'skip').length;
+      let added = 0, updated = 0, openingCount = 0;
+      const failures = resolvedRows.filter(row => row.errors.length).map(row => ({
+        row: row.rowNumber, name: row.name, message: row.errors.join('، ')
+      }));
+      for (const row of rowsToImport) {
+        let productId = row.existing ? row.existing.id : null;
         try {
-          if (mode === 'upsert' && item.barcode) {
-            const existing = products.find(p => p.barcode === item.barcode);
-            if (existing) {
-              await sb.from('products').update(item).eq('id', existing.id);
-              updateCount++;
-              continue;
+          if (productId) {
+            const result = await sb.from('products').update(row.item)
+              .eq('id', productId).eq('company_id', session.company_id);
+            if (result.error) throw result.error;
+            updated++;
+          } else {
+            const result = await sb.from('products').insert(row.item).select('id').single();
+            if (result.error) throw result.error;
+            productId = result.data.id;
+          }
+          if (!row.existing && row.opening.quantity > 0) {
+            try {
+              await saveOpeningStock(productId, row.item, row.opening);
+              openingCount++;
+            } catch (openingError) {
+              const cleanup = await sb.from('products').delete()
+                .eq('id', productId).eq('company_id', session.company_id);
+              throw new Error(openingError.message +
+                (cleanup.error ? '؛ وتعذر حذف الصنف غير المكتمل: ' + cleanup.error.message : ''));
             }
           }
-          await sb.from('products').insert(item);
-          successCount++;
-        } catch (e) { failCount++; }
+          if (!row.existing) added++;
+        } catch (error) {
+          failures.push({ row: row.rowNumber, name: row.name, message: error.message || 'فشل غير معروف' });
+        }
       }
-      safeToast('success', 'إضافة ' + successCount + (updateCount > 0 ? ' · تحديث ' + updateCount : '') + (failCount > 0 ? ' · فشل ' + failCount : ''));
-      document.getElementById('importModal').classList.remove('show');
-      await loadProducts();
-      renderStats();
-      renderTable();
+      importCompleted = true;
+      if (added || updated || openingCount) {
+        await loadProducts();
+        renderStats();
+        renderTable();
+      }
+      const summary = 'إضافة ' + added + ' · تحديث ' + updated + ' · فئات جديدة ' +
+        categoryResult.createdCount + ' · أرصدة افتتاحية ' + openingCount +
+        ' · مكرر متجاهل ' + duplicateCount + ' · فشل ' + failures.length;
+      document.getElementById('importPreview').innerHTML = '<div class="unit-preview">' + esc(summary) + '</div>';
+      if (failures.length) {
+        errorEl.innerHTML = esc(summary) + '<br>' + failures.map(failure =>
+          'السطر ' + failure.row + ' (' + esc(failure.name || 'بدون اسم') + '): ' + esc(failure.message)
+        ).join('<br>');
+        errorEl.classList.add('show');
+        safeToast('warning', 'انتهى الاستيراد مع صفوف بها أخطاء؛ راجع التفاصيل');
+      } else {
+        safeToast('success', 'تم الاستيراد بنجاح: ' + summary);
+      }
+    } catch (error) {
+      errorEl.textContent = error.message || 'تعذر إكمال استيراد الأصناف';
+      errorEl.classList.add('show');
+      safeToast('error', errorEl.textContent);
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="upload"></i><span>استيراد</span>';
+      button.disabled = true;
+      button.innerHTML = '<i data-lucide="check"></i><span>اكتمل الاستيراد</span>';
       if (window.lucide) lucide.createIcons();
     }
   }
@@ -2058,7 +2586,26 @@ tbody tr.selected{background:var(--accent-soft)}
       document.getElementById('importFile').value = '';
       document.getElementById('importError').classList.remove('show');
       document.getElementById('importPreview').innerHTML = '';
+      importRows = [];
+      importHeaders = [];
+      importCompleted = false;
+      document.getElementById('doImportBtn').disabled = false;
+      document.getElementById('doImportBtn').innerHTML = '<i data-lucide="upload"></i><span>استيراد</span>';
       document.getElementById('importModal').classList.add('show');
+      if (window.lucide) lucide.createIcons();
+    };
+    document.getElementById('downloadImportTemplateBtn').onclick = downloadImportTemplate;
+    document.getElementById('importFile').onchange = async function() {
+      try {
+        await prepareImportFile(this.files[0]);
+      } catch (error) {
+        const importError = document.getElementById('importError');
+        importError.textContent = error.message || 'تعذر قراءة ملف الاستيراد';
+        importError.classList.add('show');
+      }
+    };
+    document.getElementById('importMode').onchange = function() {
+      renderImportPreview(this.value);
     };
     document.getElementById('doImportBtn').onclick = doImport;
 
